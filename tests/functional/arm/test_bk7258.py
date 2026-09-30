@@ -355,6 +355,47 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_spi1_empty_read_fault(self):
         self.run_spi_empty_fault("aidk_ai_toy", 1)
 
+    def run_wdt_fault(self, board, write):
+        elf = self.build_fixture(
+            board,
+            "sys_fault.c",
+            WRITE_PROBE=int(write),
+            PROBE_ADDRESS=hex(0x5480000C if write else 0x44800000),
+            PROBE_NAME='"WDT"',
+        )
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(
+            self,
+            "BK7258 WDT ACCESS FAULT OK",
+            "BK7258 WDT ACCESS FAULT FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        expected = (
+            "bk7258-wdt: write offset 0xc is not implemented\n"
+            if write
+            else "bk7258-wdt: read offset 0x0 is not implemented\n"
+        )
+        self.assertEqual(mmio.read_text(), expected)
+
+    def test_t5_board_wdt_unsupported_read(self):
+        self.run_wdt_fault("t5_board", False)
+
+    def test_t5_board_wdt_unsupported_write(self):
+        self.run_wdt_fault("t5_board", True)
+
+    def test_t5ai_core_wdt_unsupported_read(self):
+        self.run_wdt_fault("t5ai_core", False)
+
+    def test_t5ai_core_wdt_unsupported_write(self):
+        self.run_wdt_fault("t5ai_core", True)
+
+    def test_aidk_ai_toy_wdt_unsupported_read(self):
+        self.run_wdt_fault("aidk_ai_toy", False)
+
+    def test_aidk_ai_toy_wdt_unsupported_write(self):
+        self.run_wdt_fault("aidk_ai_toy", True)
+
     def run_pwm_output_fault(self, board, unit):
         elf = self.build_fixture(
             board,

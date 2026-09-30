@@ -377,6 +377,15 @@ this is not a power-loss persistence model. AON watchdog periods use ROSC/32
 remaining count rounded up to a whole watchdog tick; sub-tick phase is not
 retained. Oscillator tolerances, undocumented invalid-key behavior, PMU R2's
 selective reset domains and secondary reset escalation are absent.
+The APB watchdog's implemented MMIO remains its global control at +0x08
+and keyed period at +0x10. Other reads/writes now return a transaction error
+instead of read-zero/ignored-write behavior after a log message. Six native
+Cortex-M33 cases check an unmodeled identity read and NS-alias status write
+on all three machines, requiring a precise BusFault and matching BFAR.
+This is a strict model boundary; it does not claim that physical watchdog
+identity/status registers fault, or change the supported key/expiry behavior.
+The AON watchdog exposes only its existing single keyed word.
+
 UART idle detection uses its selected input clock/(baud divider+1) and
 32/64/128/256 bit-times. Gating or loss of the selected source pauses the
 remaining source cycles, rounded up to a whole input-clock cycle; recovery
@@ -962,7 +971,12 @@ ELF loader. The unchanged direct product CP passes Flash initialization and
 next faults at unimplemented RF register 0x4980c000 (SDK rc_drv_set_rf_en).
 The MCUboot-configured CP reads unimplemented AON R7A reset-cause storage
 0x440001e8 before Flash. Its snapshot/POR/reset-domain semantics are not
-established by the pinned SDK, whose register definition is reserved. Both
+established by the pinned SDK, whose register definition is reserved. Its
+``reset_reason.c`` writes software CP/AP reason tags into keyed R0 fields
+and reads those fields back from R7A during startup; that software usage
+alone does not define the hardware snapshot/clear timing across POR,
+watchdog or deep-sleep resets. The missing reset-domain contract remains
+blocked rather than synthesized from software reason enumerations. Both
 probes enter CP directly: they do not execute ROM/BL1/BL2. Known-stop tests
 retain exact configuration-specific missing-device boundaries; they do not
 assert successful product boot.

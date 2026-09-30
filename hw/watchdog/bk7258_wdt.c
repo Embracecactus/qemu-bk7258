@@ -67,23 +67,28 @@ static void bk7258_wdt_reset(DeviceState *dev)
     qemu_irq_lower(s->nmi);
 }
 
-static uint64_t bk7258_wdt_read(void *opaque, hwaddr addr, unsigned size)
+static MemTxResult bk7258_wdt_read(void *opaque, hwaddr addr,
+                                  uint64_t *value, unsigned size,
+                                  MemTxAttrs attrs)
 {
     BK7258WDTState *s = opaque;
 
     if (addr == (s->aon ? 0 : 0x10)) {
-        return s->period;
+        *value = s->period;
+        return MEMTX_OK;
     }
     if (!s->aon && addr == 8) {
-        return s->global_ctrl;
+        *value = s->global_ctrl;
+        return MEMTX_OK;
     }
     qemu_log_mask(LOG_UNIMP, "bk7258-wdt: read offset 0x%" HWADDR_PRIx
                   " is not implemented\n", addr);
-    return 0;
+    return MEMTX_ERROR;
 }
 
-static void bk7258_wdt_write(void *opaque, hwaddr addr,
-                             uint64_t value, unsigned size)
+static MemTxResult bk7258_wdt_write(void *opaque, hwaddr addr,
+                                   uint64_t value, unsigned size,
+                                   MemTxAttrs attrs)
 {
     BK7258WDTState *s = opaque;
     uint32_t period = value & 0xffff;
@@ -94,16 +99,16 @@ static void bk7258_wdt_write(void *opaque, hwaddr addr,
             bk7258_wdt_reset(DEVICE(s));
         }
         s->global_ctrl = value & 3;
-        return;
+        return MEMTX_OK;
     }
     if (addr != (s->aon ? 0 : 0x10)) {
         qemu_log_mask(LOG_UNIMP, "bk7258-wdt: write offset 0x%" HWADDR_PRIx
                       " is not implemented\n", addr);
-        return;
+        return MEMTX_ERROR;
     }
     if (!s->aon && !(s->global_ctrl & 1) && period) {
         s->keyed = false;
-        return;
+        return MEMTX_OK;
     }
     if (key == 0x5a) {
         s->pending_period = period;
@@ -116,11 +121,12 @@ static void bk7258_wdt_write(void *opaque, hwaddr addr,
         }
         s->keyed = false;
     }
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps bk7258_wdt_ops = {
-    .read = bk7258_wdt_read,
-    .write = bk7258_wdt_write,
+    .read_with_attrs = bk7258_wdt_read,
+    .write_with_attrs = bk7258_wdt_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
