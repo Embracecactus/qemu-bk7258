@@ -30,16 +30,48 @@
 #define SYSCALIB_SKEW (1U << 30)
 #define SYSCALIB_TENMS ((1U << 24) - 1)
 
+static Clock *systick_selected_clock(SysTickState *s)
+{
+    return s->control & SYSTICK_CLKSOURCE ? s->cpuclk : s->refclk;
+}
+
+static void systick_stop(SysTickState *s)
+{
+    ptimer_stop(s->ptimer);
+    s->clock_paused = false;
+}
+
+static void systick_run(SysTickState *s)
+{
+    if (clock_is_enabled(systick_selected_clock(s))) {
+        ptimer_run(s->ptimer, 0);
+    } else {
+        s->clock_paused = true;
+    }
+}
+
 static void systick_set_period_from_clock(SysTickState *s)
 {
+    Clock *clk = systick_selected_clock(s);
+
     /*
      * Set the ptimer period from whichever clock is selected.
      * Must be called from within a ptimer transaction block.
      */
-    if (s->control & SYSTICK_CLKSOURCE) {
-        ptimer_set_period_from_clock(s->ptimer, s->cpuclk, 1);
-    } else {
-        ptimer_set_period_from_clock(s->ptimer, s->refclk, 1);
+    if (!clock_is_enabled(clk)) {
+        /*
+         * Stop with the old period still in effect, so ptimer can save
+         * the current count without dividing by a zero period. Remember
+         * only timers which were running: ENABLE can also remain set
+         * after a timer stops because its reload value was zero.
+         */
+        s->clock_paused |= ptimer_is_running(s->ptimer);
+        ptimer_stop(s->ptimer);
+    }
+    ptimer_set_period_from_clock(s->ptimer, clk, 1);
+    if (clock_is_enabled(clk) && s->clock_paused) {
+        s->clock_paused = false;
+        ptimer_run(s->ptimer, 0);
     }
 }
 
@@ -59,7 +91,7 @@ static void systick_timer_tick(void *opaque)
          * Timer expiry with SYST_RVR zero disables the timer
          * (but doesn't clear SYST_CSR.ENABLE)
          */
-        ptimer_stop(s->ptimer);
+        systick_stop(s);
     }
 }
 
@@ -100,6 +132,11 @@ static MemTxResult systick_read(void *opaque, hwaddr addr, uint64_t *data,
          */
         if (!clock_has_source(s->refclk)) {
             val = SYSCALIB_NOREF;
+            break;
+        }
+        if (!clock_is_enabled(s->refclk)) {
+            /* A connected but gated clock has no usable calibration. */
+            val = SYSCALIB_SKEW;
             break;
         }
         val = clock_ns_to_ticks(s->refclk, 10 * SCALE_MS) - 1;
@@ -149,16 +186,18 @@ static MemTxResult systick_write(void *opaque, hwaddr addr,
         s->control &= 0xfffffff8;
         s->control |= value & 7;
 
+        if ((oldval ^ value) & SYSTICK_ENABLE &&
+            !(value & SYSTICK_ENABLE)) {
+            systick_stop(s);
+        }
+
         if ((oldval ^ value) & SYSTICK_CLKSOURCE) {
             systick_set_period_from_clock(s);
         }
 
-        if ((oldval ^ value) & SYSTICK_ENABLE) {
-            if (value & SYSTICK_ENABLE) {
-                ptimer_run(s->ptimer, 0);
-            } else {
-                ptimer_stop(s->ptimer);
-            }
+        if ((oldval ^ value) & SYSTICK_ENABLE &&
+            (value & SYSTICK_ENABLE)) {
+            systick_run(s);
         }
         ptimer_transaction_commit(s->ptimer);
         break;
@@ -176,7 +215,7 @@ static MemTxResult systick_write(void *opaque, hwaddr addr,
          */
         ptimer_transaction_begin(s->ptimer);
         if (ptimer_get_limit(s->ptimer) == 0) {
-            ptimer_stop(s->ptimer);
+            systick_stop(s);
         }
         ptimer_set_count(s->ptimer, 0);
         s->control &= ~SYSTICK_COUNTFLAG;
@@ -207,7 +246,7 @@ static void systick_reset(DeviceState *dev)
         /* This bit is always 1 if there is no external refclk */
         s->control |= SYSTICK_CLKSOURCE;
     }
-    ptimer_stop(s->ptimer);
+    systick_stop(s);
     ptimer_set_count(s->ptimer, 0);
     ptimer_set_limit(s->ptimer, 0, 0);
     systick_set_period_from_clock(s);
@@ -220,10 +259,11 @@ static void systick_cpuclk_update(void *opaque, ClockEvent event)
 
     if (!(s->control & SYSTICK_CLKSOURCE)) {
         /* currently using refclk, we can ignore cpuclk changes */
+        return;
     }
 
     ptimer_transaction_begin(s->ptimer);
-    ptimer_set_period_from_clock(s->ptimer, s->cpuclk, 1);
+    systick_set_period_from_clock(s);
     ptimer_transaction_commit(s->ptimer);
 }
 
@@ -233,10 +273,11 @@ static void systick_refclk_update(void *opaque, ClockEvent event)
 
     if (s->control & SYSTICK_CLKSOURCE) {
         /* currently using cpuclk, we can ignore refclk changes */
+        return;
     }
 
     ptimer_transaction_begin(s->ptimer);
-    ptimer_set_period_from_clock(s->ptimer, s->refclk, 1);
+    systick_set_period_from_clock(s);
     ptimer_transaction_commit(s->ptimer);
 }
 
@@ -271,10 +312,37 @@ static void systick_realize(DeviceState *dev, Error **errp)
     /* It's OK not to connect the refclk */
 }
 
+static bool systick_clock_paused_needed(void *opaque)
+{
+    SysTickState *s = SYSTICK(opaque);
+
+    return s->clock_paused;
+}
+
+static const VMStateDescription vmstate_systick_clock_paused = {
+    .name = "armv7m_systick/clock-paused",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = systick_clock_paused_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BOOL(clock_paused, SysTickState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int systick_pre_load(void *opaque)
+{
+    SysTickState *s = SYSTICK(opaque);
+
+    s->clock_paused = false;
+    return 0;
+}
+
 static const VMStateDescription vmstate_systick = {
     .name = "armv7m_systick",
     .version_id = 3,
     .minimum_version_id = 3,
+    .pre_load = systick_pre_load,
     .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(refclk, SysTickState),
         VMSTATE_CLOCK(cpuclk, SysTickState),
@@ -282,6 +350,10 @@ static const VMStateDescription vmstate_systick = {
         VMSTATE_INT64(tick, SysTickState),
         VMSTATE_PTIMER(ptimer, SysTickState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_systick_clock_paused,
+        NULL
     }
 };
 

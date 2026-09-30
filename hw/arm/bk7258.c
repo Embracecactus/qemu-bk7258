@@ -28,30 +28,62 @@
 #define RESET_RELEASE 1U
 #define POWER_DOWN 2U
 #define CPU_HALT 8U
+#define TICK_ROUTES ((1U << 29) | (1U << 30) | (1U << 27))
 
 static const uint32_t uart_base[] = { 0x44820000, 0x45830000, 0x45840000 };
 static const unsigned uart_irq[] = { 4, 15, 16 };
 
+static void bk7258_update_tick_clocks(BK7258State *s)
+{
+    static const unsigned bit[] = { 29, 30, 27 };
+
+    for (unsigned i = 0; i < 3; i++) {
+        clock_update_hz(s->refclk[i],
+                        s->power_sleep & (1U << bit[i]) ? 32000 : 0);
+    }
+}
+
+static void bk7258_analog_complete(void *opaque)
+{
+    BK7258State *s = opaque;
+
+    for (unsigned i = 0; i < ARRAY_SIZE(s->analog); i++) {
+        if (s->analog_busy & (1U << i)) {
+            s->analog[i] = s->analog_pending[i];
+        }
+    }
+    s->analog_busy = 0;
+}
+
+static void bk7258_update_wdt_clock(BK7258State *s)
+{
+    unsigned divider = 1U << (((s->clock_select >> 2) & 3) + 1);
+
+    clock_update_hz(s->wdtclk[1],
+                    s->peripheral_clocks & (1U << 31) ? 32000 / divider : 0);
+}
+
 static void bk7258_update_irqs(BK7258State *s)
 {
-    unsigned cpu, uart;
+    unsigned cpu, irq;
 
     for (cpu = 0; cpu < 3; cpu++) {
-        for (uart = 0; uart < 3; uart++) {
-            qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->cpu[cpu]), uart_irq[uart]),
+        uint64_t enabled = s->irq_enable[cpu][0] |
+                           (uint64_t)s->irq_enable[cpu][1] << 32;
+        for (irq = 0; irq < 64; irq++) {
+            qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->cpu[cpu]), irq),
                          !(s->cpu_control[cpu] & 4) &&
-                         !!(s->uart_levels & s->irq_enable[cpu][0] &
-                            (1U << uart_irq[uart])));
+                         !!(s->irq_levels & enabled & (UINT64_C(1) << irq)));
         }
     }
 }
 
-static void bk7258_uart_irq(void *opaque, int n, int level)
+static void bk7258_irq(void *opaque, int n, int level)
 {
     BK7258State *s = opaque;
-    uint32_t bit = 1U << uart_irq[n];
+    uint64_t bit = UINT64_C(1) << n;
 
-    s->uart_levels = (s->uart_levels & ~bit) | (level ? bit : 0);
+    s->irq_levels = (s->irq_levels & ~bit) | (level ? bit : 0);
     bk7258_update_irqs(s);
 }
 
@@ -65,12 +97,27 @@ static uint64_t bk7258_sys_read(void *opaque, hwaddr offset, unsigned size)
     case 0x14:
     case 0x18:
         return s->cpu_control[(offset - 0x10) / 4];
+    case 0x20:
+        return s->clock_mode;
+    case 0x28:
+        return s->clock_select;
+    case 0x40:
+        return s->power_sleep;
+    case 0xc0 ... 0xd8:
+        return s->gpio_mux[(offset - 0xc0) / 4];
+    case 0xe8:
+        return s->analog_busy;
+    case 0x100 ... 0x16c:
+        return s->analog[(offset - 0x100) / 4];
+    case 0x30:
+        return s->peripheral_clocks;
     case 0x80 ... 0x94:
         index = (offset - 0x80) / 4;
         return s->irq_enable[index / 2][index % 2];
     case 0xa0 ... 0xb4:
         index = (offset - 0xa0) / 4;
-        return index % 2 ? 0 : s->uart_levels & s->irq_enable[index / 2][0];
+        return (s->irq_levels >> (32 * (index % 2))) &
+               s->irq_enable[index / 2][index % 2];
     default:
         qemu_log_mask(LOG_UNIMP, "bk7258-sys: read offset 0x%" HWADDR_PRIx
                       " is not implemented\n", offset);
@@ -134,6 +181,39 @@ static void bk7258_sys_write(void *opaque, hwaddr offset,
                              RUN_ON_CPU_HOST_PTR(control));
         }
         bk7258_update_irqs(s);
+        break;
+    case 0x20:
+        s->clock_mode = value;
+        break;
+    case 0x40:
+        s->power_sleep = value;
+        bk7258_update_tick_clocks(s);
+        break;
+    case 0xc0 ... 0xd8:
+        s->gpio_mux[(offset - 0xc0) / 4] = value;
+        break;
+    case 0x100 ... 0x16c:
+        index = (offset - 0x100) / 4;
+        if (s->analog_busy & (1U << index)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "bk7258-sys: analog register %u is busy\n", index);
+            break;
+        }
+        s->analog_pending[index] = value;
+        s->analog_busy |= 1U << index;
+        /* Register transfer latency, not analog settling or PLL lock. */
+        if (!timer_pending(s->analog_timer)) {
+            timer_mod(s->analog_timer,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 1000);
+        }
+        break;
+    case 0x28:
+        s->clock_select = value;
+        bk7258_update_wdt_clock(s);
+        break;
+    case 0x30:
+        s->peripheral_clocks = value;
+        bk7258_update_wdt_clock(s);
         break;
     case 0x80 ... 0x94:
         index = (offset - 0x80) / 4;
@@ -233,6 +313,39 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    for (i = 0; i < 2; i++) {
+        DeviceState *wdt = DEVICE(&s->wdt[i]);
+        SysBusDevice *bus = SYS_BUS_DEVICE(wdt);
+        uint32_t address = i ? 0x44800000 : 0x44000600;
+        g_autofree char *name = g_strdup_printf("wdtclk%u", i);
+
+        s->wdtclk[i] = clock_new(obj, name);
+        clock_set_hz(s->wdtclk[i], i ? 0 : 1000);
+        qdev_prop_set_bit(wdt, "aon", i == 0);
+        qdev_connect_clock_in(wdt, "clk", s->wdtclk[i]);
+        if (!sysbus_realize(bus, errp)) {
+            return;
+        }
+        sysbus_mmio_map(bus, 0, address);
+        if (i) {
+            sysbus_connect_irq(bus, 0,
+                qdev_get_gpio_in_named(DEVICE(&s->cpu[0]), "NMI", 0));
+        }
+        bk7258_alias(&s->wdt_ns[i], obj, "bk7258.wdt-ns", &s->wdt[i].iomem,
+                     memory, address + NS_OFFSET, i ? 0x1000 : 4);
+    }
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->aon), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->aon), 0, 0x44000000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->aon), 1, 0x44000400);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->aon), 0, qdev_get_gpio_in(dev, 55));
+    bk7258_alias(&s->aon_ns[0], obj, "bk7258.pmu-ns", &s->aon.pmu,
+                 memory, 0x54000000, 0x200);
+    bk7258_alias(&s->aon_ns[1], obj, "bk7258.gpio-ns", &s->aon.gpio,
+                 memory, 0x54000400, 0x200);
+
     memory_region_init_io(&s->sysctrl, obj, &bk7258_sys_ops, s,
                           "bk7258.sysctrl", 0x1000);
     memory_region_add_subregion(memory, SYS_BASE, &s->sysctrl);
@@ -247,7 +360,7 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
             return;
         }
         sysbus_mmio_map(bus, 0, uart_base[i]);
-        sysbus_connect_irq(bus, 0, qdev_get_gpio_in(dev, i));
+        sysbus_connect_irq(bus, 0, qdev_get_gpio_in(dev, uart_irq[i]));
         bk7258_alias(&s->uart_ns[i], obj, "bk7258.uart-ns", &s->uart[i].iomem,
                      memory, uart_base[i] + NS_OFFSET, 0x1000);
     }
@@ -261,7 +374,15 @@ static void bk7258_reset(DeviceState *dev)
     s->cpu_control[1] = POWER_DOWN;
     s->cpu_control[2] = POWER_DOWN | CPU_HALT;
     memset(s->irq_enable, 0, sizeof(s->irq_enable));
-    s->uart_levels = 0;
+    s->irq_levels = 0;
+    s->clock_select = s->peripheral_clocks = s->clock_mode = 0;
+    s->power_sleep = TICK_ROUTES;
+    memset(s->gpio_mux, 0, sizeof(s->gpio_mux));
+    memset(s->analog, 0, sizeof(s->analog));
+    s->analog_busy = 0;
+    timer_del(s->analog_timer);
+    bk7258_update_tick_clocks(s);
+    bk7258_update_wdt_clock(s);
     bk7258_update_irqs(s);
 }
 
@@ -274,7 +395,18 @@ static void bk7258_init(Object *obj)
         object_initialize_child(obj, "cpu[*]", &s->cpu[i], TYPE_ARMV7M);
         object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_BK7258_UART);
     }
-    qdev_init_gpio_in(DEVICE(obj), bk7258_uart_irq, 3);
+    for (i = 0; i < 2; i++) {
+        object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
+    }
+    object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);
+    qdev_init_gpio_in(DEVICE(obj), bk7258_irq, 64);
+    s->analog_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                   bk7258_analog_complete, s);
+}
+
+static void bk7258_finalize(Object *obj)
+{
+    timer_free(BK7258_SOC(obj)->analog_timer);
 }
 
 static const Property bk7258_properties[] = {
@@ -339,6 +471,7 @@ static const TypeInfo bk7258_types[] = {
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(BK7258State),
         .instance_init = bk7258_init,
+        .instance_finalize = bk7258_finalize,
         .class_init = bk7258_class_init,
     }, {
         .name = MACHINE_TYPE_NAME("t5_board"),

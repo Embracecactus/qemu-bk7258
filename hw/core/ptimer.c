@@ -410,6 +410,11 @@ uint64_t ptimer_get_limit(ptimer_state *s)
     return s->limit;
 }
 
+bool ptimer_is_running(const ptimer_state *s)
+{
+    return s->enabled != 0;
+}
+
 void ptimer_transaction_begin(ptimer_state *s)
 {
     assert(!s->in_transaction);

@@ -23,20 +23,48 @@ Implemented slice
   board profiles specify 8-MiB physical flash; the model exposes complete
   32-byte logical units after removing each physical 2-byte CRC trailer.
   Raw operator images, encryption and CRC decoding are not implemented.
-* Three functional UARTs: transmit, bounded receive queue, RX threshold and
+* Three functional UARTs: transmit, bounded receive queue, RX threshold, baud-derived RX-idle completion and
   TX-finish status, W1C acknowledgement, and per-CPU interrupt routing.
   Connect UART0/1/2 with the first/second/third ``-serial`` option.
 * SYS core control and interrupt enable/status registers. Reset release samples
   the vector address; changing vector bits while running does not reset a CPU.
   Halt/power gates preserve CPU state. Changes run in target-CPU order.
-* Native Cortex-M33 SysTick exception delivery. Fixed diagnostic CPU clock is
-  26 MHz; fixed external reference is 32,000 Hz. PLLs, DVFS and SYS clock-gating
-  registers are not emulated. The external reference is always available.
+* Native Cortex-M33 SysTick exception delivery. CPU clock remains 26 MHz.
+  SYS+0x40 bits 29/30/27 gate each core's 32,000-Hz external reference.
+  Gating preserves timer count; changing an unselected source is inert.
+* AON watchdog key/reload/stop and timed system reset. APB watchdog clock
+  gate/divider, key/reload/stop and real CP (physical CPU0) NMI delivery;
+  the NMI handler, rather than the device, decides whether to reset.
+* AON PMU R0/R1/R2, keyed retention commit, sleep/wake configuration readback,
+  and a selectable chip ID. Default 0x24940610 is the SDK MP-I revision choice,
+  not a claim that every physical board has this revision. Override with
+  ``-global bk7258-aon.chip-id=...`` when using another documented revision.
+* 56 digital GPIOs: active-low output enable, input/pull state, retention lock,
+  edge/level IRQ55, per-pin IRQ masking and W1C. Named GPIO inputs/outputs can
+  connect board devices. SYS GPIO mux registers retain configuration; alternate
+  peripheral functions are not connected to physical pads yet.
+* Analog-register transactions: writes become visible after a virtual 1 us
+  transfer and clear the per-register busy bit at SYS+0xe8. This is a functional
+  transaction latency, not measured analog settling. Writes while busy are
+  rejected. The selected SDK CP/AP defconfigs disable
+  CONFIG_ANA_REG_WRITE_POLL_REG_B; the alternative SYS+0x2c busy view is absent.
 
 Diagnostic choices are deliberately explicit: UART receive capacity is 128
 bytes (not a verified silicon FIFO depth), TX drains synchronously, interrupt
 route masks reset to zero, CPU1 control resets to 0x2 and CPU2 to 0xa. These
 reset defaults are an emulator boot contract, not measured power-on defaults.
+External SysTick routes start enabled, watchdogs start disarmed, and GPIO pads
+start output-disabled with pull-down. AON retained state survives warm reset;
+this is not a power-loss persistence model. AON watchdog periods use the SDK
+millisecond API contract, APB uses 32 kHz / {2,4,8,16}; oscillator tolerances,
+undocumented invalid-key behavior and secondary reset escalation are absent.
+UART idle detection uses 26 MHz/(divider+1) and 32/64/128/256 bit-times. It is
+canceled on drain, RX disable and reset; IRQ status remains W1C. Flow/wake
+configuration has masked readback, but enabling physical RTS/CTS or sleep-wake
+signaling emits an unsupported warning. DMA, error framing and TX timing are
+not modeled. SYS clock-mode and PMU power fields retain configuration only;
+no PLL lock, calibration completion, rail transition or DVFS success is faked.
+
 Migration/snapshot state is unsupported and the SoC is marked unmigratable.
 Unimplemented registers report through ``-d unimp`` instead of fabricating
 successful device identification or completion bits.
@@ -51,6 +79,10 @@ Per-core ITCM      0x00000000                     0x10000000
 Per-core DTCM      0x20000000                     0x30000000
 Shared SRAM        0x28000000, 0x08000000         0x38000000, 0x18000000
 Logical flash XIP  0x02000000                     0x12000000
+AON PMU            0x44000000                     0x54000000
+GPIO               0x44000400                     0x54000400
+AON watchdog       0x44000600                     0x54000600
+APB/NMI watchdog   0x44800000                     0x54800000
 SYS                0x44010000                     0x54010000
 UART0              0x44820000                     0x54820000
 UART1              0x45830000                     0x55830000
@@ -91,8 +123,25 @@ Tests and fixtures remain canonical under that repository's
 
 A passing diagnostic proves CPU instruction execution, SRAM aliases,
 SysTick exceptions, core release/stop/reset, private TCM, UART receive IRQ and
-system reset within this slice. It does not prove NuttX/NSH startup, production
-CP/AP images, AP SMP scheduling, firmware update correctness or hardware timing.
+system reset within this slice, including a real watchdog NMI under PRIMASK.
+
+A separate real NuttX ``aidk_ai_toy/native_nsh`` CP ELF now reaches NSH through
+unchanged NuttX/SDK startup, UART, NVIC and SysTick paths. Its existing-Kconfig
+profile excludes optional product peripherals; it does not patch startup to
+detect QEMU. The contest CLI ``qemu native-nsh --build-manifest ...`` checks
+native task listing, UART commands, a background sleeper plus foreground
+progress, elapsed uptime, error handling and guest reboot. It requires a
+rehashed direct-build manifest and records ELF/source identity.
+
+QEMU's optional FPB/DWT/debug-monitor registers are unimplemented. The pinned
+NuttX ``arm_enable_dbgmonitor()`` probes them because ARCH_CORTEXM33 selects
+ARCH_HAVE_DEBUG. The NSH harness preserves and counts exactly those eight
+startup messages, rejecting every other unknown access, including DWT cycle
+counter reads. No debugger, breakpoint or performance-counter claim follows.
+The unchanged product CP remains blocked at CKMN 0x448a0008; the known-stop
+regression is explicitly a failure-boundary test, not a product-boot pass.
+Production CP/AP boot, AP SMP scheduling, firmware updates and hardware timing
+remain outside this acceptance.
 
 Register provenance
 -------------------
@@ -107,7 +156,15 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   ``cp/middleware/soc/bk7258/hal/uart_ll.h``: register fields and W1C
 * ``cp/middleware/soc/bk7258/soc/sys_reg.h``, ``sys_struct.h`` and
   ``cp/components/bk_startup/system_main.c``: CPU controls and IRQ routing
-* ``cp/include/driver/int_types.h``: UART IRQ numbers 4, 15 and 16
+* ``cp/include/driver/int_types.h``: UART IRQ numbers 4, 15 and 16, GPIO IRQ55
+* ``cp/middleware/soc/bk7258/soc/{aon_pmu,gpio,wdt}_struct.h`` and matching
+  ``hal/*_ll.h``: PMU keys/retention, GPIO fields and watchdog key registers
+* ``cp/middleware/driver/{wdt,wdt_nmi,gpio}`` and
+  ``cp/middleware/soc/common/hal/wdt_hal.c``: watchdog timebase/stop and GPIO IRQ
+* CP and AP ``components/cmsis/CMSIS_5/Device/Beken/bk7236xx/Source/smp/startup_cpu0.c``:
+  watchdog NMI belongs to physical CPU0; AP treats an NMI as an illegal-jump fault
+* ``cp/middleware/soc/bk7258/hal/sys_ll.h`` and CP/AP BK7258 defconfigs:
+  selected analog transfer busy view
 
 The Apache-2.0 contest repository at
 ``28894814cb7967054847ac147e83b8b8e68fed5c`` supplies integration evidence:

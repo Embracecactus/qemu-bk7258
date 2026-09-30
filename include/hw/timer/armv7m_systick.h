@@ -45,6 +45,7 @@ struct SysTickState {
     qemu_irq irq;
     Clock *refclk;
     Clock *cpuclk;
+    bool clock_paused;
 };
 
 #endif

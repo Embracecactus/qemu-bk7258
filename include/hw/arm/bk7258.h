@@ -4,6 +4,8 @@
 
 #include "hw/arm/armv7m.h"
 #include "hw/char/bk7258_uart.h"
+#include "hw/watchdog/bk7258_wdt.h"
+#include "hw/misc/bk7258_aon.h"
 
 #define TYPE_BK7258_SOC "bk7258-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(BK7258State, BK7258_SOC)
@@ -12,6 +14,20 @@ struct BK7258State {
     SysBusDevice parent_obj;
     ARMv7MState cpu[3];
     BK7258UARTState uart[3];
+    BK7258WDTState wdt[2];
+    BK7258AONState aon;
+    MemoryRegion aon_ns[2];
+    MemoryRegion wdt_ns[2];
+    Clock *wdtclk[2];
+    uint32_t clock_select;
+    uint32_t peripheral_clocks;
+    uint32_t power_sleep;
+    uint32_t clock_mode;
+    uint32_t gpio_mux[7];
+    uint32_t analog[28];
+    uint32_t analog_pending[28];
+    uint32_t analog_busy;
+    QEMUTimer *analog_timer;
     MemoryRegion cpu_memory[3];
     MemoryRegion shared_alias[3];
     MemoryRegion itcm[3];
@@ -29,7 +45,7 @@ struct BK7258State {
     Clock *refclk[3];
     uint32_t cpu_control[3];
     uint32_t irq_enable[3][2];
-    uint32_t uart_levels;
+    uint64_t irq_levels;
     uint32_t flash_size;
     uint32_t boot_vector;
 };

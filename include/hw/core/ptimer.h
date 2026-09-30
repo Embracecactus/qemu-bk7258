@@ -297,6 +297,15 @@ void ptimer_run(ptimer_state *s, int oneshot);
  */
 void ptimer_stop(ptimer_state *s);
 
+/**
+ * ptimer_is_running - Return whether a ptimer is enabled
+ * @s: timer to query
+ *
+ * This reports the timer's current state, including stops performed by
+ * the ptimer itself when it cannot reload. It does not change the timer.
+ */
+bool ptimer_is_running(const ptimer_state *s);
+
 extern const VMStateDescription vmstate_ptimer;
 
 #define VMSTATE_PTIMER(_field, _state) \
