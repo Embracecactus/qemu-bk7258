@@ -431,11 +431,11 @@ Unsupported: raw SPI framing, SFDP/UID/security/OTP, SRP1 special modes,
 volatile-status enable, suspend/deep-powerdown, page-select modes, direct CPU
 XIP writes, CRC-disabled mode, remap/encryption, flash performance, brownout
 atomicity and migration. Native qtests cover actual file-backed persistence,
-CRC and error rejection. Earlier external diagnostics also exercised a
-production-helper ASan/UBSan harness with mocked block failures and real
-Thumb-2 instruction fetch spanning an MMIO page. Those historical results
-motivated the downstream translator record-page fix, but are not yet part of
-this repository's self-contained native test gate.
+CRC and error rejection. Native functional tests also execute Thumb-2
+instructions spanning a physical XIP MMIO page, including bad-result and
+corrupt-CRC cases. They cover the downstream translator record-page fix.
+An earlier external production-helper ASan/UBSan harness with mocked block
+failures is historical evidence, not yet part of this repository's native gate.
 
 Independent hardware regression
 -------------------------------
@@ -492,7 +492,7 @@ and run QEMU's registered functional test from the build directory::
 ``--setup thorough`` is required: QEMU's default quick setup excludes these
 cross-compiler-dependent tests. The standard runner installs its own declared
 Python test dependencies. Without a compiler the test explicitly skips; this
-repository's CI installs the compiler and runs all twelve cases.
+repository's CI installs the compiler and runs all twenty-one cases.
 No OS checkout or firmware download is required.
 
 ``tests/functional/arm/test_bk7258.py`` compiles the adjacent
@@ -526,6 +526,19 @@ These verify the model's strict unsupported-access policy, not silicon's
 response to undocumented registers. Their MMIO logs must contain exactly the
 expected unsupported operation; the six ordinary diagnostic cases still
 require empty error logs.
+
+Nine physical-XIP cases build the source-only
+``guest-src/bk7258/xip_cross_page.{S,ld}`` fixtures, adapted from the same
+Apache-2.0 contest revision. The linker places one Thumb-2 instruction at
+``0x02010ffe``, crossing the 4-KiB MMIO boundary. A local polynomial-division
+CRC encoder constructs an erased 8-MiB physical NOR image with 32+2 framing;
+the runner does not import any OpenVela image helper and does not use
+``-kernel``. For each board, a correct comparison must exit 0, an intentional
+wrong comparison must exit 1, and corrupting the second-halfword frame must
+reach the real guest HardFault handler and exit 2. Instruction logs must show
+the expected executed address and CRC failure only in the corruption case.
+The logs include source, ELF, raw payload and NOR hashes. This proves a small
+physical-XIP fetch/error path, not reset-ROM or complete firmware boot.
 
 Register provenance
 -------------------
