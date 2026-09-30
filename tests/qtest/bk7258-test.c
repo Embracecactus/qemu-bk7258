@@ -2218,6 +2218,62 @@ static void test_pwm_wrap_and_rejection(const void *board)
     qtest_quit(qts);
 }
 
+static void test_pwm_mixed_preload_atomic(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = pwm_base(unit);
+
+        for (unsigned timer = 0; timer < 3; timer++) {
+            uint32_t arpe = 1U << (5 - timer), ocpe = 1U << (8 - timer);
+            uint32_t enable = 1U << (2 - timer);
+            uint32_t arr = b + 0x3c + 4 * timer;
+            uint32_t ccr = b + 0x54 + 12 * timer;
+            uint32_t arr_shadow = b + 0x7c + 4 * timer;
+            uint32_t ccr_shadow = b + 0x94 + 12 * timer;
+
+            for (unsigned keep_arr = 0; keep_arr < 2; keep_arr++) {
+                uint32_t old_arr = keep_arr ? 9 : 25;
+                uint32_t old_ccr = keep_arr ? 2 : 13;
+                uint32_t new_arr = keep_arr ? 25 : 9;
+                uint32_t new_ccr = keep_arr ? 13 : 2;
+
+                pwm_setup(qts, unit);
+                qtest_writel(qts, b + 0x10, arpe | ocpe);
+                qtest_writel(qts, arr, old_arr);
+                qtest_writel(qts, ccr, old_ccr);
+                qtest_writel(qts, b + 0x24, 1U << (9 + timer));
+                qtest_clock_step(qts, 39);
+                expect(qts, arr_shadow, old_arr);
+                expect(qts, ccr_shadow, old_ccr);
+                qtest_writel(qts, b + 0x20, 0xfff);
+                qtest_writel(qts, arr, new_arr);
+                qtest_writel(qts, ccr, new_ccr);
+                qtest_writel(qts, b + 0x10,
+                             enable | (keep_arr ? arpe : ocpe));
+                expect(qts, b + 0x10, arpe | ocpe);
+                expect(qts, arr, new_arr);
+                expect(qts, ccr, new_ccr);
+                expect(qts, arr_shadow, old_arr);
+                expect(qts, ccr_shadow, old_ccr);
+                qtest_clock_step(qts, 1000000);
+                expect(qts, b + 0x2c + 4 * timer, 0);
+                expect(qts, b + 0x20, 0);
+                /* The unchanged staged pair can still be enabled coherently. */
+                qtest_writel(qts, b + 0x10, enable);
+                expect(qts, arr_shadow, new_arr);
+                expect(qts, ccr_shadow, new_ccr);
+                qtest_clock_step(qts, 1000);
+                expect(qts, b + 0x20,
+                       (1U << (3 * timer)) | (1U << (9 + timer)));
+                expect(qts, b + 0x2c + 4 * timer, keep_arr ? 0 : 6);
+            }
+        }
+    }
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     static const char *boards[] = {"t5_board", "t5ai_core", "aidk_ai_toy"};
@@ -2225,6 +2281,7 @@ int main(int argc, char **argv)
         const char *name;
         GTestDataFunc test;
     } tests[] = {
+        {"pwm-mixed-preload-enable-atomic", test_pwm_mixed_preload_atomic},
         {"pwm-counters-compares-routes", test_pwm_counters_compares_routes},
         {"pwm-prescalers-gates", test_pwm_dividers_gates},
         {"pwm-preload-update-reset-cancel", test_pwm_preload_update_cancel},

@@ -314,11 +314,15 @@ static MemTxResult bk7258_pwm_write(void *opaque, hwaddr offset,
         }
         for (i = 0; i < 3; i++) {
             BK7258PWMCounter *c = &s->counter[i];
+            uint32_t arr = value & (1U << (5 - i)) ? c->arr_shadow : c->arr;
+            const uint32_t *ccr = value & (1U << (8 - i)) ?
+                                  c->ccr_shadow : c->ccr;
 
+            /* Validate the effective pair after both preload-policy changes. */
             if ((value & (1U << (2 - i))) &&
                 (!(s->global & 1) ||
                  !bk7258_pwm_valid_compares(c->arr, c->ccr) ||
-                 !bk7258_pwm_valid_compares(c->arr_shadow, c->ccr_shadow))) {
+                 !bk7258_pwm_valid_compares(arr, ccr))) {
                 goto unsupported;
             }
         }

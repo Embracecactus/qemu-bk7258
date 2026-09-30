@@ -464,7 +464,9 @@ usage evidence, but are not silicon timing measurements:
   pending values. While running, every accepted pending/immediate change
   must remain inside the supported compare range; contradictory changes
   are rejected without modifying the valid configuration. Stop the counter
-  before changing prescaler or preload policy.
+  before changing prescaler or preload policy. A combined policy-change and
+  enable write validates the effective post-write shadow pair, including
+  mixed ARPE/OCPE selections, before committing any control/shadow changes.
 * Software UG completes on one live input-clock edge, clears count and
   prescale, and transfers preloads. A stopped clock holds this pending
   request; reset cancels it. URS excludes the software update from update
@@ -505,7 +507,10 @@ gates/source loss, preload transfer, URS, reset during a pending update,
 32-bit wrap, coalescing and rejected modes. Native Cortex-M33 probes enter
 actual IRQ5/43 handlers; a missing PWM1 SYS route must fail with completion
 status present. Unsupported pad-output writes must produce a precise
-BusFault at their actual address. These tests establish counter/IRQ paths,
+BusFault at their actual address. Mixed-preload enable regressions also
+require atomic rejection: the pending pair, previous shadows and disabled
+counter must remain unchanged when the prospective shadow pair is invalid.
+These tests establish counter/IRQ paths,
 not working PWM waveforms, pad routing or complete PWM support.
 
 DMA shared-RAM functional boundaries

@@ -355,6 +355,42 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_spi1_empty_read_fault(self):
         self.run_spi_empty_fault("aidk_ai_toy", 1)
 
+    def run_pwm_mixed_preload(self, board, unit, keep_arr):
+        elf = self.build_fixture(
+            board, "pwm_preload_fault.c", UNIT=unit, KEEP_ARR=int(keep_arr)
+        )
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(
+            self,
+            "BK7258 PWM MIXED PRELOAD FAULT ATOMIC OK",
+            "BK7258 PWM MIXED PRELOAD FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        value = "24" if keep_arr else "104"
+        self.assertEqual(
+            mmio.read_text(),
+            f"bk7258-pwm: unsupported write 0x{value} at 0x10\n",
+        )
+
+    def test_t5_board_pwm0_mixed_preload(self):
+        self.run_pwm_mixed_preload("t5_board", 0, False)
+
+    def test_t5_board_pwm1_mixed_preload(self):
+        self.run_pwm_mixed_preload("t5_board", 1, True)
+
+    def test_t5ai_core_pwm0_mixed_preload(self):
+        self.run_pwm_mixed_preload("t5ai_core", 0, False)
+
+    def test_t5ai_core_pwm1_mixed_preload(self):
+        self.run_pwm_mixed_preload("t5ai_core", 1, True)
+
+    def test_aidk_ai_toy_pwm0_mixed_preload(self):
+        self.run_pwm_mixed_preload("aidk_ai_toy", 0, False)
+
+    def test_aidk_ai_toy_pwm1_mixed_preload(self):
+        self.run_pwm_mixed_preload("aidk_ai_toy", 1, True)
+
     def run_wdt_fault(self, board, write):
         elf = self.build_fixture(
             board,
