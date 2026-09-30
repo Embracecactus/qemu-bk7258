@@ -62,9 +62,10 @@ OpenVela source or profile changes are required for that gate.
      - Full SYS register inventory, PLL/DVFS/rail dynamics and reset-domain
        conformance beyond the documented diagnostic contract
    * - UART0/1/2
-     - Gated/divided XTAL inputs, TX, bounded RX, timed idle pause/recovery,
-       threshold/idle IRQ, masks/W1C and chip IRQ routing
-     - APLL generation, DMA, TX/FIFO timing, framing errors and flow control
+     - Gated/divided XTAL, bounded TX/RX, character TX and RX-idle timing,
+       threshold/finish IRQ, masks/W1C, flush/reset and chip IRQ routing
+     - APLL, DMA, FIFO-mode selection, pad bitstreams, framing errors,
+       flow control and measured transmitter/flush edge behavior
    * - AON PMU/GPIO
      - Keyed retention, digital pad configuration, edge/level IRQ and
        external drive/release; LPO mux, source loss and per-core tick gates
@@ -170,7 +171,7 @@ names and counts of passing tests cannot close these gates.
        contracts beyond the bounded RAM-only slice.
        Missing sources remain absent, not synthetic ready/completion bits.
    * - Basic peripheral buses and pads
-     - UART stream RX/idle and GPIO digital contacts are functional;
+     - UART byte-stream TX/frame timing, RX/idle and GPIO contacts work;
        general timers, PWM counter/IRQ core, bounded I2C master and finite
        SSI master transactions run independently of host firmware
      - Remaining I2C/SPI modes, PWM outputs and peripheral DMA requests
@@ -286,8 +287,9 @@ Implemented slice
   status/ID/erase commands, real protection ranges and persistent array/NV
   status. Logical XIP removes each 2-byte CRC trailer from 32-byte payloads
   and faults on bad CRC. Controller reads and secure/NS XIP share one array.
-* Three functional UARTs: transmit, bounded receive queue, RX threshold, baud-derived RX-idle completion and
-  TX-finish status, W1C acknowledgement, and per-CPU interrupt routing.
+* Three functional UARTs: bounded TX/RX queues, byte-frame TX timing,
+  threshold service, baud-derived RX-idle completion and TX-finish status,
+  W1C acknowledgement, and per-CPU interrupt routing.
   Connect UART0/1/2 with the first/second/third ``-serial`` option.
   SYS+0x30 bits 2/10/11 gate their functional clocks. SYS+0x20 uses divider
   fields 8:9/11:12/14:15 (divide by 1/2/4/8) and source bits 10/13/16
@@ -364,9 +366,11 @@ Implemented slice
   Tests execute actual CP/CPU1/CPU2 interrupt-driven exchanges and illegal
   cross-core TID/SID operations under protection.
 
-Diagnostic choices are deliberately explicit: UART receive capacity is 128
-bytes, matching the datasheet FIFO depth, but FIFO-mode selection is not yet
-implemented and TX drains synchronously. Interrupt
+Diagnostic choices are deliberately explicit: UART TX/RX capacity is 128
+queued bytes per direction, matching the datasheet FIFO depth, but FIFO-mode
+selection is unidentified. The model uses an always-buffered diagnostic
+assumption; it does not claim the datasheet's FIFO-disabled power-on mode.
+Interrupt
 route masks reset to zero, CPU1 control resets to 0x2 and CPU2 to 0xa. These
 reset defaults are an emulator boot contract, not measured power-on defaults.
 External SysTick routes start enabled, UART functional clocks start gated,
@@ -392,9 +396,9 @@ remaining source cycles, rounded up to a whole input-clock cycle; recovery
 uses the new input rate. Draining RX, disabling RX or reset cancels the idle
 window; baud/FIFO reconfiguration restarts it. IRQ status remains W1C.
 Register access and latched IRQ state
-remain available while the functional clock is gated. The synchronous TX
-subset reports no write-ready or completion with a stopped clock; it does not
-model a TX FIFO that accepts writes while stopped. Host chardev backpressure
+remain available while the functional clock is gated. TX reports no write-ready
+or new completion with a stopped clock; writes while stopped are ignored.
+Already queued TX and the pending shift retain their remaining source cycles. Host chardev backpressure
 retains bytes outside the device until RX is clocked; this is a logical stream
 abstraction, not physical serial-line capture or framing across a clock loss.
 Unknown UART register reads and writes, including unmodeled device IDs and
@@ -411,12 +415,48 @@ unidentified FIFO-mode-enable control mentioned by the datasheet. Threshold
 status reasserts while the modeled level remains high and stays latched
 until acknowledged after draining. Reset discards queued RX bytes and
 cancels their idle deadline.
+
+TX has a bounded 128-byte queue and one separate active shift byte. The latter
+is a functional inference from the SDK's ``fifo_count + 1`` drain estimate,
+not a measured internal implementation. FIFO count/full/empty exclude that
+active byte, so empty alone does not mean the transmitter has finished.
+Write-ready requires a live source, released global reset, TX enable and a
+free queue slot. A write into a full queue returns a transaction error without
+changing its contents; this is a strict model policy, not a silicon-overrun
+claim. No host byte is emitted until its frame expires. Host output uses
+QEMU's synchronous character frontend and may wait for host backpressure;
+this does not model a physical RTS/CTS signal or guarantee nonblocking host I/O.
+
+Frame duration is ``(1 + data_bits + parity_enable + stop_bits) * (divider+1)``
+input cycles, with 5..8 data bits and one or two stop bits. Data is masked to
+the selected width. Data/format/divider are sampled when a character enters
+the shifter; changing configuration affects the next character. This is a
+byte-stream framing abstraction, with no parity waveform or bit-error model.
+The frame timer uses the shared bounded cycle accounting and pauses on clock
+loss. TX_FINISH (bit5) latches only after the last pending character completes;
+starting another burst does not acknowledge an earlier finish. TX service
+(bit0) latches when queue count is strictly below the programmed threshold;
+threshold zero generates no service condition. W1C immediately reasserts an
+eligible service level, which is an explicit level-to-latch model policy.
+
+The SDK ``uart_hal_flush_fifo()`` disables then re-enables each direction.
+The compatible model policy clears each queue on that direction's falling
+enable edge, cancels its pending timing, and preserves existing IRQ latches.
+TX cancellation discards an undelivered character atomically; physical partial
+bits are outside the stream contract. Ordinary clock gating pauses rather than
+flushes. Global reset and full machine reset cancel both directions and clear
+status. Independent native qtests cover capacity/ring order, all frame-length
+combinations and extreme baud dividers, active-frame configuration changes,
+threshold/W1C and all three CPU routes, stopped/missing clocks, directional
+flush and reset cancellation. Precise full-FIFO BusFault tests establish only
+the strict model boundary, not a hardware bus-fault guarantee.
+
 The standalone guests explicitly enable UART0's clock and preserve it when
 enabling other peripherals. No external firmware source changes are required.
 Flow/wake
 configuration has masked readback, but enabling physical RTS/CTS or sleep-wake
-signaling emits an unsupported warning. DMA, error framing and TX timing are
-not modeled. SYS clock-mode and PMU power fields retain configuration only;
+signaling emits an unsupported warning. DMA, physical RX line errors and
+pad-level serial bitstreams are not modeled. SYS clock-mode and PMU power fields retain configuration only;
 no PLL lock, calibration completion, rail transition or DVFS success is faked.
 
 The LPO mux resets to encoding 0 as part of the existing diagnostic R41 reset
@@ -1122,7 +1162,7 @@ and run QEMU's registered functional test from the build directory::
 ``--setup thorough`` is required: QEMU's default quick setup excludes these
 cross-compiler-dependent tests. The standard runner installs its own declared
 Python test dependencies. Without a compiler the test explicitly skips; this
-repository's CI installs the compiler and runs all twenty-seven cases.
+repository's CI installs the compiler and runs the complete registered suite.
 No OS checkout or firmware download is required.
 
 The functional fixtures use the native runner's public
@@ -1193,6 +1233,17 @@ ignored-write model. Supported console operations retain their existing
 strict output/exit checks. Native qtests additionally cover a 128-byte FIFO
 boundary, a host-buffered extra byte, ring wrap, IRQ masking/W1C and reset.
 
+Twenty-seven TX cases build ``uart_tx.c``: every UART on every board must
+reach the genuine CPU0 IRQ4/15/16 handler for completion and service, verify
+masked status, and retain byte order. Removing its SYS route must fail the
+normal probe despite completed output. Filling the finite queue and writing
+through the nonsecure alias must fault precisely with an unchanged full count.
+UART1/2 use independent file chardevs whose contents are checked exactly.
+The shared source-only console helper polls capacity and drains each byte
+through a newly acknowledged TX_FINISH before exit/reset, keeping test output
+independent of compiler inlining or stale completion latches. Its hash is
+recorded alongside every C fixture; no external firmware is changed.
+
 Nine timer-group cases build ``timer.c``. Each board must deliver real
 IRQ3 and IRQ13 from independently selected CLK32 and divided XTAL sources,
 pause a snapshot across clock gating, and cancel it on reset. Withholding the
@@ -1225,6 +1276,9 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
 * ``cp/middleware/soc/bk7258/Kconfig`` and ``bk7258_bsp.ld``: TCM and SRAM
 * ``cp/middleware/soc/bk7258/soc/uart_struct.h`` and
   ``cp/middleware/soc/bk7258/hal/uart_ll.h``: register fields and W1C
+* ``cp/middleware/soc/common/hal/uart_hal.c``: baud divisor and FIFO flush
+  enable-toggle sequence; ``cp/include/driver/uart.h``: below-threshold TX
+  service condition; UART driver drain estimate: separate-shifter inference
 * ``cp/middleware/soc/bk7258/soc/sys_struct.h``,
   ``cp/middleware/soc/bk7258/hal/sys_hal.c`` and
   ``cp/middleware/soc/common/hal/include/sys_hal.h``: UART gate bits,

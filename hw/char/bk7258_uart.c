@@ -1,5 +1,5 @@
 /*
- * BK7258 UART functional model (RX idle timing, no TX wire timing or DMA).
+ * BK7258 UART FIFO/character timing model (no pad bitstream or DMA).
  * SPDX-License-Identifier: GPL-2.0-or-later
  * Register provenance: docs/system/arm/bk7258.rst.
  */
@@ -12,10 +12,16 @@
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties-system.h"
 
+#define TX_IRQ 1U
 #define RX_IRQ (1U << 1)
 #define TX_DONE_IRQ (1U << 5)
 #define RX_FINISH_IRQ (1U << 6)
-#define SUPPORTED_IRQS (RX_IRQ | TX_DONE_IRQ | RX_FINISH_IRQ)
+#define SUPPORTED_IRQS (TX_IRQ | RX_IRQ | TX_DONE_IRQ | RX_FINISH_IRQ)
+
+static bool bk7258_uart_tx_enabled(BK7258UARTState *s)
+{
+    return s->hz && (s->global_ctrl & 1) && (s->config & 1);
+}
 
 static bool bk7258_uart_rx_enabled(BK7258UARTState *s)
 {
@@ -26,11 +32,90 @@ static void bk7258_uart_update(BK7258UARTState *s)
 {
     unsigned threshold = (s->fifo_config >> 8) & 0xff;
 
+    /* The SDK describes TX service as count below the selected threshold. */
+    if (bk7258_uart_tx_enabled(s) && s->tx_count < (s->fifo_config & 0xff)) {
+        s->int_status |= TX_IRQ;
+    }
+
     if (s->rx_count && s->rx_count >= MAX(threshold, 1)) {
         s->int_status |= RX_IRQ;
     }
     qemu_set_irq(s->irq, (s->global_ctrl & 1) &&
                  (s->int_status & s->int_enable));
+}
+
+static void bk7258_uart_pause_tx(BK7258UARTState *s)
+{
+    if (s->tx_active && s->hz && timer_pending(s->tx_timer)) {
+        s->tx_cycles = bk7258_remaining_cycles(
+            s->tx_cycles, s->hz, s->tx_deadline,
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    }
+    timer_del(s->tx_timer);
+}
+
+static void bk7258_uart_start_tx(BK7258UARTState *s, int64_t base)
+{
+    uint64_t delay;
+
+    if (!bk7258_uart_tx_enabled(s) || timer_pending(s->tx_timer)) {
+        return;
+    }
+    if (!s->tx_active) {
+        unsigned data_bits = 5 + ((s->config >> 3) & 3);
+        unsigned frame_bits = 1 + data_bits + ((s->config >> 5) & 1) +
+                              1 + ((s->config >> 7) & 1);
+        uint64_t divider = ((s->config >> 8) & 0xffff) + 1;
+
+        if (!s->tx_count) {
+            return;
+        }
+        /* FIFO occupancy excludes this separate, currently shifting byte. */
+        s->tx_byte = s->tx_fifo[s->tx_head] & ((1U << data_bits) - 1);
+        s->tx_head = (s->tx_head + 1) % sizeof(s->tx_fifo);
+        s->tx_count--;
+        s->tx_cycles = frame_bits * divider;
+        s->tx_active = true;
+    }
+    delay = DIV_ROUND_UP(s->tx_cycles * NANOSECONDS_PER_SECOND, s->hz);
+    if (delay <= INT64_MAX - base) {
+        s->tx_deadline = base + delay;
+        timer_mod(s->tx_timer, s->tx_deadline);
+    }
+}
+
+static void bk7258_uart_tx_complete(void *opaque)
+{
+    BK7258UARTState *s = opaque;
+    int64_t previous = s->tx_deadline;
+
+    assert(s->tx_active && bk7258_uart_tx_enabled(s));
+    qemu_chr_fe_write_all(&s->chr, &s->tx_byte, 1);
+    s->tx_active = false;
+    s->tx_cycles = 0;
+    if (s->tx_count) {
+        /* Catch up a bounded queue when qtest jumps virtual time forward. */
+        bk7258_uart_start_tx(s, previous);
+    } else {
+        s->int_status |= TX_DONE_IRQ;
+    }
+    bk7258_uart_update(s);
+}
+
+static void bk7258_uart_clear_tx(BK7258UARTState *s)
+{
+    timer_del(s->tx_timer);
+    s->tx_active = false;
+    s->tx_cycles = 0;
+    s->tx_head = s->tx_count = 0;
+}
+
+static void bk7258_uart_clear_rx(BK7258UARTState *s)
+{
+    timer_del(s->rx_idle_timer);
+    s->idle_armed = false;
+    s->idle_cycles = 0;
+    s->rx_head = s->rx_count = 0;
 }
 
 static void bk7258_uart_rx_idle(void *opaque)
@@ -88,6 +173,7 @@ static void bk7258_uart_clock(void *opaque, ClockEvent event)
     BK7258UARTState *s = opaque;
 
     if (event == ClockPreUpdate) {
+        bk7258_uart_pause_tx(s);
         if (s->idle_armed && s->hz && timer_pending(s->rx_idle_timer)) {
             s->idle_cycles = bk7258_remaining_cycles(
                 s->idle_cycles, s->hz, s->idle_deadline,
@@ -96,6 +182,8 @@ static void bk7258_uart_clock(void *opaque, ClockEvent event)
     } else {
         s->hz = clock_get_hz(s->clk);
         bk7258_uart_arm_idle(s);
+        bk7258_uart_start_tx(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        bk7258_uart_update(s);
         qemu_chr_fe_accept_input(&s->chr);
     }
 }
@@ -147,8 +235,11 @@ static MemTxResult bk7258_uart_read(void *opaque, hwaddr offset,
         *result = s->fifo_config;
         break;
     case 0x18:
-        /* TX is drained synchronously; RX remains a bounded FIFO. */
-        *result = (s->rx_count << 8) | (1U << 17) | (s->hz ? (1U << 20) : 0) |
+        *result = s->tx_count | (s->rx_count << 8) |
+                  (s->tx_count ? 0 : (1U << 17)) |
+                  (s->tx_count == sizeof(s->tx_fifo) ? (1U << 16) : 0) |
+                  (bk7258_uart_tx_enabled(s) &&
+                   s->tx_count < sizeof(s->tx_fifo) ? (1U << 20) : 0) |
                   (s->rx_count ? (1U << 21) : (1U << 19)) |
                   (s->rx_count == sizeof(s->rx_fifo) ? (1U << 18) : 0);
         break;
@@ -194,33 +285,53 @@ static MemTxResult bk7258_uart_write(void *opaque, hwaddr offset,
                                     MemTxAttrs attrs)
 {
     BK7258UARTState *s = opaque;
-    uint8_t ch = value;
 
     switch (offset) {
     case 0x08:
         s->global_ctrl = value;
         if (!(value & 1)) {
-            timer_del(s->rx_idle_timer);
-            s->idle_armed = false;
-            s->idle_cycles = 0;
-            s->rx_head = s->rx_count = 0;
+            bk7258_uart_clear_tx(s);
+            bk7258_uart_clear_rx(s);
             s->int_status = 0;
         }
         qemu_chr_fe_accept_input(&s->chr);
         break;
-    case 0x10:
+    case 0x10: {
+        uint32_t changed = s->config ^ value;
+
+        /*
+         * uart_hal_flush_fifo() toggles each enable off then on. Model this
+         * as a directional flush, with byte-atomic TX cancellation; physical
+         * partial-wire behavior is outside the stream abstraction. The HAL
+         * does not acknowledge status, so preserve existing IRQ latches.
+         */
+        if (s->config & ~value & 1) {
+            bk7258_uart_clear_tx(s);
+        }
+        if (s->config & ~value & 2) {
+            bk7258_uart_clear_rx(s);
+        }
         s->config = value;
-        bk7258_uart_schedule_rx_idle(s);
+        bk7258_uart_start_tx(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        if (changed & ~1U) {
+            bk7258_uart_schedule_rx_idle(s);
+        }
         qemu_chr_fe_accept_input(&s->chr);
         break;
+    }
     case 0x14:
         s->fifo_config = value;
         bk7258_uart_schedule_rx_idle(s);
         break;
     case 0x1c:
-        if (s->hz && (s->global_ctrl & 1) && (s->config & 1)) {
-            qemu_chr_fe_write_all(&s->chr, &ch, 1);
-            s->int_status |= TX_DONE_IRQ;
+        if (bk7258_uart_tx_enabled(s)) {
+            if (s->tx_count == sizeof(s->tx_fifo)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "bk7258-uart: TX FIFO full\n");
+                return MEMTX_ERROR;
+            }
+            s->tx_fifo[(s->tx_head + s->tx_count) % sizeof(s->tx_fifo)] = value;
+            s->tx_count++;
+            bk7258_uart_start_tx(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         }
         break;
     case 0x20:
@@ -273,15 +384,13 @@ static void bk7258_uart_reset(DeviceState *dev)
 {
     BK7258UARTState *s = BK7258_UART(dev);
 
-    timer_del(s->rx_idle_timer);
-    s->idle_armed = false;
-    s->idle_cycles = 0;
+    bk7258_uart_clear_tx(s);
+    bk7258_uart_clear_rx(s);
     s->global_ctrl = 0;
     s->config = 0;
     s->fifo_config = 0;
     s->flow_config = s->wake_config = 0;
     s->int_enable = s->int_status = 0;
-    s->rx_head = s->rx_count = 0;
     bk7258_uart_update(s);
 }
 
@@ -300,6 +409,8 @@ static void bk7258_uart_init(Object *obj)
 
     s->clk = qdev_init_clock_in(DEVICE(obj), "pclk", bk7258_uart_clock, s,
                                 ClockPreUpdate | ClockUpdate);
+    s->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                               bk7258_uart_tx_complete, s);
     s->rx_idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                      bk7258_uart_rx_idle, s);
     memory_region_init_io(&s->iomem, obj, &bk7258_uart_ops, s,
@@ -313,6 +424,7 @@ static void bk7258_uart_finalize(Object *obj)
     BK7258UARTState *s = BK7258_UART(obj);
 
     timer_del(s->rx_idle_timer);
+    timer_free(s->tx_timer);
     timer_free(s->rx_idle_timer);
 }
 

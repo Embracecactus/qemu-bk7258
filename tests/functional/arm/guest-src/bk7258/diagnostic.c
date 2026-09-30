@@ -6,6 +6,7 @@
  * AI-assisted downstream experiment, not an upstream contribution.
  */
 #include <stdint.h>
+#include "uart_console.h"
 
 /* Real guest MMIO/shared memory, not host device-model state. */
 #define REG(a) (*(volatile uint32_t *)(uintptr_t)(a))
@@ -59,11 +60,7 @@ static const uintptr_t ap2_vectors[80]
 
 static void text(const char *p)
 {
-    while (*p) {
-        while (!(REG(UART + 0x18) & (1u << 20))) {
-        }
-        REG(UART + 0x1c) = (uint8_t)*p++;
-    }
+    bk7258_test_console_puts(p);
 }
 
 static __attribute__((noreturn)) void finish(uint32_t status)
@@ -99,10 +96,13 @@ static void tick(void)
 
 static void uart_irq(void)
 {
+    uint32_t status = REG(UART + 0x24);
+
     if (REG(UART + 0x18) & (1u << 21)) {
         received = (REG(UART + 0x1c) >> 8) & 0xff;
     }
-    REG(UART + 0x24) = 0xff;
+    /* Preserve TX_FINISH for the interrupted console drain. */
+    REG(UART + 0x24) = status & ((1u << 1) | (1u << 6));
 }
 
 static void mail_send(unsigned channel, unsigned destination, uint32_t data0,

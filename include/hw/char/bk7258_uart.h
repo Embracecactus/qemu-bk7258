@@ -23,6 +23,14 @@ struct BK7258UARTState {
     uint32_t wake_config;
     uint32_t int_enable;
     uint32_t int_status;
+    uint8_t tx_fifo[128];
+    uint32_t tx_head;
+    uint32_t tx_count;
+    uint8_t tx_byte;
+    bool tx_active;
+    uint64_t tx_cycles;
+    int64_t tx_deadline;
+    QEMUTimer *tx_timer;
     uint8_t rx_fifo[128];
     uint32_t rx_head;
     uint32_t rx_count;

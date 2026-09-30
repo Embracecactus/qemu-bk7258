@@ -5,6 +5,7 @@
  * AI-assisted downstream experiment, not an upstream contribution.
  */
 #include <stdint.h>
+#include "uart_console.h"
 
 /* Guest register transactions, not direct model-state changes. */
 #define REG(a) (*(volatile uint32_t *)(uintptr_t)(a))
@@ -30,12 +31,12 @@ static __attribute__((noreturn)) void finish(uint32_t status)
     const char *text = status ? "BK7258 PWM MIXED PRELOAD FAILED\n" :
                                "BK7258 PWM MIXED PRELOAD FAULT ATOMIC OK\n";
     uint32_t args[2] = {0x20026, status};
+
+    bk7258_test_console_puts(text);
+
+    /* Bind caller-clobbered arguments only after console calls return. */
     register uint32_t r0 __asm__("r0") = 0x20;
     register uint32_t *r1 __asm__("r1") = args;
-
-    while (*text) {
-        REG(UART + 0x1c) = (uint8_t)*text++;
-    }
     __asm__ volatile("bkpt 0xab" : "+r"(r0) : "r"(r1) : "memory");
     for (;;) {
     }

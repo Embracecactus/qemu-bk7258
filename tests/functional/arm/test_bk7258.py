@@ -68,13 +68,12 @@ class BK7258Machine(QemuSystemTest):
             capture_output=True,
             timeout=30,
         )
+        inputs = [source / filename, source / linker, elf]
+        if filename.endswith(".c"):
+            inputs.append(source / "uart_console.h")
         hashes = {
             str(path.name): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in (
-                source / filename,
-                source / linker,
-                elf,
-            )
+            for path in inputs
         }
         Path(self.log_file("fixture-inputs.json")).write_text(
             json.dumps(
@@ -157,6 +156,140 @@ class BK7258Machine(QemuSystemTest):
             mmio.read_text(),
             f"bk7258-sys: {operation} is not implemented\n",
         )
+
+    def run_uart_tx(self, board, index, missing_route=False, full_fifo=False):
+        elf = self.build_fixture(
+            board,
+            "uart_tx.c",
+            INDEX=index,
+            INDEX_TEXT=f'"{index}"',
+            MISSING_ROUTE=int(missing_route),
+            FULL_FIFO=int(full_fifo),
+        )
+        tx_file = Path(self.log_file("uart-tx.bin"))
+        if index:
+            # launch_fixture adds serial0's console; these become ports 1/2.
+            self.vm.set_console()
+            for port in range(1, index + 1):
+                self.vm.add_args(
+                    "-serial", f"file:{tx_file}" if port == index else "null"
+                )
+        mmio = self.launch_fixture(elf)
+        if missing_route:
+            wait_for_console_pattern(
+                self,
+                "BK7258 MISSING UART ROUTE DETECTED",
+                "BK7258 UART TX PROBE FAILED",
+            )
+        wait_for_console_pattern(
+            self,
+            (
+                "BK7258 UART TX PROBE FAILED"
+                if missing_route
+                else (
+                    "BK7258 UART FIFO PRECISE FAULT OK"
+                    if full_fifo
+                    else "BK7258 UART TX FIFO AND IRQ OK"
+                )
+            ),
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), int(missing_route))
+        self.assertEqual(
+            mmio.read_text(),
+            "bk7258-uart: TX FIFO full\n" if full_fifo else "",
+        )
+        payload = b"" if full_fifo else f"U{index}:A\n".encode()
+        if not full_fifo and not missing_route:
+            payload += f"s{index}:B\n".encode()
+        if index:
+            self.assertEqual(tx_file.read_bytes(), payload)
+        elif payload:
+            # The console logger has timestamps; test both complete lines.
+            console = Path(self.console_log_name).read_text()
+            for line in payload.decode().splitlines():
+                self.assertIn(line, console)
+
+    def test_t5_board_uart0_tx(self):
+        self.run_uart_tx("t5_board", 0)
+
+    def test_t5_board_uart0_tx_missing_route(self):
+        self.run_uart_tx("t5_board", 0, missing_route=True)
+
+    def test_t5_board_uart0_tx_full_fifo(self):
+        self.run_uart_tx("t5_board", 0, full_fifo=True)
+
+    def test_t5_board_uart1_tx(self):
+        self.run_uart_tx("t5_board", 1)
+
+    def test_t5_board_uart1_tx_missing_route(self):
+        self.run_uart_tx("t5_board", 1, missing_route=True)
+
+    def test_t5_board_uart1_tx_full_fifo(self):
+        self.run_uart_tx("t5_board", 1, full_fifo=True)
+
+    def test_t5_board_uart2_tx(self):
+        self.run_uart_tx("t5_board", 2)
+
+    def test_t5_board_uart2_tx_missing_route(self):
+        self.run_uart_tx("t5_board", 2, missing_route=True)
+
+    def test_t5_board_uart2_tx_full_fifo(self):
+        self.run_uart_tx("t5_board", 2, full_fifo=True)
+
+    def test_t5ai_core_uart0_tx(self):
+        self.run_uart_tx("t5ai_core", 0)
+
+    def test_t5ai_core_uart0_tx_missing_route(self):
+        self.run_uart_tx("t5ai_core", 0, missing_route=True)
+
+    def test_t5ai_core_uart0_tx_full_fifo(self):
+        self.run_uart_tx("t5ai_core", 0, full_fifo=True)
+
+    def test_t5ai_core_uart1_tx(self):
+        self.run_uart_tx("t5ai_core", 1)
+
+    def test_t5ai_core_uart1_tx_missing_route(self):
+        self.run_uart_tx("t5ai_core", 1, missing_route=True)
+
+    def test_t5ai_core_uart1_tx_full_fifo(self):
+        self.run_uart_tx("t5ai_core", 1, full_fifo=True)
+
+    def test_t5ai_core_uart2_tx(self):
+        self.run_uart_tx("t5ai_core", 2)
+
+    def test_t5ai_core_uart2_tx_missing_route(self):
+        self.run_uart_tx("t5ai_core", 2, missing_route=True)
+
+    def test_t5ai_core_uart2_tx_full_fifo(self):
+        self.run_uart_tx("t5ai_core", 2, full_fifo=True)
+
+    def test_aidk_ai_toy_uart0_tx(self):
+        self.run_uart_tx("aidk_ai_toy", 0)
+
+    def test_aidk_ai_toy_uart0_tx_missing_route(self):
+        self.run_uart_tx("aidk_ai_toy", 0, missing_route=True)
+
+    def test_aidk_ai_toy_uart0_tx_full_fifo(self):
+        self.run_uart_tx("aidk_ai_toy", 0, full_fifo=True)
+
+    def test_aidk_ai_toy_uart1_tx(self):
+        self.run_uart_tx("aidk_ai_toy", 1)
+
+    def test_aidk_ai_toy_uart1_tx_missing_route(self):
+        self.run_uart_tx("aidk_ai_toy", 1, missing_route=True)
+
+    def test_aidk_ai_toy_uart1_tx_full_fifo(self):
+        self.run_uart_tx("aidk_ai_toy", 1, full_fifo=True)
+
+    def test_aidk_ai_toy_uart2_tx(self):
+        self.run_uart_tx("aidk_ai_toy", 2)
+
+    def test_aidk_ai_toy_uart2_tx_missing_route(self):
+        self.run_uart_tx("aidk_ai_toy", 2, missing_route=True)
+
+    def test_aidk_ai_toy_uart2_tx_full_fifo(self):
+        self.run_uart_tx("aidk_ai_toy", 2, full_fifo=True)
 
     def run_uart_fault(self, board, index, write):
         base = (0x44820000, 0x45830000, 0x45840000)[index]

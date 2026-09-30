@@ -4,6 +4,7 @@
  * AI-assisted downstream experiment, not an upstream contribution.
  */
 #include <stdint.h>
+#include "uart_console.h"
 
 /* Volatile guest MMIO accesses and exception-handler communication. */
 #define REG(a) (*(volatile uint32_t *)(uintptr_t)(a))
@@ -46,12 +47,12 @@ static __attribute__((noreturn)) void finish(uint32_t status)
     const char *text = status ? "BK7258 I2C PROBE FAILED\n" :
                                "BK7258 I2C BUS IRQ RESTART NAK OK\n";
     uint32_t args[2] = {0x20026, status};
+
+    bk7258_test_console_puts(text);
+
+    /* Bind caller-clobbered arguments only after console calls return. */
     register uint32_t r0 __asm__("r0") = 0x20;
     register uint32_t *r1 __asm__("r1") = args;
-
-    while (*text) {
-        REG(UART + 0x1c) = (uint8_t)*text++;
-    }
     __asm__ volatile("bkpt 0xab" : "+r"(r0) : "r"(r1) : "memory");
     for (;;) {
     }
@@ -109,9 +110,7 @@ static void issue(unsigned g, uint32_t command)
             (REG(base(g) + 0x14) & 1) && !(REG(SYS + 0x80) & (1u << 14))) {
             const char *text = "BK7258 MISSING I2C1 ROUTE DETECTED\n";
 
-            while (*text) {
-                REG(UART + 0x1c) = (uint8_t)*text++;
-            }
+            bk7258_test_console_puts(text);
         }
 #endif
         finish(1);

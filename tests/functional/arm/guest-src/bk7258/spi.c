@@ -4,6 +4,7 @@
  * AI-assisted downstream experiment, not an upstream contribution.
  */
 #include <stdint.h>
+#include "uart_console.h"
 
 /* Volatile guest MMIO and exception-handler communication. */
 #define REG(a) (*(volatile uint32_t *)(uintptr_t)(a))
@@ -40,19 +41,19 @@ static unsigned irq(unsigned g)
 
 static void print(const char *text)
 {
-    while (*text) {
-        REG(UART + 0x1c) = (uint8_t)*text++;
-    }
+    bk7258_test_console_puts(text);
 }
 
 static __attribute__((noreturn)) void finish(uint32_t status)
 {
     uint32_t args[2] = {0x20026, status};
-    register uint32_t r0 __asm__("r0") = 0x20;
-    register uint32_t *r1 __asm__("r1") = args;
 
     print(status ? "BK7258 SPI PROBE FAILED\n" :
                    "BK7258 SPI SSI ID IRQ OK\n");
+
+    /* Bind caller-clobbered arguments only after console calls return. */
+    register uint32_t r0 __asm__("r0") = 0x20;
+    register uint32_t *r1 __asm__("r1") = args;
     __asm__ volatile("bkpt 0xab" : "+r"(r0) : "r"(r1) : "memory");
     for (;;) {
     }
