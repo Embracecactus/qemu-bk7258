@@ -573,10 +573,15 @@ Python test dependencies. Without a compiler the test explicitly skips; this
 repository's CI installs the compiler and runs all twenty-seven cases.
 No OS checkout or firmware download is required.
 
-Both launch paths start with ``-S``, finish QMP negotiation, assert that the
-guest is stopped, and then issue ``cont``. This prevents tiny semihosting
-fixtures from exiting before the runner is ready. For local stress repetitions
-use ``--repeat 5 --num-processes 1``: concurrent repetitions share the standard
+The functional fixtures use the native runner's public
+``QEMUMachine.set_qmp_monitor(False)`` API. They only need the console, process
+exit and instruction logs, not a monitor transaction. ARM semihosting calls
+``exit(ret)`` directly, so both initial QMP negotiation and a synchronous
+``cont`` reply can race a tiny guest's exit. Disabling the unused monitor avoids
+both races without suppressing exceptions, adding arbitrary guest delays or
+relaxing exit/log assertions. Native qtests still use their normal QMP/qtest
+connections. For local stress repetitions use
+``--repeat 10 --num-processes 1``: concurrent repetitions share the standard
 runner's per-test artifact directories and must not overwrite each other.
 
 ``tests/functional/arm/test_bk7258.py`` compiles the adjacent

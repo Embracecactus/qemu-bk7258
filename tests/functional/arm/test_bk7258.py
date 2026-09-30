@@ -97,9 +97,10 @@ class BK7258Machine(QemuSystemTest):
 
     def launch_fixture(self, elf):
         mmio = Path(self.log_file("mmio.log"))
+        # Semihosting exits the process directly; no monitor request is needed.
+        self.vm.set_qmp_monitor(False)
         self.vm.set_console()
         self.vm.add_args(
-            "-S",
             "-accel",
             "tcg",
             "-kernel",
@@ -113,8 +114,6 @@ class BK7258Machine(QemuSystemTest):
         )
         self.vm.launch()
         self.vm.console_socket.settimeout(10)
-        self.assertFalse(self.vm.cmd("query-status")["running"])
-        self.vm.cmd("cont")
         return mmio
 
     def run_fixture(self, board, positive):
@@ -245,8 +244,8 @@ class BK7258Machine(QemuSystemTest):
         )
         inputs.write_text(json.dumps(metadata, indent=2) + "\n")
         trace = Path(self.log_file("instructions.log"))
+        self.vm.set_qmp_monitor(False)
         self.vm.add_args(
-            "-S",
             "-accel",
             "tcg",
             "-serial",
@@ -262,9 +261,6 @@ class BK7258Machine(QemuSystemTest):
         )
         # No -kernel: all vectors and instruction bytes use physical NOR XIP.
         self.vm.launch()
-        # Very short guests can exit before QMP's initial negotiation finishes.
-        self.assertFalse(self.vm.cmd("query-status")["running"])
-        self.vm.cmd("cont")
         self.vm.wait(timeout=10)
         self.assertEqual(self.vm.exitcode(), outcome)
         observed = trace.read_text()
