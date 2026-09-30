@@ -4773,10 +4773,14 @@ S: Odd Fixes
 F: hw/arm/bk7258.c
 F: hw/char/bk7258_uart.c
 F: hw/misc/bk7258_aon.c
+F: hw/misc/bk7258_ckmn.c
+F: hw/misc/bk7258_mailbox.c
 F: hw/watchdog/bk7258_wdt.c
 F: include/hw/arm/bk7258.h
 F: include/hw/char/bk7258_uart.h
 F: include/hw/misc/bk7258_aon.h
+F: include/hw/misc/bk7258_ckmn.h
+F: include/hw/misc/bk7258_mailbox.h
 F: include/hw/watchdog/bk7258_wdt.h
 F: docs/system/arm/bk7258.rst
 F: .github/workflows/bk7258-build.yml

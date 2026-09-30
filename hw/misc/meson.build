@@ -177,4 +177,4 @@ system_ss.add(when: 'CONFIG_SBSA_REF', if_true: files('sbsa_ec.c'))
 system_ss.add(when: 'CONFIG_LASI', if_true: files('lasi.c'))
 
 system_ss.add(when: 'CONFIG_AXIADO_CLK', if_true: files('axiado_clk.c'))
-system_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258_aon.c'))
+system_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258_aon.c', 'bk7258_ckmn.c', 'bk7258_mailbox.c'))

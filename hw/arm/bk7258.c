@@ -53,6 +53,7 @@ static void bk7258_analog_complete(void *opaque)
         }
     }
     s->analog_busy = 0;
+    clock_update_hz(s->roscclk, s->analog[5] & (1U << 14) ? 0 : 32000);
 }
 
 static void bk7258_update_wdt_clock(BK7258State *s)
@@ -73,7 +74,8 @@ static void bk7258_update_irqs(BK7258State *s)
         for (irq = 0; irq < 64; irq++) {
             qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->cpu[cpu]), irq),
                          !(s->cpu_control[cpu] & 4) &&
-                         !!(s->irq_levels & enabled & (UINT64_C(1) << irq)));
+                         !!((s->irq_levels | s->private_irqs[cpu]) &
+                            enabled & (UINT64_C(1) << irq)));
         }
     }
 }
@@ -84,6 +86,14 @@ static void bk7258_irq(void *opaque, int n, int level)
     uint64_t bit = UINT64_C(1) << n;
 
     s->irq_levels = (s->irq_levels & ~bit) | (level ? bit : 0);
+    bk7258_update_irqs(s);
+}
+
+static void bk7258_mailbox_irq(void *opaque, int core, int level)
+{
+    BK7258State *s = opaque;
+
+    s->private_irqs[core] = level ? UINT64_C(1) << 63 : 0;
     bk7258_update_irqs(s);
 }
 
@@ -116,7 +126,8 @@ static uint64_t bk7258_sys_read(void *opaque, hwaddr offset, unsigned size)
         return s->irq_enable[index / 2][index % 2];
     case 0xa0 ... 0xb4:
         index = (offset - 0xa0) / 4;
-        return (s->irq_levels >> (32 * (index % 2))) &
+        return ((s->irq_levels | s->private_irqs[index / 2]) >>
+                (32 * (index % 2))) &
                s->irq_enable[index / 2][index % 2];
     default:
         qemu_log_mask(LOG_UNIMP, "bk7258-sys: read offset 0x%" HWADDR_PRIx
@@ -335,6 +346,35 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
                      memory, address + NS_OFFSET, i ? 0x1000 : 4);
     }
 
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mailbox), errp)) {
+        return;
+    }
+    for (i = 0; i < 3; i++) {
+        MemoryRegion *space = i ? &s->cpu_memory[i] : memory;
+        MemoryRegion *port = &s->mailbox.iomem[i];
+
+        /* Separate bus views carry physical master identity, including NS. */
+        memory_region_add_subregion(space, 0x41000000, port);
+        bk7258_alias(&s->mailbox_ns[i], obj, "bk7258.mailbox-ns", port,
+                     space, 0x51000000, 0x100);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->mailbox), i,
+                           qdev_get_gpio_in_named(dev, "mailbox", i));
+    }
+
+    s->xtalclk = clock_new(obj, "xtalclk");
+    s->roscclk = clock_new(obj, "roscclk");
+    clock_set_hz(s->xtalclk, 26000000);
+    clock_set_hz(s->roscclk, 32000);
+    qdev_connect_clock_in(DEVICE(&s->ckmn), "reference", s->xtalclk);
+    qdev_connect_clock_in(DEVICE(&s->ckmn), "measured", s->roscclk);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ckmn), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ckmn), 0, 0x448a0000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->ckmn), 0, qdev_get_gpio_in(dev, 21));
+    bk7258_alias(&s->ckmn_ns, obj, "bk7258.ckmn-ns", &s->ckmn.iomem,
+                 memory, 0x548a0000, 0x1000);
+
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->aon), errp)) {
         return;
     }
@@ -375,10 +415,12 @@ static void bk7258_reset(DeviceState *dev)
     s->cpu_control[2] = POWER_DOWN | CPU_HALT;
     memset(s->irq_enable, 0, sizeof(s->irq_enable));
     s->irq_levels = 0;
+    memset(s->private_irqs, 0, sizeof(s->private_irqs));
     s->clock_select = s->peripheral_clocks = s->clock_mode = 0;
     s->power_sleep = TICK_ROUTES;
     memset(s->gpio_mux, 0, sizeof(s->gpio_mux));
     memset(s->analog, 0, sizeof(s->analog));
+    clock_update_hz(s->roscclk, 32000);
     s->analog_busy = 0;
     timer_del(s->analog_timer);
     bk7258_update_tick_clocks(s);
@@ -399,6 +441,9 @@ static void bk7258_init(Object *obj)
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);
+    object_initialize_child(obj, "ckmn", &s->ckmn, TYPE_BK7258_CKMN);
+    object_initialize_child(obj, "mailbox", &s->mailbox, TYPE_BK7258_MAILBOX);
+    qdev_init_gpio_in_named(DEVICE(obj), bk7258_mailbox_irq, "mailbox", 3);
     qdev_init_gpio_in(DEVICE(obj), bk7258_irq, 64);
     s->analog_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                    bk7258_analog_complete, s);

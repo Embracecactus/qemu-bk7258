@@ -49,6 +49,29 @@ Implemented slice
   rejected. The selected SDK CP/AP defconfigs disable
   CONFIG_ANA_REG_WRITE_POLL_REG_B; the alternative SYS+0x2c busy view is absent.
 
+* CKMN measurement at 0x448a0000 (alias 0x548a0000), IRQ21: configured
+  RC32K window cycles are timed against an explicit ideal 32,000-Hz ROSC
+  input; digital 26 MHz reference cycles produce a latched 20-bit count.
+  For example, 64 ROSC cycles take 2 ms and count 52,000 reference cycles.
+  Completion is latched under masking and acknowledged W1C; reset/disable
+  cancel the operation. ANA5 bit14 powers down the measured source.
+  Stable-clock windows are supported. A source change invalidates an active
+  window without success; software must disable/rearm. Zero windows, stopped
+  clocks and overflow do not fabricate completion. Fractional reference
+  cycles round down, and completion is one-shot until software rearm. These
+  edge/rounding choices are explicit functional abstractions, not measured
+  synchronizer timing. Clock correction/loss-detection/autoswitch dynamics,
+  physical ROSC tuning, and device ID/version probes remain unsupported.
+
+* Native MBOX0 v2 at 0x41000000 / 0x51000000: three channels partition eight
+  shared slots. TID writes enqueue two opaque words and source channel; SID
+  reads pop into RX latches. Full/empty/count derive from the real queues.
+  Per-core secure/nonsecure bus views enforce physical channel ownership.
+  Each channel drives only its own CPU's IRQ63 and SYS high mask/status bit31.
+  Firmware, not QEMU, interprets shared-memory pointers, ACKs or SMP commands.
+  Tests execute actual CP/CPU1/CPU2 interrupt-driven exchanges and illegal
+  cross-core TID/SID operations under protection.
+
 Diagnostic choices are deliberately explicit: UART receive capacity is 128
 bytes (not a verified silicon FIFO depth), TX drains synchronously, interrupt
 route masks reset to zero, CPU1 control resets to 0x2 and CPU2 to 0xa. These
@@ -64,6 +87,21 @@ configuration has masked readback, but enabling physical RTS/CTS or sleep-wake
 signaling emits an unsupported warning. DMA, error framing and TX timing are
 not modeled. SYS clock-mode and PMU power fields retain configuration only;
 no PLL lock, calibration completion, rail transition or DVFS success is faked.
+
+MBOX0 diagnostic policies for undocumented edge cases are explicit: channel
+outputs combine the individual RX/error enables; disabling a channel masks
+traffic/IRQ but retains queued messages. Enabled or nonempty FIFOs cannot move
+or resize, and their partitions cannot overlap or exceed the eight slots.
+Invalid partitions are rejected; empty/disabled SID reads return 0xf and log a
+guest error without consuming data. Unauthorized TID/SID operations latch the
+documented addressed-channel WRERR/RDERR; protected configuration/data writes
+are unsupported bus errors because their exact silicon response is unknown.
+A full destination preserves its old entries and latches sender WRFULL. An
+unavailable destination is rejected with WRERR. Raw self-send is allowed; this
+is not the higher-level SDK logical-channel policy. Reset clears queues and
+IRQs. No physical interconnect latency or DMA-master identity is modeled; the
+global qtest bus uses CPU0's view. The 0x100 aperture covers known registers,
+not a measured silicon decode window.
 
 Migration/snapshot state is unsupported and the SoC is marked unmigratable.
 Unimplemented registers report through ``-d unimp`` instead of fabricating
@@ -83,14 +121,16 @@ AON PMU            0x44000000                     0x54000000
 GPIO               0x44000400                     0x54000400
 AON watchdog       0x44000600                     0x54000600
 APB/NMI watchdog   0x44800000                     0x54800000
+MBOX0 v2           0x41000000                     0x51000000
 SYS                0x44010000                     0x54010000
+CKMN               0x448a0000                     0x548a0000
 UART0              0x44820000                     0x54820000
 UART1              0x45830000                     0x55830000
 UART2              0x45840000                     0x55840000
 =================  ============================  ====================
 
 Aliases alone do not implement the BK7258 TrustZone attribution/security
-controller. ROM, PSRAM, external timers, mailbox/RPMsg, DMA, caches, flash
+controller. ROM, PSRAM, external timers, legacy MBOX1, DMA, caches, flash
 controller/remap/persistence, MCUboot/OTA and physical-board devices are absent.
 Wi-Fi/BT, camera, audio, codec, power and performance behavior are not modeled.
 
@@ -138,10 +178,11 @@ NuttX ``arm_enable_dbgmonitor()`` probes them because ARCH_CORTEXM33 selects
 ARCH_HAVE_DEBUG. The NSH harness preserves and counts exactly those eight
 startup messages, rejecting every other unknown access, including DWT cycle
 counter reads. No debugger, breakpoint or performance-counter claim follows.
-The unchanged product CP remains blocked at CKMN 0x448a0008; the known-stop
-regression is explicitly a failure-boundary test, not a product-boot pass.
-Production CP/AP boot, AP SMP scheduling, firmware updates and hardware timing
-remain outside this acceptance.
+The prior published slice stopped at CKMN 0x448a0008. With CKMN and MBOX0,
+the unchanged product CP next stops at the flash controller 0x44030008;
+the known-stop regression is explicitly a failure-boundary test, not a product-boot pass.
+Production CP/AP boot, AP SMP scheduling, RPMsg software traffic, firmware
+updates and hardware timing remain outside this acceptance.
 
 Register provenance
 -------------------
@@ -157,6 +198,12 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
 * ``cp/middleware/soc/bk7258/soc/sys_reg.h``, ``sys_struct.h`` and
   ``cp/components/bk_startup/system_main.c``: CPU controls and IRQ routing
 * ``cp/include/driver/int_types.h``: UART IRQ numbers 4, 15 and 16, GPIO IRQ55
+* ``cp/middleware/soc/bk7258/soc/mbox0_struct.h``, matching HAL/LL and
+  ``cp/middleware/driver/mailbox/mbox0_drv.c``: v2 registers, eight slots,
+  channel/core ownership and IRQ63. Selected CP/AP builds use MAILBOX_V2_0;
+  conflicting older two-box mailbox definitions do not establish MBOX1 support.
+* ``cp/middleware/driver/pwr_clk/rosc_32k.c`` and BK7258 CKMN HAL/register
+  headers: measured/reference clocks, window count, IRQ21 and W1C status
 * ``cp/middleware/soc/bk7258/soc/{aon_pmu,gpio,wdt}_struct.h`` and matching
   ``hal/*_ll.h``: PMU keys/retention, GPIO fields and watchdog key registers
 * ``cp/middleware/driver/{wdt,wdt_nmi,gpio}`` and

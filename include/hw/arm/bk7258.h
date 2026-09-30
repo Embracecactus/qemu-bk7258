@@ -6,6 +6,8 @@
 #include "hw/char/bk7258_uart.h"
 #include "hw/watchdog/bk7258_wdt.h"
 #include "hw/misc/bk7258_aon.h"
+#include "hw/misc/bk7258_ckmn.h"
+#include "hw/misc/bk7258_mailbox.h"
 
 #define TYPE_BK7258_SOC "bk7258-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(BK7258State, BK7258_SOC)
@@ -16,6 +18,13 @@ struct BK7258State {
     BK7258UARTState uart[3];
     BK7258WDTState wdt[2];
     BK7258AONState aon;
+    BK7258CKMNState ckmn;
+    BK7258MailboxState mailbox;
+    MemoryRegion mailbox_ns[3];
+    uint64_t private_irqs[3];
+    Clock *xtalclk;
+    Clock *roscclk;
+    MemoryRegion ckmn_ns;
     MemoryRegion aon_ns[2];
     MemoryRegion wdt_ns[2];
     Clock *wdtclk[2];
