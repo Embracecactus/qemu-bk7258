@@ -82,10 +82,13 @@ static void bk7258_machine_init(MachineState *machine)
     BK7258MachineState *s = BK7258_MACHINE(machine);
     const BK7258BoardInfo *board = BK7258_MACHINE_GET_CLASS(s)->board;
     DeviceState *dev = qdev_new(TYPE_BK7258_SOC);
+    /* Shared experiment part choice, not a verified BOM for every board. */
+    DeviceState *nor = qdev_new(TYPE_BK7258_NOR);
     BK7258State *soc = BK7258_SOC(dev);
     unsigned i;
 
     object_property_add_child(OBJECT(machine), "soc", OBJECT(dev));
+    object_property_add_child(OBJECT(machine), "nor", OBJECT(nor));
     if (drive_get(IF_PFLASH, 0, 1) && !drive_get(IF_PFLASH, 0, 0)) {
         error_report("BK7258: NOR status drive requires the array drive");
         exit(1);
@@ -98,11 +101,14 @@ static void bk7258_machine_init(MachineState *machine)
                              "diagnostic ELF, not both");
                 exit(1);
             }
-            qdev_prop_set_drive(DEVICE(&soc->flashctrl.nor),
+            qdev_prop_set_drive(nor,
                                 i ? "status-drive" : "drive",
                                 blk_by_legacy_dinfo(drive));
         }
     }
+    qdev_realize_and_unref(nor, NULL, &error_fatal);
+    object_property_set_link(OBJECT(dev), "flash-nor", OBJECT(nor),
+                             &error_abort);
     /* Loading a logical kernel is an explicit diagnostic board policy. */
     qdev_prop_set_bit(dev, "diagnostic-xip", machine->kernel_filename != NULL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

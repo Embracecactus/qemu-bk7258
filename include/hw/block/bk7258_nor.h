@@ -60,6 +60,9 @@ struct BK7258NORState {
  * the caller must reject such commands, never report fabricated success.
  */
 int bk7258_nor_read(BK7258NORState *s, uint32_t addr, void *dst, size_t len);
+/* Concrete memory-part metadata, not SoC identity or host-image geometry. */
+uint32_t bk7258_nor_capacity(const BK7258NORState *s);
+int bk7258_nor_read_id(BK7258NORState *s, uint32_t *id);
 int bk7258_nor_write_enable(BK7258NORState *s);
 int bk7258_nor_write_disable(BK7258NORState *s);
 int bk7258_nor_read_status(BK7258NORState *s, unsigned index, uint8_t *value);

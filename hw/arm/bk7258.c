@@ -318,7 +318,7 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         return;
     }
     if (!s->diagnostic_xip) {
-        if (s->flash_size != BK7258_XIP_SIZE) {
+        if (s->flash_size != memory_region_size(&s->flashctrl.xip)) {
             error_setg(errp,
                        "BK7258 physical NOR mode requires its exact XIP size");
             return;
@@ -328,7 +328,7 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         bk7258_alias(&s->flashctrl_ns, obj, "bk7258.flashctrl-ns",
                      &s->flashctrl.regs, memory, 0x54030000, 0x1000);
     } else {
-        if (s->flashctrl.nor.blk || s->flashctrl.nor.status_blk) {
+        if (s->flashctrl.nor->blk || s->flashctrl.nor->status_blk) {
             error_setg(errp, "BK7258 diagnostic XIP cannot use a NOR backend");
             return;
         }
@@ -533,6 +533,7 @@ static void bk7258_init(Object *obj)
     object_initialize_child(obj, "ckmn", &s->ckmn, TYPE_BK7258_CKMN);
     object_initialize_child(obj, "mailbox", &s->mailbox, TYPE_BK7258_MAILBOX);
     object_initialize_child(obj, "flashctrl", &s->flashctrl, TYPE_BK7258_FLASH);
+    object_property_add_alias(obj, "flash-nor", OBJECT(&s->flashctrl), "nor");
     qdev_init_gpio_in_named(DEVICE(obj), bk7258_mailbox_irq, "mailbox", 3);
     qdev_init_gpio_in(DEVICE(obj), bk7258_irq, 64);
     s->analog_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,

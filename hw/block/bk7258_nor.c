@@ -42,6 +42,24 @@
 
 static const uint8_t status_mask[] = { 0xfc, SR2_QE | SR2_CMP, 0x61 };
 
+uint32_t bk7258_nor_capacity(const BK7258NORState *s)
+{
+    /* This concrete part has one geometry; controllers do not choose it. */
+    return BK7258_NOR_SIZE;
+}
+
+int bk7258_nor_read_id(BK7258NORState *s, uint32_t *id)
+{
+    if (!s->data) {
+        return -ENODEV;
+    }
+    if (!id) {
+        return -EINVAL;
+    }
+    *id = BK7258_NOR_JEDEC_ID;
+    return 0;
+}
+
 static int bk7258_nor_ready(BK7258NORState *s)
 {
     if (!s->data) {

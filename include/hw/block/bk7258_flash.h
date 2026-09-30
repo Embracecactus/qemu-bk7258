@@ -7,12 +7,11 @@
 #include "qemu/timer.h"
 
 #define TYPE_BK7258_FLASH "bk7258-flash"
-#define BK7258_XIP_SIZE ((BK7258_NOR_SIZE / 34) * 32)
 OBJECT_DECLARE_SIMPLE_TYPE(BK7258FlashState, BK7258_FLASH)
 
 struct BK7258FlashState {
     SysBusDevice parent_obj;
-    BK7258NORState nor;
+    BK7258NORState *nor;
     MemoryRegion regs;
     MemoryRegion xip;
     QEMUTimer *timer;

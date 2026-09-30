@@ -10,6 +10,8 @@
 #include "qemu/bswap.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qapi/error.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/block/bk7258_flash.h"
 #include "system/system.h"
 #include "system/runstate.h"
@@ -52,53 +54,52 @@ static int bk7258_flash_execute(BK7258FlashState *s)
 
     switch (s->pending_operation) {
     case 1:
-        return bk7258_nor_write_enable(&s->nor);
+        return bk7258_nor_write_enable(s->nor);
     case 2:
-        return bk7258_nor_write_disable(&s->nor);
+        return bk7258_nor_write_disable(s->nor);
     case 3:
         index = bk7258_flash_status_index(s->pending_commands, false);
         return index < 0 ? index :
-               bk7258_nor_read_status(&s->nor, index, &s->status);
+               bk7258_nor_read_status(s->nor, index, &s->status);
     case 4:
         index = bk7258_flash_status_index(s->pending_commands, true);
         return index < 0 ? index :
-               bk7258_nor_write_status(&s->nor, index, status);
+               bk7258_nor_write_status(s->nor, index, status);
     case 5:
-        ret = bk7258_nor_read(&s->nor, address, s->rx, sizeof(s->rx));
+        ret = bk7258_nor_read(s->nor, address, s->rx, sizeof(s->rx));
         if (!ret) {
             s->rx_words = 8;
             s->rx_index = 0;
         }
         return ret;
     case 6:
-        return bk7258_nor_read_status(&s->nor, 1, &s->status);
+        return bk7258_nor_read_status(s->nor, 1, &s->status);
     case 7:
         /* Reject unsupported fields before changing either status byte. */
-        ret = bk7258_nor_check_status(&s->nor, 0, status);
+        ret = bk7258_nor_check_status(s->nor, 0, status);
         if (!ret) {
-            ret = bk7258_nor_check_status(&s->nor, 1, status >> 8);
+            ret = bk7258_nor_check_status(s->nor, 1, status >> 8);
         }
         if (!ret) {
-            ret = bk7258_nor_write_status(&s->nor, 0, status);
+            ret = bk7258_nor_write_status(s->nor, 0, status);
         }
         if (!ret) {
-            ret = bk7258_nor_write_enable(&s->nor);
+            ret = bk7258_nor_write_enable(s->nor);
         }
         return ret ? ret :
-               bk7258_nor_write_status(&s->nor, 1, status >> 8);
+               bk7258_nor_write_status(s->nor, 1, status >> 8);
     case 12:
-        return bk7258_nor_program(&s->nor, address, s->pending_data, 32);
+        return bk7258_nor_program(s->nor, address, s->pending_data, 32);
     case 13:
-        return bk7258_nor_erase(&s->nor, address, 4096);
+        return bk7258_nor_erase(s->nor, address, 4096);
     case 14:
-        return bk7258_nor_erase(&s->nor, address, 32768);
+        return bk7258_nor_erase(s->nor, address, 32768);
     case 15:
-        return bk7258_nor_erase(&s->nor, address, 65536);
+        return bk7258_nor_erase(s->nor, address, 65536);
     case 16:
-        return bk7258_nor_erase(&s->nor, address, BK7258_NOR_SIZE);
+        return bk7258_nor_erase(s->nor, address, bk7258_nor_capacity(s->nor));
     case 20:
-        s->id = BK7258_NOR_JEDEC_ID;
-        return 0;
+        return bk7258_nor_read_id(s->nor, &s->id);
     case 22:
         s->continuous = false;
         return 0;
@@ -115,7 +116,7 @@ static void bk7258_flash_complete(void *opaque)
     if (!s->busy) {
         return;
     }
-    bk7258_nor_set_busy(&s->nor, false);
+    bk7258_nor_set_busy(s->nor, false);
     ret = bk7258_flash_execute(s);
     s->busy = false;
     if (ret) {
@@ -131,7 +132,7 @@ static void bk7258_flash_complete(void *opaque)
              */
             qemu_system_vmstop_request_prepare();
             qemu_system_vmstop_request(
-                bk7258_nor_has_io_error(&s->nor) || ret == -EROFS ?
+                bk7258_nor_has_io_error(s->nor) || ret == -EROFS ?
                 RUN_STATE_IO_ERROR : RUN_STATE_INTERNAL_ERROR);
         }
     }
@@ -172,11 +173,11 @@ static MemTxResult bk7258_flash_start(BK7258FlashState *s)
     }
     if (bk7258_flash_mutating(operation)) {
         /* Public SDK write-enable wrappers are no-ops: controller owns WREN. */
-        ret = bk7258_nor_write_enable(&s->nor);
+        ret = bk7258_nor_write_enable(s->nor);
         if (ret) {
             return MEMTX_ERROR;
         }
-        bk7258_nor_set_busy(&s->nor, true);
+        bk7258_nor_set_busy(s->nor, true);
     }
     s->busy = true;
     /* Functional transfer latency only, not flash program/erase performance. */
@@ -238,8 +239,8 @@ static void bk7258_flash_reset(DeviceState *dev)
     s->tx_words = s->rx_words = s->rx_index = 0;
     /* Direct XIP entry contract; ROM setup and silicon POR are not modeled. */
     s->config = DEFAULT_CONFIG;
-    bk7258_nor_reset(&s->nor);
-    bk7258_nor_set_wp(&s->nor, false);
+    bk7258_nor_reset(s->nor);
+    bk7258_nor_set_wp(s->nor, false);
 }
 
 static MemTxResult bk7258_flash_write(void *opaque, hwaddr addr, uint64_t value,
@@ -262,7 +263,7 @@ static MemTxResult bk7258_flash_write(void *opaque, hwaddr addr, uint64_t value,
     switch (addr) {
     case 0x10:
         s->wp = value & (1U << 30);
-        bk7258_nor_set_wp(&s->nor, s->wp != 0);
+        bk7258_nor_set_wp(s->nor, s->wp != 0);
         return value & (1U << 29) ? bk7258_flash_start(s) : MEMTX_OK;
     case 0x14:
         if (s->tx_words == 8) {
@@ -320,16 +321,17 @@ static MemTxResult bk7258_flash_xip_read(void *opaque, hwaddr addr,
                                         MemTxAttrs attrs)
 {
     BK7258FlashState *s = opaque;
-    const uint8_t *storage = bk7258_nor_storage(&s->nor);
+    const uint8_t *storage = bk7258_nor_storage(s->nor);
     uint64_t last_block = UINT64_MAX;
+    uint64_t xip_size = memory_region_size(&s->xip);
     uint8_t status;
 
     *value = 0;
-    if (!storage || addr >= BK7258_XIP_SIZE || size > BK7258_XIP_SIZE - addr) {
+    if (!storage || addr >= xip_size || size > xip_size - addr) {
         return MEMTX_ERROR;
     }
     if (((s->config >> 4) & 0x1f) == 2) {
-        bk7258_nor_read_status(&s->nor, 1, &status);
+        bk7258_nor_read_status(s->nor, 1, &status);
         if (!(status & 2)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "bk7258-flash: quad XIP without QE\n");
@@ -400,19 +402,23 @@ static void bk7258_flash_realize(DeviceState *dev, Error **errp)
 {
     BK7258FlashState *s = BK7258_FLASH(dev);
 
-    qdev_realize(DEVICE(&s->nor), NULL, errp);
+    if (!s->nor || !qdev_is_realized(DEVICE(s->nor))) {
+        error_setg(errp, "BK7258 flash controller requires "
+                   "a realized NOR link");
+        return;
+    }
+    memory_region_set_size(&s->xip, (bk7258_nor_capacity(s->nor) / 34) * 32);
 }
 
 static void bk7258_flash_init(Object *obj)
 {
     BK7258FlashState *s = BK7258_FLASH(obj);
 
-    object_initialize_child(obj, "nor", &s->nor, TYPE_BK7258_NOR);
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, bk7258_flash_complete, s);
     memory_region_init_io(&s->regs, obj, &bk7258_flash_ops, s,
                           "bk7258-flash", 0x1000);
     memory_region_init_io(&s->xip, obj, &bk7258_xip_ops, s,
-                          "bk7258-flash-xip", BK7258_XIP_SIZE);
+                          "bk7258-flash-xip", 0);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->regs);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->xip);
 }
@@ -422,11 +428,17 @@ static void bk7258_flash_finalize(Object *obj)
     timer_free(BK7258_FLASH(obj)->timer);
 }
 
+static const Property bk7258_flash_properties[] = {
+    DEFINE_PROP_LINK("nor", BK7258FlashState, nor,
+                     TYPE_BK7258_NOR, BK7258NORState *),
+};
+
 static void bk7258_flash_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = bk7258_flash_realize;
+    device_class_set_props(dc, bk7258_flash_properties);
     device_class_set_legacy_reset(dc, bk7258_flash_reset);
     dc->user_creatable = false;
 }

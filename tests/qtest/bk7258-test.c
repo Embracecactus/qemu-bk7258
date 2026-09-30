@@ -849,6 +849,46 @@ static void test_volatile_nor(const void *board)
     qtest_quit(qts);
 }
 
+static void expect_nor_link(QTestState *qts, const char *path, const char *prop)
+{
+    QDict *reply = qtest_qmp(qts, "{'execute':'qom-get','arguments':"
+                            "{'path':%s,'property':%s}}", path, prop);
+
+    g_assert_true(qdict_haskey(reply, "return"));
+    g_assert_cmpstr(qdict_get_str(reply, "return"), ==, "/machine/nor");
+    qobject_unref(reply);
+}
+
+static void test_board_owned_nor(const void *board)
+{
+    QTestState *qts = start(board);
+    QDict *error;
+
+    expect_nor_link(qts, "/machine/soc", "flash-nor");
+    expect_nor_link(qts, "/machine/soc/flashctrl", "nor");
+    g_assert_true(qtest_qom_get_bool(qts, "/machine/nor", "realized"));
+    error = qtest_qmp_assert_failure_ref(qts,
+        "{'execute':'qom-set','arguments':{'path':'/machine/soc',"
+        "'property':'flash-nor','value':''}}");
+    g_assert_nonnull(strstr(qdict_get_str(error, "desc"),
+                            "after it was realized"));
+    qobject_unref(error);
+    error = qtest_qmp_assert_failure_ref(qts,
+        "{'execute':'qom-set','arguments':{'path':'/machine/soc/flashctrl',"
+        "'property':'nor','value':'/machine/soc/aon'}}");
+    qobject_unref(error);
+    expect_nor_link(qts, "/machine/soc", "flash-nor");
+    qtest_writel(qts, FLASH + 8, 1);
+    flash_op(qts, 20, 0);
+    expect(qts, FLASH + 0x20, 0xc86517);
+    flash_program(qts, 0x3000, 0x73737373);
+    qtest_system_reset(qts);
+    expect_nor_link(qts, "/machine/soc", "flash-nor");
+    qtest_writel(qts, FLASH + 8, 1);
+    flash_expect(qts, 0x3000, 0x73737373);
+    qtest_quit(qts);
+}
+
 static void reject_start(const char *args)
 {
     QTestState *qts = qtest_init_ext(NULL, args, NULL, false);
@@ -1016,6 +1056,7 @@ int main(int argc, char **argv)
         {"mailbox-protection-reset", test_mailbox_protection},
         {"nor-persistence-protection-cancel-readonly", test_nor},
         {"nor-without-host-backing", test_volatile_nor},
+        {"board-owned-nor-immutable-link", test_board_owned_nor},
         {"explicit-logical-xip-mode", test_explicit_xip_mode},
     };
 
