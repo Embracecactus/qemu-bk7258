@@ -188,6 +188,11 @@ Implemented slice
 * SYS core control and interrupt enable/status registers. Reset release samples
   the vector address; changing vector bits while running does not reset a CPU.
   Halt/power gates preserve CPU state. Changes run in target-CPU order.
+  Unsupported SYS reads/writes return a bus error as well as a diagnostic log.
+  This strict model policy prevents an absent device-ID or ignored status write
+  from appearing to succeed; it does not claim the silicon faults on every
+  unmodeled register. Guest tests check the actual HardFault exception, precise
+  BusFault status and fault address for secure reads and NS-alias writes.
 * Native Cortex-M33 SysTick exception delivery. CPU clock remains 26 MHz.
   SYS+0x40 bits 29/30/27 gate each core's selected LPO reference.
   Gating preserves timer count; changing an unselected source is inert.
@@ -246,7 +251,8 @@ Implemented slice
   cross-core TID/SID operations under protection.
 
 Diagnostic choices are deliberately explicit: UART receive capacity is 128
-bytes (not a verified silicon FIFO depth), TX drains synchronously, interrupt
+bytes, matching the datasheet FIFO depth, but FIFO-mode selection is not yet
+implemented and TX drains synchronously. Interrupt
 route masks reset to zero, CPU1 control resets to 0x2 and CPU2 to 0xa. These
 reset defaults are an emulator boot contract, not measured power-on defaults.
 External SysTick routes start enabled, watchdogs start disarmed, and GPIO pads
@@ -424,10 +430,12 @@ physical controller waveform is not known.
 Unsupported: raw SPI framing, SFDP/UID/security/OTP, SRP1 special modes,
 volatile-status enable, suspend/deep-powerdown, page-select modes, direct CPU
 XIP writes, CRC-disabled mode, remap/encryption, flash performance, brownout
-atomicity and migration. The canonical tests include actual file-backed
-persistence and error rejection, a production-helper ASan/UBSan harness with
-mocked block failures, and real Thumb-2 instruction fetch spanning an MMIO
-page. The latter also covers the downstream translator record-page fix.
+atomicity and migration. Native qtests cover actual file-backed persistence,
+CRC and error rejection. Earlier external diagnostics also exercised a
+production-helper ASan/UBSan harness with mocked block failures and real
+Thumb-2 instruction fetch spanning an MMIO page. Those historical results
+motivated the downstream translator record-page fix, but are not yet part of
+this repository's self-contained native test gate.
 
 Independent hardware regression
 -------------------------------
@@ -484,7 +492,7 @@ and run QEMU's registered functional test from the build directory::
 ``--setup thorough`` is required: QEMU's default quick setup excludes these
 cross-compiler-dependent tests. The standard runner installs its own declared
 Python test dependencies. Without a compiler the test explicitly skips; this
-repository's CI installs the compiler and requires all six cases to execute.
+repository's CI installs the compiler and runs all twelve cases.
 No OS checkout or firmware download is required.
 
 ``tests/functional/arm/test_bk7258.py`` compiles the adjacent
@@ -510,13 +518,27 @@ measures three milliseconds with DWDT armed but its LPO absent, then restoring
 DIVD must deliver NMI under PRIMASK. The Python runner is a new
 GPL-2.0-or-later downstream test.
 
+Six additional cases build ``sys_fault.c`` for all three machines: an
+unimplemented SYS identity read and an unsupported NS-alias status write must
+reach the real Cortex-M33 HardFault handler with precise BusFault flags and
+the matching BFAR. A silent read-zero or ignored write exits with failure.
+These verify the model's strict unsupported-access policy, not silicon's
+response to undocumented registers. Their MMIO logs must contain exactly the
+expected unsupported operation; the six ordinary diagnostic cases still
+require empty error logs.
+
 Register provenance
 -------------------
 
-The Beken-authored `BK7258 datasheet DS-BK7258-E13 V2.2
+The `manufacturer-hosted BK7258 datasheet DS-BK7258-E12 V2.1
+<https://docs.bekencorp.com/spec/BK7258/BK7258%C2%A0Datasheet.pdf>`_
+(2025-05-23, SHA-256
+``c806deb7adc9299e157399cf49847c34ca125df6a7d44f79838fdefc723ddf55``)
+and Beken-authored `DS-BK7258-E13 V2.2
 <https://atta.szlcsc.com/upload/public/pdf/source/20251127/3E2C5A125F7501CF8881A2782356EC17.pdf>`_
-(2025-08-04, distributor-hosted copy) corroborates the LPO source tree in
+(2025-08-04, distributor-hosted copy) corroborate the LPO source tree in
 section 4.3 and the distinct watchdog/RTC clocks in sections 4.31/4.32.
+Section 4.9 specifies 128-byte UART TX/RX FIFOs.
 Section 4.4 distinguishes whole-chip and digital-domain resets. The existing
 single QEMU system-reset contract does not yet implement those reset domains;
 retention across every reset cause must not be inferred from it.

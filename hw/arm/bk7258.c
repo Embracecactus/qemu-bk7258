@@ -104,7 +104,9 @@ static void bk7258_mailbox_irq(void *opaque, int core, int level)
     bk7258_update_irqs(s);
 }
 
-static uint64_t bk7258_sys_read(void *opaque, hwaddr offset, unsigned size)
+static MemTxResult bk7258_sys_read(void *opaque, hwaddr offset,
+                                   uint64_t *value, unsigned size,
+                                   MemTxAttrs attrs)
 {
     BK7258State *s = opaque;
     unsigned index;
@@ -113,34 +115,45 @@ static uint64_t bk7258_sys_read(void *opaque, hwaddr offset, unsigned size)
     case 0x10:
     case 0x14:
     case 0x18:
-        return s->cpu_control[(offset - 0x10) / 4];
+        *value = s->cpu_control[(offset - 0x10) / 4];
+        break;
     case 0x20:
-        return s->clock_mode;
+        *value = s->clock_mode;
+        break;
     case 0x28:
-        return s->clock_select;
+        *value = s->clock_select;
+        break;
     case 0x40:
-        return s->power_sleep;
+        *value = s->power_sleep;
+        break;
     case 0xc0 ... 0xd8:
-        return s->gpio_mux[(offset - 0xc0) / 4];
+        *value = s->gpio_mux[(offset - 0xc0) / 4];
+        break;
     case 0xe8:
-        return s->analog_busy;
+        *value = s->analog_busy;
+        break;
     case 0x100 ... 0x16c:
-        return s->analog[(offset - 0x100) / 4];
+        *value = s->analog[(offset - 0x100) / 4];
+        break;
     case 0x30:
-        return s->peripheral_clocks;
+        *value = s->peripheral_clocks;
+        break;
     case 0x80 ... 0x94:
         index = (offset - 0x80) / 4;
-        return s->irq_enable[index / 2][index % 2];
+        *value = s->irq_enable[index / 2][index % 2];
+        break;
     case 0xa0 ... 0xb4:
         index = (offset - 0xa0) / 4;
-        return ((s->irq_levels | s->private_irqs[index / 2]) >>
+        *value = ((s->irq_levels | s->private_irqs[index / 2]) >>
                 (32 * (index % 2))) &
                s->irq_enable[index / 2][index % 2];
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "bk7258-sys: read offset 0x%" HWADDR_PRIx
                       " is not implemented\n", offset);
-        return 0;
+        return MEMTX_ERROR;
     }
+    return MEMTX_OK;
 }
 
 static bool bk7258_cpu_enabled(uint32_t value)
@@ -169,8 +182,9 @@ static void bk7258_cpu_control_work(CPUState *cs, run_on_cpu_data data)
     cs->halted = !enabled;
 }
 
-static void bk7258_sys_write(void *opaque, hwaddr offset,
-                             uint64_t value, unsigned size)
+static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
+                                    uint64_t value, unsigned size,
+                                    MemTxAttrs attrs)
 {
     BK7258State *s = opaque;
     unsigned index;
@@ -241,13 +255,14 @@ static void bk7258_sys_write(void *opaque, hwaddr offset,
     default:
         qemu_log_mask(LOG_UNIMP, "bk7258-sys: write offset 0x%" HWADDR_PRIx
                       " is not implemented\n", offset);
-        break;
+        return MEMTX_ERROR;
     }
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps bk7258_sys_ops = {
-    .read = bk7258_sys_read,
-    .write = bk7258_sys_write,
+    .read_with_attrs = bk7258_sys_read,
+    .write_with_attrs = bk7258_sys_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
