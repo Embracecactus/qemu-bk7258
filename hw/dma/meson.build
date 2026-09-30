@@ -1,3 +1,4 @@
+system_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258_dma.c'))
 system_ss.add(when: 'CONFIG_RC4030', if_true: files('rc4030.c'))
 system_ss.add(when: 'CONFIG_PL080', if_true: files('pl080.c'))
 system_ss.add(when: 'CONFIG_PL330', if_true: files('pl330.c'))

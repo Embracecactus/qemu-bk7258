@@ -1728,6 +1728,291 @@ static void test_nor(const void *board)
     g_assert_cmpint(rmdir(dir), ==, 0);
 }
 
+#define DMA_FIN (1U << 18)
+#define DMA_HALF (1U << 19)
+#define DMA_ERR (1U << 20)
+#define DMA_FLAGS (DMA_FIN | DMA_HALF | DMA_ERR)
+
+static uint32_t dma_channel(unsigned unit, unsigned channel)
+{
+    return 0x45020040 + unit * 0x10000 + channel * 0x40;
+}
+
+static void dma_start(QTestState *qts, uint32_t channel, uint32_t source,
+                      uint32_t destination, unsigned bytes, unsigned config)
+{
+    qtest_writel(qts, channel + 4, destination);
+    qtest_writel(qts, channel + 8, source);
+    qtest_writel(qts, channel, ((bytes - 1) << 16) | config | 1);
+}
+
+static void test_dma_widths_aliases(const void *board)
+{
+    QTestState *qts = start(board);
+    uint8_t source[32], actual[32], expected[32];
+    static const uint32_t alias[] = {
+        0x08000000, 0x18000000, 0x28000000, 0x38000000,
+    };
+
+    for (unsigned i = 0; i < sizeof(source); i++) {
+        source[i] = 0x91 ^ (i * 17);
+    }
+    for (unsigned unit = 0; unit < 2; unit++) {
+        qtest_writel(qts, 0x45020008 + unit * 0x10000, 1);
+        for (unsigned ch = 0; ch < 8; ch++) {
+            uint32_t c = dma_channel(unit, ch);
+            uint32_t src = alias[ch % 4] + 0x1000;
+            uint32_t dst = alias[(ch + 1) % 4] + 0x2000;
+
+            for (unsigned w = 0; w < 3; w++) {
+                unsigned width = 1U << w;
+
+                for (unsigned inc = 0; inc < 4; inc++) {
+                    memset(actual, 0xcc, sizeof(actual));
+                    memset(expected, 0xcc, sizeof(expected));
+                    for (unsigned n = 0; n < sizeof(source); n += width) {
+                        memcpy(expected + (inc & 2 ? n : 0),
+                               source + (inc & 1 ? n : 0), width);
+                    }
+                    qtest_memwrite(qts, src, source, sizeof(source));
+                    qtest_memwrite(qts, dst, actual, sizeof(actual));
+                    dma_start(qts, c, src, dst, sizeof(source),
+                              (w << 4) | (w << 6) | (inc << 8));
+                    expect(qts, c + 0x30, sizeof(source));
+                    qtest_clock_step(qts, 10000);
+                    qtest_memread(qts, dst, actual, sizeof(actual));
+                    g_assert_cmpmem(actual, sizeof(actual), expected,
+                                    sizeof(expected));
+                    expect(qts, c + 0x28,
+                           src + (inc & 1 ? sizeof(source) : 0));
+                    expect(qts, c + 0x2c,
+                           dst + (inc & 2 ? sizeof(source) : 0));
+                    expect(qts, c + 0x30, 0x110c0000);
+                    qtest_writel(qts, c + 0x30, DMA_FLAGS);
+                    expect(qts, c + 0x30, 0);
+                }
+            }
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_dma_half_mask_routes(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = 0x45020000 + unit * 0x10000;
+        uint32_t c = dma_channel(unit, 7);
+        unsigned bank = unit ? 4 : 0;
+        uint32_t mask = unit ? 1U << 25 : 1;
+
+        qtest_writel(qts, b + 8, 1);
+        qtest_writel(qts, 0x28001000, 0x12345678);
+        for (unsigned core = 0; core < 3; core++) {
+            qtest_writel(qts, SYS + 0x80 + 8 * core + bank, mask);
+        }
+        dma_start(qts, c, 0x28001000, 0x38002000, 4, 0x300);
+        qtest_clock_step(qts, 77);
+        expect(qts, c + 0x30, 3);
+        qtest_clock_step(qts, 77);
+        expect(qts, c + 0x30, 0x10080002);
+        expect(qts, b + 0x1c, 0); /* Locally masked, status still latches. */
+        qtest_writel(qts, c, 0x00030305); /* Enable HALF without rearm. */
+        expect(qts, b + 0x1c, 0x80);
+        for (unsigned core = 0; core < 3; core++) {
+            expect(qts, SYS + 0xa0 + 8 * core + bank, mask);
+        }
+        /* W0 must not clear W1C flags; alias write acknowledges HALF. */
+        qtest_writel(qts, c + 0x30, 0);
+        expect(qts, b + 0x1c, 0x80);
+        qtest_writel(qts, c + 0x10000030, DMA_HALF);
+        expect(qts, b + 0x1c, 0);
+        qtest_clock_step(qts, 154);
+        expect(qts, c + 0x30, 0x01040000);
+        expect(qts, b + 0x1c, 0); /* FINISH is independently masked. */
+        qtest_writel(qts, c, 0x00030302);
+        expect(qts, b + 0x1c, 0x80);
+        expect(qts, b + 0x18, 0); /* This slice has no secure channel. */
+        expect(qts, 0x28002000, 0x12345678);
+        qtest_writel(qts, c + 0x30, DMA_FIN);
+        for (unsigned core = 0; core < 3; core++) {
+            expect(qts, SYS + 0xa0 + 8 * core + bank, 0);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_dma_fault_progress(const void *board)
+{
+    QTestState *qts = start(board);
+    static const uint32_t inaccessible[] = {
+        0x20000000, 0x30000000, 0x00000000, 0x10000000, /* Private TCM. */
+        0x4482001c, 0x44010080, 0x02000000, 0x60000000, /* Not DMA RAM. */
+        0xffffffff,
+    };
+
+    qtest_writel(qts, 0x2809fffc, 0x87654321);
+    qtest_writel(qts, 0x28001000, 0xdeadbeef);
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = 0x45020000 + unit * 0x10000;
+        uint32_t c = dma_channel(unit, 0);
+        unsigned bank = unit ? 4 : 0;
+        uint32_t mask = unit ? 1U << 25 : 1;
+
+        qtest_writel(qts, b + 8, 1);
+        qtest_writel(qts, SYS + 0x80 + bank, mask);
+        qtest_writel(qts, c + 0x1c, 1U << 22);
+        qtest_writel(qts, 0x28002004, 0xdeadbeef);
+        dma_start(qts, c, 0x1809fffc, 0x38002000, 8, 0x3a0);
+        qtest_clock_step(qts, 154);
+        expect(qts, 0x28002000, 0x87654321);
+        expect(qts, 0x28002004, 0xdeadbeef);
+        expect(qts, c + 0x30, 0x10180004); /* HALF and ERR, never FINISH. */
+        expect(qts, c + 0x28, 0x180a0000);
+        expect(qts, c + 0x2c, 0x38002004);
+        expect(qts, SYS + 0xa0 + bank, mask);
+        qtest_writel(qts, c + 0x1c, 0); /* Mask without clearing error. */
+        expect(qts, SYS + 0xa0 + bank, 0);
+        qtest_writel(qts, c + 0x30, DMA_FLAGS);
+        for (unsigned i = 0; i < G_N_ELEMENTS(inaccessible); i++) {
+            for (unsigned write = 0; write < 2; write++) {
+                dma_start(qts, c, write ? 0x28001000 : inaccessible[i],
+                          write ? inaccessible[i] : 0x28002000, 1, 0);
+                qtest_clock_step(qts, 77);
+                expect(qts, c + 0x30, DMA_ERR | 1);
+                g_assert_cmphex(qtest_readl(qts, c) & 1, ==, 0);
+                expect(qts, 0x28001000, 0xdeadbeef);
+                qtest_writel(qts, c + 0x30, DMA_ERR);
+            }
+        }
+        expect(qts, SYS + 0x80 + bank, mask); /* No MMIO side effects. */
+    }
+    qtest_quit(qts);
+}
+
+static void test_dma_schedule_cancel(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = 0x45020000 + unit * 0x10000;
+
+        qtest_writel(qts, b + 8, 1);
+        for (unsigned ch = 0; ch < 8; ch++) {
+            uint32_t c = dma_channel(unit, ch);
+
+            qtest_writel(qts, 0x28001000 + ch * 4, 0xcafef000 | ch);
+            qtest_writel(qts, 0x28002000 + ch * 4, 0);
+            dma_start(qts, c, 0x28001000 + ch * 4,
+                      0x28002000 + ch * 4, 4, 0xa0);
+        }
+        for (unsigned ch = 0; ch < 8; ch++) {
+            qtest_clock_step(qts, 77);
+            expect(qts, 0x28002000 + ch * 4, 0xcafef000 | ch);
+            if (ch < 7) {
+                expect(qts, 0x28002004 + ch * 4, 0);
+            }
+        }
+        qtest_writel(qts, b + 8, 0);
+        qtest_writel(qts, b + 8, 1);
+        qtest_writel(qts, 0x28002000, 0);
+        dma_start(qts, b + 0x40, 0x28001000, 0x28002000, 4, 0x3a0);
+        qtest_clock_step(qts, 76);
+        qtest_writel(qts, b + 0x40, 0x000303a2); /* Disable cancels beat. */
+        qtest_clock_step(qts, 1000);
+        expect(qts, 0x28002000, 0);
+        expect(qts, b + 0x70, 4);
+        dma_start(qts, b + 0x40, 0x28001000, 0x28002000, 4, 0x3a0);
+        qtest_clock_step(qts, 76);
+        qtest_writel(qts, b + 8, 0); /* Global reset cancels too. */
+        qtest_clock_step(qts, 1000);
+        expect(qts, 0x28002000, 0);
+        expect(qts, b + 0x70, 0);
+        qtest_writel(qts, b + 8, 1);
+        dma_start(qts, b + 0x40, 0x28001000, 0x28002000, 4, 0x3a0);
+        qtest_system_reset(qts);
+        qtest_clock_step(qts, 1000);
+        expect(qts, 0x28002000, 0);
+        expect(qts, b + 8, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_dma_max_length_rearm(const void *board)
+{
+    QTestState *qts = start(board);
+    g_autofree uint8_t *source = g_malloc(65536);
+    g_autofree uint8_t *actual = g_malloc0(65536);
+
+    for (unsigned n = 0; n < 65536; n++) {
+        source[n] = (n >> 8) ^ n ^ 0x5a;
+    }
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = 0x45020000 + unit * 0x10000, c = b + 0x40;
+        unsigned config = unit ? 0x300 : 0x3a0;
+
+        qtest_writel(qts, b + 8, 1);
+        qtest_memwrite(qts, 0x28010000, source, 65536);
+        memset(actual, 0, 65536);
+        qtest_memwrite(qts, 0x28020000, actual, 65536);
+        dma_start(qts, c, 0x18010000, 0x08020000, 65536, config);
+        expect(qts, c + 0x30, 65536);
+        qtest_clock_step(qts, 100000000); /* Bounded catch-up, not a loop. */
+        expect(qts, c + 0x30, 0x110c0000);
+        qtest_memread(qts, 0x38020000, actual, 65536);
+        g_assert_cmpmem(actual, 65536, source, 65536);
+        qtest_writel(qts, c, 0xffff0001 | config);
+        g_assert_cmphex(qtest_readl(qts, c) & 1, ==, 0);
+        qtest_writel(qts, c + 0x30, DMA_FIN);
+        qtest_writel(qts, c, 0xffff0001 | config);
+        g_assert_cmphex(qtest_readl(qts, c) & 1, ==, 0);
+        qtest_writel(qts, c + 0x30, DMA_HALF);
+        dma_start(qts, c, 0x28010000, 0x28020000, 1, 0);
+        qtest_clock_step(qts, 77);
+        expect(qts, c + 0x30, 0x110c0000); /* One-byte HALF and FINISH. */
+        qtest_writel(qts, b + 8, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_dma_unsupported_modes(const void *board)
+{
+    QTestState *qts = start(board);
+    static const uint32_t unsupported[] = {
+        8, 0x10, 0x30, 0x400, 0x800, 0x1000, 0x8000,
+    };
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = 0x45020000 + unit * 0x10000, c = b + 0x40;
+
+        qtest_writel(qts, b + 8, 1);
+        qtest_writel(qts, c + 4, 0x28002000);
+        qtest_writel(qts, c + 8, 0x28001000);
+        for (unsigned i = 0; i < G_N_ELEMENTS(unsupported); i++) {
+            qtest_writel(qts, c, 0x00030001 | unsupported[i]);
+            expect(qts, c, 0);
+        }
+        qtest_writel(qts, c + 0x1c, 1); /* No fabricated peripheral ready. */
+        qtest_writel(qts, c, 0x00030001);
+        expect(qts, c, 0);
+        qtest_writel(qts, c + 0x1c, 0);
+        qtest_writel(qts, c + 4, 0x28002001); /* Unaligned word. */
+        qtest_writel(qts, c, 0x000303a1);
+        expect(qts, c, 0);
+        qtest_writel(qts, b + 0x10, 1);
+        qtest_writel(qts, b + 0x14, 1);
+        qtest_writel(qts, b + 0x28, 1);
+        expect(qts, b + 0x10, 0);
+        expect(qts, b + 0x14, 0);
+        expect(qts, b + 0x28, 0);
+        qtest_clock_step(qts, 10000);
+        expect(qts, c + 0x30, 0);
+        expect(qts, b + 0x1c, 0);
+    }
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     static const char *boards[] = {"t5_board", "t5ai_core", "aidk_ai_toy"};
@@ -1735,6 +2020,12 @@ int main(int argc, char **argv)
         const char *name;
         GTestDataFunc test;
     } tests[] = {
+        {"dma-widths-aliases-all-channels", test_dma_widths_aliases},
+        {"dma-half-mask-w1c-routes", test_dma_half_mask_routes},
+        {"dma-bus-error-partial-progress", test_dma_fault_progress},
+        {"dma-round-robin-disable-reset", test_dma_schedule_cancel},
+        {"dma-max-length-event-rearm", test_dma_max_length_rearm},
+        {"dma-unsupported-modes-no-progress", test_dma_unsupported_modes},
         {"memory-uart-reset", test_memory_uart},
         {"uart-clocks-gates-divider", test_uart_clocks},
         {"uart-rx-clock-pause-reset", test_uart_rx_clock_pause},

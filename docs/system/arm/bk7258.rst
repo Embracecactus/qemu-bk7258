@@ -105,12 +105,17 @@ OpenVela source or profile changes are required for that gate.
        bounded FIFOs, clock pause, W1C/error/done IRQ7/17 and reset cancel
      - 16-bit/LSB/3-wire/slave/RX-only modes, raw-divider0, wire-edge timing,
        APLL, DMA and physical pinmux/CS routing
+   * - DMA0/1
+     - Two eight-channel shared-RAM engines, equal 8/16/32-bit widths,
+       real memory transactions, partial-error progress and NS IRQ0/57
+     - Peripheral request ports, private TCM/Flash/PSRAM access, security,
+       dynamic HCLK, repeat/burst modes and full arbitration/counter behavior
    * - PWM
      - Register sources identified; not yet modeled
      - Counter/compare/clock-domain/reset behavior and pin-output delivery
    * - Other chip interfaces
      - Not modeled
-     - DMA, QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
+     - QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
        audio/video, Wi-Fi/BT and other absent register blocks
 
 For each added chip block, require source-backed access/reset/clock/IRQ
@@ -156,16 +161,18 @@ names and counts of passing tests cannot close these gates.
        Replace the named TIMG CLK32 netlist assumption with evidence.
    * - Interrupts and shared services
      - Per-core SYS/NVIC routing, NMI, SysTick, mailbox ownership/full state,
-       timer/RTC IRQs and W1C or documented transaction policies
+       timer/RTC IRQs and W1C; isolated RAM-only DMA masters with real
+       failed-transaction propagation and NS IRQ0/57
      - Test each added source through masks, reset and multi-core routing;
-       implement required DMA-master attribution/arbitration semantics.
+       establish DMA security, peripheral requests and HCLK/arbitration
+       contracts beyond the bounded RAM-only slice.
        Missing sources remain absent, not synthetic ready/completion bits.
    * - Basic peripheral buses and pads
      - UART stream RX/idle and GPIO digital contacts are functional;
        general timers, bounded I2C master and finite SSI master transactions
        run independently of host firmware
-     - Remaining I2C/SPI modes, PWM outputs and DMA basics with
-       error/cancel/clock-loss cases; source-backed alternate-function
+     - Remaining I2C/SPI modes, PWM outputs and peripheral DMA requests
+       with error/cancel/clock-loss cases; source-backed alternate-function
        routing. No fabricated fixed ACK, slave data or pin wiring.
    * - Independent reproducibility
      - Native libqtest and source-built bare-metal functional gates run
@@ -409,6 +416,92 @@ modeled timer CLK32 path; other fan-out remains unimplemented. Native qtests
 read QEMU's existing read-only clock-period property to verify source loss,
 recovery, all three independent gates and reset cancellation. External-source
 presence/frequency is a board input, not a firmware-specific success setting.
+
+DMA shared-RAM functional boundaries
+------------------------------------
+
+There are two eight-channel controllers at ``0x45020000`` and
+``0x45030000``, with their usual nonsecure MMIO aliases. The initial slice
+implements only aligned, nonsecure/unprivileged, single-block transfers with
+equal source/destination widths of 8, 16 or 32 bits. Source and destination
+increment independently, or hold a fixed address. The 16-bit length field is
+byte-count minus one; the 17-bit remaining field can represent 65536 bytes.
+Request selector zero is the SDK's ``DMA_DEV_DTCM``/memory mode, also used by
+its general memory-copy routine. That name does not establish which private
+core TCM a DMA bus master can access.
+
+Each controller has its own QEMU ``AddressSpace`` linked to a SoC-owned
+RAM-only container. It contains the four aliases of the shared 640-KiB SRAM,
+not a CPU's private address space. Real ``dma_memory_read/write`` transactions
+carry nonsecure, unprivileged normal-memory attributes. Internal requester
+IDs ``0x100 + 8 * unit + channel`` distinguish these masters from CPUs; these
+are model tags, not claimed physical AHB HMASTER IDs. This slice neither
+implements MPC/PPC/PRRO nor checks a full chip security policy. Mapping both
+address aliases does not establish TrustZone conformance.
+
+Private TCM, Flash/XIP, PSRAM and peripherals are deliberately absent from
+that DMA view until their bus contracts are established. An access to them,
+or beyond SRAM, produces a real failed memory transaction. The channel stops,
+sets BUS_ERROR, preserves the remaining length/current addresses, and does
+not set FINISH for the failed block. Already committed earlier beats remain
+visible; the model does not roll back a partial copy or fabricate completion.
+This bounded-view rejection is a model boundary, not evidence that all those
+addresses are inaccessible to physical BK7258 DMA.
+
+Register facts and bounded policies are separated as follows:
+
+* Global ``+0x08`` bit0 releases reset; bit1 bypass is readback-only here.
+  Channels start at ``+0x40`` with stride ``0x40``. The selected mode exposes
+  source/destination start/current addresses, remaining bytes, FINISH/HALF/
+  BUS_ERROR status and their local masks. Status bits18/19/20 are W1C, as
+  used by the SDK's separate clear operations. Zero does not acknowledge.
+* The NS enabled-pending summary at ``+0x1c`` routes to physical IRQ0 for
+  DMA0 and IRQ57 for DMA1, then through the existing per-core SYS masks.
+  Secure channel attributes, privileged channel attributes and non-default
+  interrupt allocation are rejected rather than accepted without effect.
+  Secure IRQ11/56 and multiple interrupt-allocation modes are not supported.
+  The summary's enabled-pending interpretation is the chosen routing policy;
+  exact silicon raw-summary/readback behavior remains to be established.
+* Equal-priority channels receive one beat each in round-robin order. One
+  beat performs its actual read followed by its write. HALF latches after
+  at least half of the block's bytes commit; one-byte blocks latch HALF and
+  FINISH together. Exact half-edge, arbitration, buffering and completion
+  timing are functional policies, not bus-analyzer measurements.
+* Event counters expose only zero/one unacknowledged event. Rearming while
+  any event remains pending is rejected. Repeat/loop mode, multiple pending
+  event counting, unequal widths, burst/pixel modes, nonzero priority,
+  pause/flush controls and peripheral request selectors are unsupported.
+  These restrictions avoid guessing hardware wrap/count/rearm semantics.
+* The HCLK input is wired to the existing fixed 26-MHz diagnostic clock.
+  A beat takes two source cycles, rounded up to virtual nanoseconds. This is
+  a functional read/write scheduling policy, not a measured DMA/core ratio
+  or bandwidth. Mask/W1C writes do not restart its deadline. Pending phases
+  can pause/resume on a clock input change, but the chip's dynamic HCLK mux,
+  gates and retention domains remain unimplemented. SYS memory-shutdown
+  bits must not be misrepresented as clock gates.
+* Channel disable cancels an undelivered beat and preserves progress.
+  Controller/global or whole-system reset cancels all pending beats, clears
+  channel state and IRQs, and retains already committed SRAM bytes. Active
+  transfer configuration changes other than interrupt masks/W1C/disable are
+  rejected. Unsupported MMIO/configurations return a bus error as a strict
+  diagnostic policy, not a claim about silicon's handling of those writes.
+
+Native qtests exercise all sixteen channels, all three widths, all four
+increment combinations and all SRAM aliases; half/completion mask/W1C and
+three-core IRQ routes; partial errors, inaccessible addresses, no peripheral
+side effects, round-robin progress, disable/reset cancellation, maximum
+65536-byte blocks and bounded event rearm. Native Cortex-M33 probes verify
+actual DMA0/1 interrupt entry and shared-memory data, source/destination
+boundary failures and private-TCM isolation. A missing DMA1 SYS route must
+fail despite successful data transfer; unsupported secure-mode configuration
+must produce a precise BusFault with the correct address. These tests do not
+establish peripheral DMA handshakes or full interconnect/security behavior.
+
+Peripheral request wiring is explicitly blocked pending the corresponding
+port contract. For example the SDK's UART RX DMA setup aligns the FIFO
+address back to a word while selecting an 8-bit transfer and UART_RX request;
+the ordinary CPU RX accessor instead uses the byte lane at FIFO+1. That is
+insufficient evidence to invent a generic ready signal or widen CPU MMIO.
 
 SPI master functional boundaries
 -------------------------------
@@ -723,10 +816,12 @@ I2C0               0x45850000                     0x55850000
 I2C1               0x45860000                     0x55860000
 SPI0               0x44870000                     0x54870000
 SPI1               0x45880000                     0x55880000
+DMA0               0x45020000                     0x55020000
+DMA1               0x45030000                     0x55030000
 =================  ============================  ====================
 
 Aliases alone do not implement the BK7258 TrustZone attribution/security
-controller. ROM, PSRAM, PWM, legacy MBOX1, DMA, physical caches,
+controller. ROM, PSRAM, PWM, legacy MBOX1, peripheral DMA, physical caches,
 flash remap/encryption, MCUboot/OTA and other physical-board devices are absent.
 Wi-Fi/BT, camera, audio, codec, power and performance behavior are not modeled.
 
@@ -1028,6 +1123,14 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   snapshot handshake, W1C usage and live-period-change hazard. BK7258 SYS
   structure/HAL supplies gate/source bits and IRQ3/13. Ambiguous clock-net,
   snapshot and reset details remain named functional policies above.
+* ``ap/include/soc/bk7258/dma_cap.h``,
+  ``ap/middleware/soc/bk7258_ap/soc/{dma_struct,dma_reg}.h``, matching DMA LL,
+  ``ap/middleware/soc/bk7258_ap/hal/dma_hal_debug.c``, common DMA HAL and
+  ``ap/middleware/driver/general_dma/dma_driver.c``: two eight-channel
+  controllers, register layout, width/count encodings, memory request0,
+  W1C operations, default NS IRQ selection and secure/nonsecure summary
+  labels. Datasheet section 4.16 establishes broader silicon capabilities;
+  it does not resolve the model's named timing/security/peripheral gaps.
 * ``ap/include/soc/bk7258/spi_cap.h``,
   ``ap/middleware/soc/bk7258_ap/soc/spi_struct.h``, matching SPI LL,
   ``ap/middleware/soc/common/hal/spi_hal.c``, the selected

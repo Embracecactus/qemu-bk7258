@@ -355,6 +355,94 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_spi1_empty_read_fault(self):
         self.run_spi_empty_fault("aidk_ai_toy", 1)
 
+    def run_dma(self, board, missing_route=False):
+        elf = self.build_fixture(
+            board, "dma.c", MISSING_ROUTE=int(missing_route)
+        )
+        mmio = self.launch_fixture(elf)
+        if missing_route:
+            wait_for_console_pattern(
+                self,
+                "BK7258 MISSING DMA1 ROUTE DETECTED",
+                "BK7258 DMA PROBE FAILED",
+            )
+        wait_for_console_pattern(
+            self,
+            (
+                "BK7258 DMA PROBE FAILED"
+                if missing_route
+                else "BK7258 DMA RAM IRQ ERROR ISOLATION OK"
+            ),
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), int(missing_route))
+        expected = (
+            ""
+            if missing_route
+            else "".join(
+                f"bk7258-dma: unit {unit} channel 0 bus error\n" * 4
+                for unit in range(2)
+            )
+        )
+        self.assertEqual(mmio.read_text(), expected)
+
+    def run_dma_security_fault(self, board, unit):
+        elf = self.build_fixture(
+            board,
+            "sys_fault.c",
+            WRITE_PROBE=1,
+            PROBE_ADDRESS=hex(0x55020010 + unit * 0x10000),
+            PROBE_NAME='"DMA"',
+        )
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(
+            self,
+            "BK7258 DMA ACCESS FAULT OK",
+            "BK7258 DMA ACCESS FAULT FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        self.assertEqual(
+            mmio.read_text(),
+            "bk7258-dma: unsupported write 0x12345678 at 0x10\n",
+        )
+
+    def test_t5_board_dma(self):
+        self.run_dma("t5_board")
+
+    def test_t5_board_dma_missing_route(self):
+        self.run_dma("t5_board", True)
+
+    def test_t5_board_dma0_unsupported_security(self):
+        self.run_dma_security_fault("t5_board", 0)
+
+    def test_t5_board_dma1_unsupported_security(self):
+        self.run_dma_security_fault("t5_board", 1)
+
+    def test_t5ai_core_dma(self):
+        self.run_dma("t5ai_core")
+
+    def test_t5ai_core_dma_missing_route(self):
+        self.run_dma("t5ai_core", True)
+
+    def test_t5ai_core_dma0_unsupported_security(self):
+        self.run_dma_security_fault("t5ai_core", 0)
+
+    def test_t5ai_core_dma1_unsupported_security(self):
+        self.run_dma_security_fault("t5ai_core", 1)
+
+    def test_aidk_ai_toy_dma(self):
+        self.run_dma("aidk_ai_toy")
+
+    def test_aidk_ai_toy_dma_missing_route(self):
+        self.run_dma("aidk_ai_toy", True)
+
+    def test_aidk_ai_toy_dma0_unsupported_security(self):
+        self.run_dma_security_fault("aidk_ai_toy", 0)
+
+    def test_aidk_ai_toy_dma1_unsupported_security(self):
+        self.run_dma_security_fault("aidk_ai_toy", 1)
+
     def run_spi(self, board, missing_route=False, missing_endpoint=False):
         elf = self.build_fixture(
             board,

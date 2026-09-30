@@ -394,6 +394,18 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
                      sram_alias_base[i], SRAM_SIZE);
     }
 
+    memory_region_init(&s->dma_memory, obj, "bk7258.dma-memory",
+                       UINT64_C(1) << 32);
+    for (i = 0; i < 4; i++) {
+        static const uint32_t base[] = {
+            0x08000000, 0x18000000, 0x28000000, 0x38000000,
+        };
+        g_autofree char *name = g_strdup_printf("bk7258.dma-sram%u", i);
+
+        bk7258_alias(&s->dma_sram[i], obj, name, &s->sram, &s->dma_memory,
+                     base[i], SRAM_SIZE);
+    }
+
     s->cpuclk = clock_new(obj, "cpuclk");
     /* Fixed diagnostic clock; PLL/DVFS and clock-gating are not modeled. */
     clock_set_hz(s->cpuclk, 26000000);
@@ -554,6 +566,25 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
                      &s->spi[i].iomem, memory, base + NS_OFFSET, 0x100);
     }
 
+    for (i = 0; i < 2; i++) {
+        DeviceState *dma = DEVICE(&s->dma[i]);
+        SysBusDevice *bus = SYS_BUS_DEVICE(dma);
+        uint32_t base = 0x45020000 + 0x10000 * i;
+
+        qdev_prop_set_uint8(dma, "unit", i);
+        object_property_set_link(OBJECT(dma), "dma-memory",
+                                 OBJECT(&s->dma_memory), &error_abort);
+        /* Fixed diagnostic HCLK, not a measured DMA/core clock-tree ratio. */
+        qdev_connect_clock_in(dma, "hclk", s->cpuclk);
+        if (!sysbus_realize(bus, errp)) {
+            return;
+        }
+        sysbus_mmio_map(bus, 0, base);
+        sysbus_connect_irq(bus, 0, qdev_get_gpio_in(dev, i ? 57 : 0));
+        bk7258_alias(&s->dma_ns[i], obj, "bk7258.dma-ns", &s->dma[i].iomem,
+                     memory, base + NS_OFFSET, 0x400);
+    }
+
     qdev_connect_clock_in(DEVICE(&s->rtc), "lpo", s->aon.lpo);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), errp)) {
         return;
@@ -635,6 +666,7 @@ static void bk7258_init(Object *obj)
         name = g_strdup_printf("spiclk%u", i);
         object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_BK7258_SPI);
         s->spiclk[i] = clock_new(obj, name);
+        object_initialize_child(obj, "dma[*]", &s->dma[i], TYPE_BK7258_DMA);
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);
