@@ -2277,8 +2277,7 @@ static void test_pwm_mixed_preload_atomic(const void *board)
 static void test_watchdog_deadline_horizon(const void *board)
 {
     QTestState *qts = start(board);
-
-    int64_t now = qtest_clock_step(qts, 0);
+    int64_t now = qtest_clock_step(qts, 1);
 
     qtest_clock_step(qts, INT64_MAX - now - 1000000);
     qtest_writel(qts, SYS + 0x80, 0x20);
@@ -2303,7 +2302,9 @@ static void test_uart_clock_budget(const void *board)
 
         g_assert_cmpint(send(fd, "A", 1, 0), ==, 1);
         uart_wait_rx(qts);
-        qtest_clock_step(qts, elapsed);
+        if (elapsed) {
+            qtest_clock_step(qts, elapsed);
+        }
         for (unsigned n = 0; n < (partial ? 1 : 64); n++) {
             qtest_writel(qts, SYS + 0x30, 0);
             qtest_writel(qts, SYS + 0x30, 1U << 2);
@@ -2339,7 +2340,9 @@ static void test_spi_clock_budget(const void *board)
             qtest_writel(qts, b + 0x18, 0x37f00);
             qtest_writel(qts, b + 0x1c, partial ? 0x04 : 0x06);
             qtest_writel(qts, b + 0x14, 0x105);
-            qtest_clock_step(qts, elapsed);
+            if (elapsed) {
+                qtest_clock_step(qts, elapsed);
+            }
             for (unsigned n = 0; n < (partial ? 1 : 64); n++) {
                 qtest_writel(qts, SYS + 0x30, 0);
                 qtest_writel(qts, SYS + 0x30, (1U << 1) | (1U << 9));
@@ -2369,7 +2372,9 @@ static void test_i2c_clock_budget(const void *board)
             qtest_writel(qts, b + 0x10, 0xcc000000 | (21U << 6));
             qtest_writel(qts, b + 0x18, 0xa0);
             qtest_writel(qts, b + 0x14, 0x400);
-            qtest_clock_step(qts, elapsed);
+            if (elapsed) {
+                qtest_clock_step(qts, elapsed);
+            }
             for (unsigned n = 0; n < (partial ? 1 : 64); n++) {
                 qtest_writel(qts, SYS + 0x30, 0);
                 qtest_writel(qts, SYS + 0x30, (1U << 0) | (1U << 8));
