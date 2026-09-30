@@ -733,12 +733,15 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_dma1_unsupported_security(self):
         self.run_dma_security_fault("aidk_ai_toy", 1)
 
-    def run_spi(self, board, missing_route=False, missing_endpoint=False):
+    def run_spi(
+        self, board, missing_route=False, missing_endpoint=False, lsb=False
+    ):
         elf = self.build_fixture(
             board,
             "spi.c",
             MISSING_ROUTE=int(missing_route),
             MISSING_ENDPOINT=int(missing_endpoint),
+            LSB_FIRST=int(lsb),
         )
         if not missing_endpoint:
             for bus in ("spi0", "spi1"):
@@ -759,7 +762,11 @@ class BK7258Machine(QemuSystemTest):
             (
                 "BK7258 SPI PROBE FAILED"
                 if missing_route or missing_endpoint
-                else "BK7258 SPI SSI ID IRQ OK"
+                else (
+                    "BK7258 SPI LSB SSI ID IRQ OK"
+                    if lsb
+                    else "BK7258 SPI SSI ID IRQ OK"
+                )
             ),
         )
         self.vm.wait(timeout=5)
@@ -794,6 +801,24 @@ class BK7258Machine(QemuSystemTest):
 
     def test_aidk_ai_toy_spi_missing_endpoint(self):
         self.run_spi("aidk_ai_toy", missing_endpoint=True)
+
+    def test_t5_board_spi_lsb(self):
+        self.run_spi("t5_board", lsb=True)
+
+    def test_t5_board_spi_lsb_missing_route(self):
+        self.run_spi("t5_board", lsb=True, missing_route=True)
+
+    def test_t5ai_core_spi_lsb(self):
+        self.run_spi("t5ai_core", lsb=True)
+
+    def test_t5ai_core_spi_lsb_missing_route(self):
+        self.run_spi("t5ai_core", lsb=True, missing_route=True)
+
+    def test_aidk_ai_toy_spi_lsb(self):
+        self.run_spi("aidk_ai_toy", lsb=True)
+
+    def test_aidk_ai_toy_spi_lsb_missing_route(self):
+        self.run_spi("aidk_ai_toy", lsb=True, missing_route=True)
 
     def run_timer(self, board, missing_route=False, fault=False):
         elf = self.build_fixture(

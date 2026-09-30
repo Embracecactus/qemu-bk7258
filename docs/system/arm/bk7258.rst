@@ -102,9 +102,9 @@ OpenVela source or profile changes are required for that gate.
      - Slave/10-bit/multi-master modes, pin waveforms/stretch/timeout,
        different-address repeated START and measured edge/reset behavior
    * - SPI0/1
-     - Native SSI 8-bit MSB master, one logical CS0, finite TX/full-duplex,
+     - Native SSI 8-bit master with MSB/LSB adapter, logical CS0, finite TX/RX,
        bounded FIFOs, clock pause, W1C/error/done IRQ7/17 and reset cancel
-     - 16-bit/LSB/3-wire/slave/RX-only modes, raw-divider0, wire-edge timing,
+     - 16-bit/3-wire/slave/RX-only modes, raw-divider0, wire-edge timing,
        APLL, DMA and physical pinmux/CS routing
    * - DMA0/1
      - Two eight-channel shared-RAM engines, equal 8/16/32-bit widths,
@@ -664,6 +664,14 @@ port contract. For example the SDK's UART RX DMA setup aligns the FIFO
 address back to a word while selecting an 8-bit transfer and UART_RX request;
 the ordinary CPU RX accessor instead uses the byte lane at FIFO+1. That is
 insufficient evidence to invent a generic ready signal or widen CPU MMIO.
+The configured RX8-to-RAM32 and RAM32-to-TX8 paths additionally require width
+conversion. The DMA API documents one to three residual bytes and the UART
+RX service explicitly flushes the source buffer before stopping/accounting.
+Request selectors (UART0 TX/RX=1/2, UART1=3/4, UART2=5/6) are established, but
+request assertion/acknowledgement, partial destination byte strobes, remaining
+count commit points, and cancel/clock-loss treatment of buffered data are not.
+IRQ thresholds cannot be assumed to define DMA request eligibility. These are
+open hardware contracts, not missing always-ready stubs to be filled in.
 
 SPI master functional boundaries
 -------------------------------
@@ -678,7 +686,7 @@ explicitly attach QEMU's existing ``w25q32`` model, for example
 that upstream device model, not hardcoded in the BK7258 controller and not
 claimed as a board BOM.
 
-The supported initial slice is finite 8-bit, MSB-first, four-wire master
+The supported slice is finite eight-bit, MSB/LSB-first, four-wire master
 transfers: TX alone, or TX plus equal-length full-duplex RX. Both FIFOs hold
 64 bytes. Channel enable, 12-bit word counts, source masks, FIFO-clear strobes
 and W1C flags follow the SDK register layout. Data moves through ``ssi_transfer``;
@@ -687,6 +695,32 @@ Missing SSI endpoints yield the core SSI API's zero-valued undriven input.
 SPI has no address ACK, so the controller still finishes its clocks; the
 source-built identification probe must reject the resulting wrong device ID.
 This is a logical input policy, not an analog floating-MISO voltage model.
+
+CTRL bit19 selects LSB-first in the vendor register layout and HAL. Native
+SSI carries a value, with no width/order negotiation. For this eight-bit slice,
+LSB transfers reverse the TX byte before the single SSI call and reverse its
+returned byte. This is an explicit adapter convention for canonical MSB-oriented
+byte-protocol endpoints, validated with the existing ``w25q32`` fixture. It is
+not a claim that every arbitrary-width SSI peripheral follows this convention,
+or that a separately configurable LSB slave and physical edge timing are modeled.
+The vendor FIFO value remains in its programmed order; bit reversal changes
+neither capacity nor word deadlines. Active bit-order changes are rejected
+under the existing live-format policy.
+
+The native fixture receives JEDEC command 0x9f from LSB FIFO byte 0xf9 and
+returns EF/40/16 as FIFO values F7/02/68. Tests switch back to MSB between
+frames and also use reversed WREN/RDSR/WRDI to observe the actual endpoint's
+write-enable state. A gated word preserves its remaining source cycles; its
+absolute deadline moves on recovery. Controller reset before completion must
+leave the endpoint's write-enable state unchanged. Three source-built positive
+cases execute both SPI IRQs in LSB mode. Three negatives require an intentionally
+missing SPI1 route to fail despite completed peripheral transactions.
+
+Sixteen-bit width is separately encoded and the LL divides byte lengths by two,
+but its FIFO capacity/threshold units, CPU-access packing and inter-octet versus
+inter-word spacing remain unresolved. Passing a sixteen-bit value directly to
+``m25p80_transfer8()`` would consume only one byte and lose the upper bits.
+Neither that shortcut nor an unproven two-callback timing split is modeled.
 
 The SSI bus subtype accepts one CS0 endpoint with standard active-low CS or
 no CS. Nonzero/duplicate chip selects and active-high endpoints are rejected,
@@ -731,7 +765,7 @@ Clock/timing and error boundaries are deliberately explicit:
   delivered to a peripheral cannot be undone; that device may itself act on
   CS release. Whole-machine QEMU reset also invokes attached devices' own
   reset handlers and does not establish silicon reset-domain retention.
-* Slave, 16-bit, LSB-first, three-wire, RX-only and unequal-length full-duplex
+* Slave, 16-bit, three-wire, RX-only and unequal-length full-duplex
   modes, zero-length frame encodings, DMA and slave-release IRQ are outside
   this slice. Unsupported configurations, unknown registers, full TX writes
   and empty RX reads return transaction errors. As with UART/I2C, these are

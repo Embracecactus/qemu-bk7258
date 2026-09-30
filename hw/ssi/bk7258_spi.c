@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/host-utils.h"
 #include "hw/misc/bk7258_clock.h"
 #include "qapi/error.h"
 #include "hw/core/irq.h"
@@ -15,6 +16,7 @@
 #include "hw/ssi/bk7258_spi.h"
 
 #define TYPE_BK7258_SPI_BUS "bk7258-spi-bus"
+#define LSB_FIRST (1U << 19)
 #define MASTER (1U << 22)
 #define ENABLE (1U << 23)
 #define TX_LEVEL (1U << 8)
@@ -134,12 +136,23 @@ static void bk7258_spi_next(BK7258SPIState *s)
 static void bk7258_spi_complete(void *opaque)
 {
     BK7258SPIState *s = opaque;
-    uint8_t received;
+    uint8_t sent, received;
 
     assert(s->active && s->pending && s->tx_count && s->tx_left);
     s->pending = false;
     s->cycles = 0;
-    received = ssi_transfer(s->bus, s->tx[s->tx_head]);
+    /*
+     * SSI has no bit-order metadata. Adapt the eight-bit stream to native
+     * byte-protocol endpoints' canonical MSB interpretation, not pad edges.
+     */
+    sent = s->tx[s->tx_head];
+    if (s->control & LSB_FIRST) {
+        sent = revbit8(sent);
+    }
+    received = ssi_transfer(s->bus, sent);
+    if (s->control & LSB_FIRST) {
+        received = revbit8(received);
+    }
     s->tx_head = (s->tx_head + 1) % sizeof(s->tx);
     s->tx_count--;
     s->tx_left--;
@@ -243,9 +256,9 @@ static MemTxResult bk7258_spi_write(void *opaque, hwaddr offset,
         }
         break;
     case 0x10:
-        /* The initial slice is master, 8-bit, MSB-first and four-wire. */
+        /* The bounded slice remains master, eight-bit and four-wire. */
         if ((value & ENABLE) &&
-            (!(value & MASTER) || (value & (7U << 17)) ||
+            (!(value & MASTER) || (value & (3U << 17)) ||
              !((value >> 8) & 0xff))) {
             goto unsupported;
         }

@@ -723,6 +723,83 @@ static void spi_xfer(QTestState *qts, unsigned g, const uint8_t *data,
     g_assert_cmphex(qtest_readl(qts, base + 0x18) & 4, ==, 0);
 }
 
+static void test_spi_lsb_byte_adapter(const void *board)
+{
+    QTestState *qts = start_spi(board);
+    const uint8_t msb_id[] = {0x9f, 0, 0, 0};
+    const uint8_t lsb_id[] = {0xf9, 0, 0, 0};
+    const uint8_t status[] = {0xa0, 0}; /* Reversed RDSR 0x05. */
+    const uint8_t disable[] = {0x20}; /* Reversed WRDI 0x04. */
+    const uint32_t control = 0x41c80d00;
+    uint8_t rx[4];
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = spi_base[g], irq = 1U << spi_irq[g];
+
+        spi_setup(qts, g);
+        qtest_writel(qts, b + 0x10, control);
+        spi_xfer(qts, g, lsb_id, sizeof(lsb_id), rx);
+        g_assert_cmphex(rx[1], ==, 0xf7); /* Native EF/40/16, reversed. */
+        g_assert_cmphex(rx[2], ==, 0x02);
+        g_assert_cmphex(rx[3], ==, 0x68);
+        qtest_writel(qts, b + 0x10, control & ~(1U << 19));
+        spi_xfer(qts, g, msb_id, sizeof(msb_id), rx);
+        g_assert_cmphex(rx[1], ==, 0xef);
+        g_assert_cmphex(rx[2], ==, 0x40);
+        g_assert_cmphex(rx[3], ==, 0x16);
+        qtest_writel(qts, b + 0x10, control);
+        spi_xfer(qts, g, status, sizeof(status), rx);
+        g_assert_cmphex(rx[1] & 0x40, ==, 0);
+
+        /* A real peripheral WEL mutation waits for the pending word. */
+        qtest_writel(qts, b + 0x14, 0);
+        qtest_writel(qts, b + 0x18, 0x37f00);
+        qtest_writel(qts, b + 0x1c, 0x60); /* Reversed WREN 0x06. */
+        for (unsigned core = 0; core < 3; core++) {
+            qtest_writel(qts, SYS + 0x80 + 8 * core, irq);
+        }
+        qtest_writel(qts, b + 0x14, 0x105);
+        qtest_clock_step(qts, 4500);
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, b + 0x18) & 0x6000, ==, 0);
+        /* Active-format changes are rejected atomically, including bit19. */
+        qtest_writel(qts, b + 0x10, control & ~(1U << 19));
+        expect(qts, b + 0x10, control);
+        qtest_writel(qts, SYS + 0x30,
+                     (1U << spi_gate[0]) | (1U << spi_gate[1]));
+        qtest_clock_step(qts, 4499);
+        for (unsigned core = 0; core < 3; core++) {
+            expect(qts, SYS + 0xa0 + 8 * core, 0);
+        }
+        qtest_clock_step(qts, 1);
+        for (unsigned core = 0; core < 3; core++) {
+            expect(qts, SYS + 0xa0 + 8 * core, irq);
+        }
+        spi_xfer(qts, g, status, sizeof(status), rx);
+        g_assert_cmphex(rx[1] & 0x40, ==, 0x40);
+        spi_xfer(qts, g, disable, sizeof(disable), rx);
+        spi_xfer(qts, g, status, sizeof(status), rx);
+        g_assert_cmphex(rx[1] & 0x40, ==, 0);
+
+        qtest_writel(qts, b + 0x14, 0);
+        qtest_writel(qts, b + 0x18, 0x37f00);
+        qtest_writel(qts, b + 0x1c, 0x60);
+        qtest_writel(qts, b + 0x14, 0x101);
+        qtest_clock_step(qts, 4500);
+        qtest_writel(qts, b + 8, 0); /* Cancel before SSI mutation. */
+        qtest_clock_step(qts, 1000000);
+        spi_setup(qts, g);
+        qtest_writel(qts, b + 0x10, control);
+        spi_xfer(qts, g, status, sizeof(status), rx);
+        g_assert_cmphex(rx[1] & 0x40, ==, 0);
+        for (unsigned core = 0; core < 3; core++) {
+            qtest_writel(qts, SYS + 0x80 + 8 * core, 0);
+        }
+    }
+    qtest_quit(qts);
+}
+
 static void test_spi_native_frames_routes(const void *board)
 {
     QTestState *qts = start_spi(board);
@@ -2712,6 +2789,7 @@ int main(int argc, char **argv)
         {"uart-rx-capacity-wrap-backpressure", test_uart_rx_capacity},
         {"watchdog-keys-expiry", test_watchdog},
         {"watchdog-sources-pause-recovery", test_watchdog_sources},
+        {"spi-lsb-byte-order-cancel-routes", test_spi_lsb_byte_adapter},
         {"spi-native-frames-irq-routes", test_spi_native_frames_routes},
         {"spi-fifo-overflow-starvation", test_spi_fifo_errors},
         {"spi-fifo-threshold-boundaries", test_spi_fifo_thresholds},

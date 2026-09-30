@@ -10,6 +10,9 @@
 #define REG(a) (*(volatile uint32_t *)(uintptr_t)(a))
 #define SYS 0x44010000u
 #define UART 0x44820000u
+#ifndef LSB_FIRST
+#define LSB_FIRST 0
+#endif
 /* Independent CPU-clock deadline published by SysTick. */
 static volatile uint32_t ticks;
 /* Completion observations from real IRQ7/17 handlers. */
@@ -49,7 +52,8 @@ static __attribute__((noreturn)) void finish(uint32_t status)
     uint32_t args[2] = {0x20026, status};
 
     print(status ? "BK7258 SPI PROBE FAILED\n" :
-                   "BK7258 SPI SSI ID IRQ OK\n");
+                   (LSB_FIRST ? "BK7258 SPI LSB SSI ID IRQ OK\n" :
+                                "BK7258 SPI SSI ID IRQ OK\n"));
 
     /* Bind caller-clobbered arguments only after console calls return. */
     register uint32_t r0 __asm__("r0") = 0x20;
@@ -110,9 +114,9 @@ static void start(void)
         uint8_t received[4];
 
         REG(base(g) + 8) = 3;
-        /* Master/enable, 8-bit MSB, divider1, interval1, sample-edge1. */
-        REG(base(g) + 0x10) = 0x41c00130;
-        REG(base(g) + 0x1c) = 0x9f;
+        /* Eight-bit master, selected bit order; external slave is MSB. */
+        REG(base(g) + 0x10) = 0x41c00130 | (LSB_FIRST ? 1u << 19 : 0);
+        REG(base(g) + 0x1c) = LSB_FIRST ? 0xf9 : 0x9f;
         REG(base(g) + 0x1c) = 0;
         REG(base(g) + 0x1c) = 0;
         REG(base(g) + 0x1c) = 0;
@@ -144,7 +148,9 @@ static void start(void)
         }
 #endif
         /* ID belongs to the explicitly attached w25q32 test device. */
-        if (received[1] != 0xef || received[2] != 0x40 || received[3] != 0x16 ||
+        if (received[1] != (LSB_FIRST ? 0xf7 : 0xef) ||
+            received[2] != (LSB_FIRST ? 0x02 : 0x40) ||
+            received[3] != (LSB_FIRST ? 0x68 : 0x16) ||
             (REG(base(g) + 0x18) & (4 | 0x6000))) {
             finish(1);
         }
