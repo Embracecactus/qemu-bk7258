@@ -730,3 +730,9 @@ config AXIADO_EVK
     default y
     depends on TCG && ARM
     select AXIADO_SOC
+
+config BK7258
+    bool
+    default y
+    depends on TCG && ARM
+    select ARM_V7M

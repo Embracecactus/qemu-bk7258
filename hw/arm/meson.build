@@ -118,4 +118,6 @@ arm_common_ss.add(when: ['CONFIG_AXIADO_EVK', 'TARGET_AARCH64'], if_true: files(
 
 arm_common_ss.add(files('boot.c'))
 
+arm_common_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258.c'))
+
 hw_common_arch += {'arm': arm_common_ss}

@@ -1,0 +1,123 @@
+.. SPDX-License-Identifier: GPL-2.0-or-later
+
+BK7258 diagnostic machines (t5_board, t5ai_core, aidk_ai_toy)
+==========================================================
+
+This is a downstream, AI-assisted local experiment. It is not an upstream
+QEMU contribution and must not be submitted upstream under QEMU's current
+code-provenance policy. Its base is the existing fork commit
+``81ce3a87737aa50716c42db8886082d12783e0a1`` (11.1.50); no upstream history
+was rewritten and no stable-release compatibility is claimed.
+
+The three machine names identify the project's physical boards. They currently
+instantiate the same shared diagnostic SoC: board-specific peripherals are not
+implemented. Listing all three names does not establish complete board support.
+
+Implemented slice
+-----------------
+
+* Three Cortex-M33 CPUs with separate NVICs (64 inputs, three priority bits)
+  and separate 16-KiB ITCM / 16-KiB DTCM. CPU0 starts; CPU1 and CPU2 are held.
+* Shared 640-KiB SRAM and all four address aliases below.
+* Read-only logical XIP storage, loaded from ELF segments. All three current
+  board profiles specify 8-MiB physical flash; the model exposes complete
+  32-byte logical units after removing each physical 2-byte CRC trailer.
+  Raw operator images, encryption and CRC decoding are not implemented.
+* Three functional UARTs: transmit, bounded receive queue, RX threshold and
+  TX-finish status, W1C acknowledgement, and per-CPU interrupt routing.
+  Connect UART0/1/2 with the first/second/third ``-serial`` option.
+* SYS core control and interrupt enable/status registers. Reset release samples
+  the vector address; changing vector bits while running does not reset a CPU.
+  Halt/power gates preserve CPU state. Changes run in target-CPU order.
+* Native Cortex-M33 SysTick exception delivery. Fixed diagnostic CPU clock is
+  26 MHz; fixed external reference is 32,000 Hz. PLLs, DVFS and SYS clock-gating
+  registers are not emulated. The external reference is always available.
+
+Diagnostic choices are deliberately explicit: UART receive capacity is 128
+bytes (not a verified silicon FIFO depth), TX drains synchronously, interrupt
+route masks reset to zero, CPU1 control resets to 0x2 and CPU2 to 0xa. These
+reset defaults are an emulator boot contract, not measured power-on defaults.
+Migration/snapshot state is unsupported and the SoC is marked unmigratable.
+Unimplemented registers report through ``-d unimp`` instead of fabricating
+successful device identification or completion bits.
+
+Address map
+-----------
+
+=================  ============================  ====================
+Region             Secure / other alias          Nonsecure alias
+=================  ============================  ====================
+Per-core ITCM      0x00000000                     0x10000000
+Per-core DTCM      0x20000000                     0x30000000
+Shared SRAM        0x28000000, 0x08000000         0x38000000, 0x18000000
+Logical flash XIP  0x02000000                     0x12000000
+SYS                0x44010000                     0x54010000
+UART0              0x44820000                     0x54820000
+UART1              0x45830000                     0x55830000
+UART2              0x45840000                     0x55840000
+=================  ============================  ====================
+
+Aliases alone do not implement the BK7258 TrustZone attribution/security
+controller. ROM, PSRAM, external timers, mailbox/RPMsg, DMA, caches, flash
+controller/remap/persistence, MCUboot/OTA and physical-board devices are absent.
+Wi-Fi/BT, camera, audio, codec, power and performance behavior are not modeled.
+
+Building and running
+--------------------
+
+On a Linux host with GCC, GLib development headers, Python, Meson and Ninja::
+
+  mkdir ../qemu-build
+  cd ../qemu-build
+  ../qemu-bk7258/configure --target-list=arm-softmmu \
+    --without-default-features --disable-docs --disable-user \
+    --disable-tools --disable-rust --enable-tcg --enable-werror
+  ninja qemu-system-arm
+  ./qemu-system-arm -M help
+
+The diagnostic entry bypasses ROM and bootloaders: CPU0's vector table is at
+``0x02010000``. Use an ELF linked with a valid vector there. For the trusted
+bare-metal fixture maintained by the contest repository::
+
+  printf Z | ./qemu-system-arm -M t5_board -display none -monitor none \
+    -serial stdio -kernel diagnostic.elf \
+    -semihosting-config enable=on,target=native -d guest_errors,unimp
+
+Semihosting is used solely to report fixture exit status. It can expose host
+files to guests: do not enable it for untrusted images. The maintained host
+entry is the contest repository's ``tools/bk7258/bk7258.py qemu`` command.
+Tests and fixtures remain canonical under that repository's
+``tests/host/bk7258/``; firmware C is never compiled into a QEMU device.
+
+A passing diagnostic proves CPU instruction execution, SRAM aliases,
+SysTick exceptions, core release/stop/reset, private TCM, UART receive IRQ and
+system reset within this slice. It does not prove NuttX/NSH startup, production
+CP/AP images, AP SMP scheduling, firmware update correctness or hardware timing.
+
+Register provenance
+-------------------
+
+No vendor source is compiled into the model. Register facts were checked against
+Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
+``cb080de1655d579c7593ecf504c440997c4c137b``:
+
+* ``cp/include/soc/bk7258/reg_base.h``: aliases and MMIO bases
+* ``cp/middleware/soc/bk7258/Kconfig`` and ``bk7258_bsp.ld``: TCM and SRAM
+* ``cp/middleware/soc/bk7258/soc/uart_struct.h`` and
+  ``cp/middleware/soc/bk7258/hal/uart_ll.h``: register fields and W1C
+* ``cp/middleware/soc/bk7258/soc/sys_reg.h``, ``sys_struct.h`` and
+  ``cp/components/bk_startup/system_main.c``: CPU controls and IRQ routing
+* ``cp/include/driver/int_types.h``: UART IRQ numbers 4, 15 and 16
+
+The Apache-2.0 contest repository at
+``28894814cb7967054847ac147e83b8b8e68fed5c`` supplies integration evidence:
+
+* ``chips/bk7258/include/irq.h``, ``bk7258_console.h``, ``bk7258_amp.h``
+* ``chips/bk7258/ap/bk7258_ap_smp.c``: running-vector handshake tokens
+* ``chips/bk7258/common/bk7258_timerisr.c``: 32,000-Hz external reference
+* ``tools/bk7258/_lib/layout.py`` and board-selected partition CSVs: XIP
+  conversion and physical flash capacity
+
+New model files are GPL-2.0-or-later. QEMU APIs and Cortex-M33 implementation
+come from the existing QEMU base. This experiment carries no invented author
+sign-off or claim of upstream acceptance.
