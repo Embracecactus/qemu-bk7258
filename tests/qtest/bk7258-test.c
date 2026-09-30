@@ -784,7 +784,8 @@ static void test_i2c_clock_reset_cancel(const void *board)
         qtest_clock_step(qts, 1000000);
         g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x501, ==, 0x400);
         qtest_writel(qts, SYS + 0x30, 1U << i2c_gate[g]);
-        qtest_clock_step(qts, 5423); /* Remaining cycles rounded upward. */
+        /* 270 - 130 elapsed = 140 source cycles, or ceil(5384.615 ns). */
+        qtest_clock_step(qts, 5384);
         g_assert_cmphex(qtest_readl(qts, base + 0x14) & 1, ==, 0);
         qtest_clock_step(qts, 1);
         g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x501, ==, 0x501);
