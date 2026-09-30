@@ -94,10 +94,14 @@ Implemented slice
 * Three Cortex-M33 CPUs with separate NVICs (64 inputs, three priority bits)
   and separate 16-KiB ITCM / 16-KiB DTCM. CPU0 starts; CPU1 and CPU2 are held.
 * Shared 640-KiB SRAM and all four address aliases below.
-* Two explicit entry modes: diagnostic ELF-backed logical XIP, or a physical
-  8-MiB NOR backing with CRC-framed XIP. The modes cannot be combined. Flash
-  MMIO is mapped only with the NOR backing, so an ELF-loaded ROM cannot be
-  mistaken for the controller's physical byte array.
+* Two explicit entry modes selected by the board loader: ``-kernel`` uses
+  diagnostic logical XIP (ELF, or the standard Arm loader's raw-image fallback);
+  otherwise an 8-MiB physical NOR provides CRC-framed XIP and controller MMIO.
+  The physical device is present even without a host file: its erased array
+  and NV status are then process-local. A logical kernel cannot be combined
+  with NOR drives, so it cannot silently shadow the controller's byte array.
+  Diagnostic mode deliberately omits controller MMIO; it is not a physical
+  Flash boot claim. The SoC does not infer its topology from host-file presence.
 * A bounded GD25WQ64E NOR model (JEDEC C86517, an explicit part choice, not
   board identification), 32-byte controller read/program FIFO, asynchronous
   status/ID/erase commands, real protection ranges and persistent array/NV
@@ -274,7 +278,10 @@ updates and hardware timing remain outside this acceptance.
 Physical NOR contract
 ---------------------
 
-Use an operator-owned 8-MiB raw simulation image with
+Without ``-kernel``, the board uses physical NOR mode. With no drive, the
+array starts erased, retains changes across system reset and loses them when
+QEMU exits. For process-restart persistence, use an operator-owned 8-MiB raw
+simulation image with
 ``-drive if=pflash,unit=0,format=raw,file=nor.bin``. An optional second raw
 512-byte sector at ``unit=1`` persists NV SR1/SR2/SR3 in its first three bytes;
 the remaining bytes must be zero. Fresh delivery state is 00 00 20. Omitting
@@ -332,7 +339,9 @@ image. From a clean QEMU checkout::
   ninja qemu-system-arm tests/qtest/bk7258-test
   ./pyvenv/bin/meson test --no-rebuild --print-errorlogs qtest-arm/bk7258-test
 
-The registered libqtest cases cover SRAM/MMIO aliases, UART IRQ mask/W1C,
+The registered libqtest cases include physical NOR with and without a host
+file, logical-kernel mode and rejected conflicting loading/geometry inputs.
+They also cover SRAM/MMIO aliases, UART IRQ mask/W1C,
 whole-system reset, watchdog keys/feed/stop/expiry, GPIO edge/level masking,
 asynchronous analog cancellation, clock ratio/IRQ routing/source loss,
 mailbox routing/order/full/protection/reset, and persistent NOR AND-program,

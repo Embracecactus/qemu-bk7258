@@ -62,6 +62,7 @@ struct BK7258State {
     uint64_t irq_levels;
     uint32_t flash_size;
     uint32_t boot_vector;
+    bool diagnostic_xip;
 };
 
 #endif

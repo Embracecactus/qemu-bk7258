@@ -269,7 +269,7 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
                                 errp)) {
         return;
     }
-    if (s->flashctrl.nor.blk) {
+    if (!s->diagnostic_xip) {
         if (s->flash_size != BK7258_XIP_SIZE) {
             error_setg(errp,
                        "BK7258 physical NOR mode requires its exact XIP size");
@@ -280,6 +280,10 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         bk7258_alias(&s->flashctrl_ns, obj, "bk7258.flashctrl-ns",
                      &s->flashctrl.regs, memory, 0x54030000, 0x1000);
     } else {
+        if (s->flashctrl.nor.blk || s->flashctrl.nor.status_blk) {
+            error_setg(errp, "BK7258 diagnostic XIP cannot use a NOR backend");
+            return;
+        }
         if (!memory_region_init_rom(&s->flash, obj, "bk7258.diagnostic-xip",
                                      s->flash_size, errp)) {
             return;
@@ -470,6 +474,7 @@ static void bk7258_finalize(Object *obj)
 }
 
 static const Property bk7258_properties[] = {
+    DEFINE_PROP_BOOL("diagnostic-xip", BK7258State, diagnostic_xip, false),
     DEFINE_PROP_UINT32("xip-size", BK7258State, flash_size,
                        (8 * MiB / 34) * 32),
     DEFINE_PROP_UINT32("boot-vector", BK7258State, boot_vector, 0x02010000),

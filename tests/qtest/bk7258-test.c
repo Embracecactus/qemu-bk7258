@@ -409,6 +409,79 @@ static void flash_expect(QTestState *qts, unsigned address, uint32_t value)
     }
 }
 
+static void test_volatile_nor(const void *board)
+{
+    QTestState *qts = start(board);
+
+    g_assert_false(qtest_qom_get_bool(qts, "/machine/soc", "diagnostic-xip"));
+    /* No host file is needed for a present, process-local physical NOR. */
+    qtest_writel(qts, FLASH + 8, 1);
+    flash_op(qts, 20, 0);
+    expect(qts, FLASH + 0x20, 0xc86517);
+    flash_program(qts, 0x1000, 0x96969696);
+    flash_expect(qts, 0x1000, 0x96969696);
+    qtest_system_reset(qts);
+    qtest_writel(qts, FLASH + 8, 1);
+    flash_expect(qts, 0x1000, 0x96969696);
+    flash_op(qts, 13, 0x1000);
+    flash_expect(qts, 0x1000, 0xffffffff);
+    flash_program(qts, 0x1000, 0);
+    qtest_quit(qts);
+
+    qts = start(board);
+    qtest_writel(qts, FLASH + 8, 1);
+    flash_expect(qts, 0x1000, 0xffffffff); /* New process, not persistence. */
+    qtest_quit(qts);
+}
+
+static void reject_start(const char *args)
+{
+    QTestState *qts = qtest_init_ext(NULL, args, NULL, false);
+
+    qtest_set_expected_status(qts, 1);
+    qtest_wait_qemu(qts);
+    qtest_quit(qts);
+}
+
+static void test_explicit_xip_mode(const void *board)
+{
+    static const char vector[] = {
+        0, 0x10, 0, 0x28, 9, 0, 1, 2, (char)0xfe, (char)0xe7, 0, 0,
+    };
+    g_autofree char *dir = g_dir_make_tmp("bk7258-loader-XXXXXX", NULL);
+    g_autofree char *kernel = NULL;
+    g_autofree char *array = NULL;
+    g_autofree char *args = NULL;
+    g_autofree char *data = g_malloc(NOR_SIZE);
+    QTestState *qts;
+
+    g_assert_nonnull(dir);
+    kernel = g_build_filename(dir, "logical.bin", NULL);
+    array = g_build_filename(dir, "nor.bin", NULL);
+    g_assert_true(g_file_set_contents(kernel, vector, sizeof(vector), NULL));
+    memset(data, 0xff, NOR_SIZE);
+    g_assert_true(g_file_set_contents(array, data, NOR_SIZE, NULL));
+    qts = qtest_initf("-machine %s -serial null -kernel %s",
+                      (const char *)board, kernel);
+    g_assert_true(qtest_qom_get_bool(qts, "/machine/soc", "diagnostic-xip"));
+    expect(qts, 0x02010000, 0x28001000);
+    expect(qts, 0x02010004, 0x02010009);
+    qtest_quit(qts);
+
+    args = g_strdup_printf("-machine %s -kernel %s "
+                           "-drive if=pflash,unit=0,format=raw,file=%s",
+                           (const char *)board, kernel, array);
+    reject_start(args); /* A logical kernel must not shadow physical NOR. */
+    g_clear_pointer(&args, g_free);
+    args = g_strdup_printf("-machine %s "
+                           "-global bk7258-soc.xip-size=4096",
+                           (const char *)board);
+    reject_start(args); /* Physical geometry is independent of host files. */
+    g_assert_cmpint(unlink(kernel), ==, 0);
+    g_assert_cmpint(unlink(array), ==, 0);
+    g_assert_cmpint(rmdir(dir), ==, 0);
+}
+
 static QTestState *start_nor(const void *board, const char *array,
                             const char *status, bool readonly)
 {
@@ -520,6 +593,8 @@ int main(int argc, char **argv)
         {"mailbox-order-full", test_mailbox},
         {"mailbox-protection-reset", test_mailbox_protection},
         {"nor-persistence-protection-cancel-readonly", test_nor},
+        {"nor-without-host-backing", test_volatile_nor},
+        {"explicit-logical-xip-mode", test_explicit_xip_mode},
     };
 
     g_test_init(&argc, &argv, NULL);

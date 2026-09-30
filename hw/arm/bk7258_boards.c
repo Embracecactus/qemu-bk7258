@@ -11,6 +11,7 @@
 #include "hw/core/boards.h"
 #include "hw/core/irq.h"
 #include "hw/misc/led.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "system/blockdev.h"
 
@@ -102,6 +103,8 @@ static void bk7258_machine_init(MachineState *machine)
                                 blk_by_legacy_dinfo(drive));
         }
     }
+    /* Loading a logical kernel is an explicit diagnostic board policy. */
+    qdev_prop_set_bit(dev, "diagnostic-xip", machine->kernel_filename != NULL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     s->soc = soc;
     s->led = led_create_simple(OBJECT(machine), GPIO_POLARITY_ACTIVE_HIGH,
