@@ -234,6 +234,89 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_uart2_invalid_write(self):
         self.run_uart_fault("aidk_ai_toy", 2, True)
 
+    def run_i2c_empty_fault(self, board, index):
+        elf = self.build_fixture(
+            board,
+            "sys_fault.c",
+            WRITE_PROBE=0,
+            PROBE_ADDRESS=hex(0x45850018 + index * 0x10000),
+            PROBE_NAME='"I2C"',
+        )
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(
+            self,
+            "BK7258 I2C ACCESS FAULT OK",
+            "BK7258 I2C ACCESS FAULT FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        self.assertEqual(
+            mmio.read_text(), "bk7258-i2c: unsupported read at 0x18\n"
+        )
+
+    def test_t5_board_i2c0_empty_read_fault(self):
+        self.run_i2c_empty_fault("t5_board", 0)
+
+    def test_t5_board_i2c1_empty_read_fault(self):
+        self.run_i2c_empty_fault("t5_board", 1)
+
+    def test_t5ai_core_i2c0_empty_read_fault(self):
+        self.run_i2c_empty_fault("t5ai_core", 0)
+
+    def test_t5ai_core_i2c1_empty_read_fault(self):
+        self.run_i2c_empty_fault("t5ai_core", 1)
+
+    def test_aidk_ai_toy_i2c0_empty_read_fault(self):
+        self.run_i2c_empty_fault("aidk_ai_toy", 0)
+
+    def test_aidk_ai_toy_i2c1_empty_read_fault(self):
+        self.run_i2c_empty_fault("aidk_ai_toy", 1)
+
+    def run_i2c(self, board, missing_route):
+        elf = self.build_fixture(
+            board, "i2c.c", MISSING_ROUTE=int(missing_route)
+        )
+        for bus in ("i2c0", "i2c1"):
+            self.vm.add_args(
+                "-device", f"at24c-eeprom,bus={bus},address=0x50,rom-size=256"
+            )
+        mmio = self.launch_fixture(elf)
+        if missing_route:
+            wait_for_console_pattern(
+                self,
+                "BK7258 MISSING I2C1 ROUTE DETECTED",
+                "BK7258 I2C PROBE FAILED",
+            )
+        wait_for_console_pattern(
+            self,
+            (
+                "BK7258 I2C PROBE FAILED"
+                if missing_route
+                else "BK7258 I2C BUS IRQ RESTART NAK OK"
+            ),
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), int(missing_route))
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_t5_board_i2c(self):
+        self.run_i2c("t5_board", False)
+
+    def test_t5_board_i2c_missing_route(self):
+        self.run_i2c("t5_board", True)
+
+    def test_t5ai_core_i2c(self):
+        self.run_i2c("t5ai_core", False)
+
+    def test_t5ai_core_i2c_missing_route(self):
+        self.run_i2c("t5ai_core", True)
+
+    def test_aidk_ai_toy_i2c(self):
+        self.run_i2c("aidk_ai_toy", False)
+
+    def test_aidk_ai_toy_i2c_missing_route(self):
+        self.run_i2c("aidk_ai_toy", True)
+
     def run_timer(self, board, missing_route=False, fault=False):
         elf = self.build_fixture(
             board,

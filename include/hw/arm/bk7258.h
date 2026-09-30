@@ -4,6 +4,7 @@
 
 #include "hw/arm/armv7m.h"
 #include "hw/char/bk7258_uart.h"
+#include "hw/i2c/bk7258_i2c.h"
 #include "hw/timer/bk7258_rtc.h"
 #include "hw/timer/bk7258_timer.h"
 #include "hw/watchdog/bk7258_wdt.h"
@@ -21,6 +22,9 @@ struct BK7258State {
     SysBusDevice parent_obj;
     ARMv7MState cpu[3];
     BK7258UARTState uart[3];
+    BK7258I2CState i2c[2];
+    MemoryRegion i2c_ns[2];
+    Clock *i2cclk[2];
     BK7258TimerState timer[2];
     MemoryRegion timer_ns[2];
     Clock *timerclk[2];

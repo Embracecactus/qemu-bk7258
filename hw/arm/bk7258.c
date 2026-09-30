@@ -47,6 +47,16 @@ static void bk7258_update_uart_clocks(BK7258State *s)
     }
 }
 
+static void bk7258_update_i2c_clocks(BK7258State *s)
+{
+    static const unsigned gate[] = { 0, 8 };
+
+    for (unsigned i = 0; i < 2; i++) {
+        clock_update(s->i2cclk[i], s->peripheral_clocks & (1U << gate[i]) ?
+                     clock_get(s->xtalclk) : 0);
+    }
+}
+
 static void bk7258_update_timer_clocks(BK7258State *s)
 {
     static const unsigned gate[] = { 4, 13 };
@@ -286,6 +296,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         bk7258_update_wdt_clock(s);
         bk7258_update_uart_clocks(s);
         bk7258_update_timer_clocks(s);
+        bk7258_update_i2c_clocks(s);
         break;
     case 0x80 ... 0x94:
         index = (offset - 0x80) / 4;
@@ -491,6 +502,23 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
                      &s->timer[i].iomem, memory, base[i] + NS_OFFSET, 0x100);
     }
 
+    for (i = 0; i < 2; i++) {
+        DeviceState *i2c = DEVICE(&s->i2c[i]);
+        SysBusDevice *bus = SYS_BUS_DEVICE(i2c);
+        uint32_t base = 0x45850000 + 0x10000 * i;
+        g_autofree char *name = g_strdup_printf("i2c%u", i);
+
+        qdev_prop_set_string(i2c, "bus-name", name);
+        qdev_connect_clock_in(i2c, "pclk", s->i2cclk[i]);
+        if (!sysbus_realize(bus, errp)) {
+            return;
+        }
+        sysbus_mmio_map(bus, 0, base);
+        sysbus_connect_irq(bus, 0, qdev_get_gpio_in(dev, i ? 14 : 6));
+        bk7258_alias(&s->i2c_ns[i], obj, "bk7258.i2c-ns",
+                     &s->i2c[i].iomem, memory, base + NS_OFFSET, 0x100);
+    }
+
     qdev_connect_clock_in(DEVICE(&s->rtc), "lpo", s->aon.lpo);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), errp)) {
         return;
@@ -544,6 +572,7 @@ static void bk7258_reset(DeviceState *dev)
     bk7258_update_wdt_clock(s);
     bk7258_update_uart_clocks(s);
     bk7258_update_timer_clocks(s);
+    bk7258_update_i2c_clocks(s);
     bk7258_update_irqs(s);
 }
 
@@ -562,6 +591,10 @@ static void bk7258_init(Object *obj)
         object_initialize_child(obj, "timer[*]", &s->timer[i],
                                 TYPE_BK7258_TIMER);
         s->timerclk[i] = clock_new(obj, name);
+        g_clear_pointer(&name, g_free);
+        name = g_strdup_printf("i2cclk%u", i);
+        object_initialize_child(obj, "i2c[*]", &s->i2c[i], TYPE_BK7258_I2C);
+        s->i2cclk[i] = clock_new(obj, name);
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);

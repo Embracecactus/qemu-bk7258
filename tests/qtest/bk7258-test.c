@@ -384,6 +384,193 @@ static void test_watchdog(const void *board)
     qtest_quit(qts);
 }
 
+static const uint32_t i2c_base[] = { 0x45850000, 0x45860000 };
+static const unsigned i2c_gate[] = { 0, 8 };
+static const unsigned i2c_irq[] = { 6, 14 };
+
+static QTestState *start_i2c(const void *board)
+{
+    return qtest_initf("-machine %s -serial null "
+                      "-device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 "
+                      "-device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256",
+                      (const char *)board);
+}
+
+static void i2c_setup(QTestState *qts, unsigned g)
+{
+    qtest_writel(qts, SYS + 0x30, (1U << i2c_gate[0]) | (1U << i2c_gate[1]));
+    qtest_writel(qts, i2c_base[g] + 8, 3);
+    qtest_writel(qts, i2c_base[g] + 0x10, 0xcc000000 | (7U << 6));
+    qtest_writel(qts, i2c_base[g] + 0x1c, 3);
+}
+
+static void i2c_wait_irq(QTestState *qts, unsigned g)
+{
+    for (unsigned step = 0; step < 32; step++) {
+        if (qtest_readl(qts, i2c_base[g] + 0x14) & 1) {
+            return;
+        }
+        qtest_clock_step(qts, 20000);
+    }
+    g_assert_not_reached();
+}
+
+static void i2c_command(QTestState *qts, unsigned g, unsigned value)
+{
+    qtest_writel(qts, i2c_base[g] + 0x14, value);
+    i2c_wait_irq(qts, g);
+}
+
+static void i2c_address(QTestState *qts, unsigned g, unsigned byte, bool ack)
+{
+    qtest_writel(qts, i2c_base[g] + 0x18, byte);
+    i2c_command(qts, g, 0x400);
+    g_assert_cmphex(qtest_readl(qts, i2c_base[g] + 0x14) & 0x501, ==,
+                   0x401 | (ack ? 0x100 : 0));
+}
+
+static void i2c_stop(QTestState *qts, unsigned g)
+{
+    qtest_writel(qts, i2c_base[g] + 0x14, 0x200);
+    qtest_clock_step(qts, 20000);
+    g_assert_cmphex(qtest_readl(qts, i2c_base[g] + 0x14) & 0xc601, ==, 0);
+}
+
+static void i2c_pointer(QTestState *qts, unsigned g, unsigned offset)
+{
+    i2c_address(qts, g, 0xa0, true);
+    qtest_writel(qts, i2c_base[g] + 0x18, offset);
+    i2c_command(qts, g, 0x100);
+    i2c_address(qts, g, 0xa1, true); /* Repeated START, no STOP. */
+}
+
+static void test_i2c_fifo_transactions(const void *board)
+{
+    QTestState *qts = start_i2c(board);
+    static const unsigned receive_count[] = { 12, 8, 4, 1 };
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = i2c_base[g];
+
+        i2c_setup(qts, g);
+        for (unsigned mode = 0; mode < 4; mode++) {
+            i2c_address(qts, g, 0xa0, true);
+            qtest_writel(qts, base + 0x18, 0x20);
+            for (unsigned i = 0; i < 15; i++) {
+                qtest_writel(qts, base + 0x18, 0x40 + i + 16 * g + mode);
+            }
+            g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x20, ==, 0x20);
+            /* Full FIFO rejects byte 17, preserving the queued payload. */
+            qtest_writel(qts, base + 0x18, 0xee);
+            i2c_command(qts, g, 0x100 | (mode << 6));
+            if (mode) {
+                i2c_command(qts, g, 0x100); /* Drain the remaining threshold. */
+            }
+            i2c_stop(qts, g);
+            i2c_pointer(qts, g, 0x20);
+            i2c_command(qts, g, 0x100 | (mode << 6));
+            for (unsigned i = 0; i < receive_count[mode]; i++) {
+                expect(qts, base + 0x10000018, 0x40 + i + 16 * g + mode);
+            }
+            g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x10, ==, 0x10);
+            i2c_stop(qts, g);
+            /* Byte 17 must not have slipped through after the last write. */
+            i2c_pointer(qts, g, 0x2f);
+            i2c_command(qts, g, 0x1c0);
+            expect(qts, base + 0x18, 0);
+            i2c_stop(qts, g);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_i2c_w0c_nak_routes(const void *board)
+{
+    QTestState *qts = start_i2c(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = i2c_base[g], irq = 1U << i2c_irq[g];
+
+        i2c_setup(qts, g);
+        /* Contradictory START and STOP must not change controller state. */
+        qtest_writel(qts, base + 0x14, 0x600);
+        expect(qts, base + 0x14, 0x10);
+        qtest_writel(qts, base + 0x14, 1); /* Cannot invent an interrupt. */
+        expect(qts, base + 0x14, 0x10);
+        i2c_address(qts, g, 0xa2, false);
+        for (unsigned core = 0; core < 3; core++) {
+            expect(qts, SYS + 0xa0 + 8 * core, 0);
+            qtest_writel(qts, SYS + 0x80 + 8 * core, irq);
+            expect(qts, SYS + 0xa0 + 8 * core, irq);
+        }
+        /* A write-one preserves pending SM_INT; it is not W1C. */
+        qtest_writel(qts, base + 0x14, 0x501);
+        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x501, ==, 0x401);
+        qtest_clock_step(qts, 100000);
+        expect(qts, SYS + 0xa0, irq);
+        qtest_writel(qts, base + 0x14, 0x100);
+        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x101, ==, 1);
+        i2c_stop(qts, g);
+        expect(qts, SYS + 0xa0, 0);
+        i2c_address(qts, g, 0xa0, true);
+        qtest_writel(qts, base + 0x18, 0xa2);
+        qtest_writel(qts, base + 0x14, 0x400);
+        /* Different-address repeated START is explicitly outside the API. */
+        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x501, ==, 0x501);
+        qtest_writel(qts, base + 8, 0); /* Invalid command did not alter bus. */
+        expect(qts, SYS + 0xa0, 0);
+        expect(qts, base + 0x14, 0x10);
+        for (unsigned core = 0; core < 3; core++) {
+            qtest_writel(qts, SYS + 0x80 + 8 * core, 0);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_i2c_clock_reset_cancel(const void *board)
+{
+    QTestState *qts = start_i2c(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = i2c_base[g];
+
+        i2c_setup(qts, g);
+        qtest_writel(qts, base + 0x18, 0xa0);
+        qtest_writel(qts, base + 0x14, 0x400);
+        qtest_clock_step(qts, 5000);
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x501, ==, 0x400);
+        qtest_writel(qts, SYS + 0x30, 1U << i2c_gate[g]);
+        qtest_clock_step(qts, 5423); /* Remaining cycles rounded upward. */
+        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 1, ==, 0);
+        qtest_clock_step(qts, 1);
+        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x501, ==, 0x501);
+        qtest_writel(qts, base + 0x18, 0x40);
+        i2c_command(qts, g, 0x100); /* Set EEPROM pointer, not its data. */
+        qtest_writel(qts, base + 0x18, 0xee);
+        qtest_writel(qts, base + 0x14, 0x100);
+        qtest_clock_step(qts, 5000);
+        qtest_writel(qts, base + 8, 0);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, base + 0x14, 0x10);
+        i2c_setup(qts, g);
+        i2c_pointer(qts, g, 0x40);
+        i2c_command(qts, g, 0x1c0);
+        expect(qts, base + 0x18, 0); /* Canceled byte was never delivered. */
+        i2c_stop(qts, g);
+        qtest_writel(qts, base + 0x10, 0xc0000000 | (7U << 6));
+        qtest_writel(qts, base + 0x18, 0xa0);
+        qtest_writel(qts, base + 0x14, 0x400);
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x101, ==, 0);
+        qtest_system_reset(qts);
+        expect(qts, base + 8, 0);
+        expect(qts, base + 0x14, 0x10);
+    }
+    qtest_quit(qts);
+}
+
 static const uint32_t timg_base[] = { 0x44810000, 0x45800000 };
 static const unsigned timg_gate[] = { 4, 13 };
 static const unsigned timg_irq[] = { 3, 13 };
@@ -1297,6 +1484,9 @@ int main(int argc, char **argv)
         {"uart-rx-capacity-wrap-backpressure", test_uart_rx_capacity},
         {"watchdog-keys-expiry", test_watchdog},
         {"watchdog-sources-pause-recovery", test_watchdog_sources},
+        {"i2c-fifo-native-bus-transactions", test_i2c_fifo_transactions},
+        {"i2c-w0c-nak-irq-routes", test_i2c_w0c_nak_routes},
+        {"i2c-clock-reset-cancel", test_i2c_clock_reset_cancel},
         {"timer-groups-channels-routes-w1c", test_timg_channels},
         {"timer-clock-snapshot-cancel", test_timg_clock_snapshot},
         {"timer-prescaler-boundaries", test_timg_prescaler},

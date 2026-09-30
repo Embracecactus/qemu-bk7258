@@ -4775,6 +4775,7 @@ F: hw/arm/bk7258_boards.c
 F: hw/block/bk7258_flash.c
 F: hw/block/bk7258_nor.c
 F: hw/char/bk7258_uart.c
+F: hw/i2c/bk7258_i2c.c
 F: hw/misc/bk7258_aon.c
 F: hw/misc/bk7258_ckmn.c
 F: hw/misc/bk7258_mailbox.c
@@ -4785,6 +4786,7 @@ F: include/hw/arm/bk7258.h
 F: include/hw/block/bk7258_flash.h
 F: include/hw/block/bk7258_nor.h
 F: include/hw/char/bk7258_uart.h
+F: include/hw/i2c/bk7258_i2c.h
 F: include/hw/misc/bk7258_aon.h
 F: include/hw/misc/bk7258_ckmn.h
 F: include/hw/misc/bk7258_mailbox.h

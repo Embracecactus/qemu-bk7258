@@ -95,12 +95,17 @@ OpenVela source or profile changes are required for that gate.
        snapshot, periodic status/W1C, IRQ3/13 and explicit wrap/reset policies
      - Measured CDC/disable/reset edges, CLK32 mux topology, power retention
        and identification/status registers
+   * - I2C0/1
+     - Native QEMU-bus 7-bit master, bounded FIFOs, ACK/NAK, same-address
+       repeated START, W0C service, clock pause, reset cancel and IRQ6/14
+     - Slave/10-bit/multi-master modes, pin waveforms/stretch/timeout,
+       different-address repeated START and measured edge/reset behavior
    * - PWM
      - Register sources identified; not yet modeled
      - Counter/compare/clock-domain/reset behavior and pin-output delivery
    * - Other chip interfaces
      - Not modeled
-     - DMA, I2C/SPI/QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
+     - DMA, SPI/QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
        audio/video, Wi-Fi/BT and other absent register blocks
 
 For each added chip block, require source-backed access/reset/clock/IRQ
@@ -115,6 +120,68 @@ pins, polarity, release/bias and reset behavior. Its current LED/key subset is
 listed below; the remaining fitted devices do not become supported merely
 because the machine has the board's name. Complete OS/product boot, update
 flows and performance remain a later external-consumer acceptance stage.
+
+Chip-stage completion gates
+---------------------------
+
+The table above is a capability inventory, not a claim of complete BK7258
+emulation. The following P0 gates describe the next reusable-chip functional
+baseline. ``P0`` here is a development priority, not a vendor certification or
+an assertion that complex peripherals are already covered. The three board
+names and counts of passing tests cannot close these gates.
+
+.. list-table:: Chip P0 acceptance and open evidence
+   :header-rows: 1
+   :widths: 22 37 41
+
+   * - Gate
+     - Current evidence
+     - Required before closing the gate
+   * - CPU and memory topology
+     - Three generic Cortex-M33s execute independent/private-memory and
+       shared-memory probes; physical CRC XIP has positive/fault coverage
+     - Resolve vendor STAR variant/identity and cache/debug differences;
+       identify reset-ROM and PSRAM/controller contracts. Unverified AP
+       cache geometry cannot silently become a hardware default.
+   * - Clock, reset and power domains
+     - Explicit LPO mux, UART/timer gates/dividers, RTC and two watchdog
+       sources; stopped-clock and cold-reset negative tests
+     - Source-backed reset-cause lifecycle, whole-chip versus digital-only
+       reset and retained domains; dynamic CPU clock/PLL dependencies.
+       Replace the named TIMG CLK32 netlist assumption with evidence.
+   * - Interrupts and shared services
+     - Per-core SYS/NVIC routing, NMI, SysTick, mailbox ownership/full state,
+       timer/RTC IRQs and W1C or documented transaction policies
+     - Test each added source through masks, reset and multi-core routing;
+       implement required DMA-master attribution/arbitration semantics.
+       Missing sources remain absent, not synthetic ready/completion bits.
+   * - Basic peripheral buses and pads
+     - UART stream RX/idle and GPIO digital contacts are functional;
+       general timers and bounded 7-bit I2C master transactions now run
+       independently of host firmware
+     - Remaining I2C modes, SPI transactions, PWM outputs and DMA basics with
+       error/cancel/clock-loss cases; source-backed alternate-function
+       routing. No fabricated fixed ACK, slave data or pin wiring.
+   * - Independent reproducibility
+     - Native libqtest and source-built bare-metal functional gates run
+       entirely in this repository on all three machine registrations
+     - Each new slice must build with warnings as errors, retain previous
+       gates, test its negative paths and obtain an exact-SHA CI result.
+       A deliberate unsupported-access fault tests a model boundary;
+       it is not evidence for the silicon response to that access.
+
+P0 closure means the explicitly enumerated functional baseline and its evidence
+are complete, not Wi-Fi/BT/media throughput, analog fidelity, security
+certification or complete chip coverage. Those absent blocks remain visible
+in the capability inventory and cannot be marked supported by omission.
+When source material cannot determine a required behavior, record the gap and
+keep that gate open while implementing independent, evidenced portions.
+
+After the chip baseline, each board gate requires an identified hardware
+revision, sourced external parts/pins and wiring tests, including absent or
+incorrect devices and reset/contact behavior. External OS/product firmware
+acceptance follows those gates as a separate consumer test; its boot success
+cannot replace a missing chip or board contract.
 
 Board GPIO wiring
 -----------------
@@ -338,6 +405,84 @@ read QEMU's existing read-only clock-period property to verify source loss,
 recovery, all three independent gates and reset cancellation. External-source
 presence/frequency is a board input, not a firmware-specific success setting.
 
+I2C master functional boundaries
+-------------------------------
+
+Two ``bk7258-i2c`` controllers expose native QEMU I2C buses ``i2c0`` and
+``i2c1``. Their secure bases are 0x45850000/0x45860000, aliases add
+0x10000000, SYS+0x30 gate bits are 0/8 and IRQs are 6/14. The board models
+leave both buses empty. Tests explicitly add ``at24c-eeprom`` devices with
+``-device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256`` and its bus1
+equivalent. These are replaceable external test fixtures, not claimed board
+components. No board or OS-specific slave identity is built into the SoC.
+
+The implemented register slice is GLOBAL +0x08, CFG +0x10, STATUS +0x14,
+FIFO DATA +0x18 and EXTRA +0x1c. It supports the SDK's seven-bit master
+sequence: enqueue the address byte before START; wait for the actual bus
+address response; service FIFO state by atomically writing ACK/START/STOP
+and clearing SM_INT. Bit0 is **write-zero-clear**, not W1C. A write-one
+preserves an existing interrupt and cannot create one. ACK from an address
+or transmitted byte comes from the attached slave API; absent devices give
+NAK. While an event remains unserviced, software cannot overwrite its
+latched response; servicing an absent-slave result cannot create ACK either.
+This conservative write policy exposes errors and is not a claim about
+undocumented silicon writes to a pending response bit.
+
+Both FIFOs hold 16 bytes. TX service thresholds are modeled at 0/4/8/12
+bytes remaining for INT_MODE 0/1/2/3; RX thresholds are 12/8/4/1 bytes.
+The latter levels and the driver's corresponding writable-space values
+come from the LL/HAL. Threshold service can leave data queued: IRQ is not an
+unconditional end-of-transaction success. Same-address repeated START can
+change direction without STOP. Clearing ACK after receiving sends NAK;
+STOP ends the bus transaction and self-clears without a second completion
+interrupt in this functional policy.
+
+The SDK selects CFG.CLK_SRC=3 while computing the divider from XTAL.
+That selection uses the SoC's gated 26-MHz input. Other encodings supply no
+clock and log the missing source. The HAL's divider expression gives
+``3 * (divider + 1) + 6`` input clocks per SCL period. This model schedules
+nine such periods for each address/data byte and one for STOP, rounded up
+to host virtual nanoseconds. This is functional latency, not measured wire
+or setup/hold timing. Clock gating preserves remaining source cycles rounded
+upward; fractional phase is not modeled. Changing the divider/source during
+an active byte is rejected rather than guessing its physical behavior.
+
+The following boundaries remain explicit:
+
+* The generic QEMU I2C API does not rescan an already selected bus for a new
+  address during repeated START. A different-address repeated START is
+  rejected without redirecting the transfer or pretending the old slave
+  acknowledged the new address. Same-address direction changes are tested.
+  An already externally owned bus rejects a new request; contention that
+  appears during the functional delay logs an unsupported case and leaves
+  the operation without automatic completion until software recovers. No arbitration-loss IRQ or
+  external-master conformance is claimed, and reset does not end a bus
+  transaction owned by someone else.
+* Slave mode, ten-bit/general-call addressing, multi-master arbitration,
+  analog SDA/SCL, clock stretching, timeout/idle detection and pinmux gating
+  are absent. Their configuration fields do not fabricate status/completion.
+  EXTRA output-control bits retain their setting; nonzero byte-interval
+  settings are unsupported. No physical pad-waveform claim is made.
+* Empty RX reads, full TX writes, contradictory START/STOP, unsupported
+  register accesses and the unsupported repeated-address case return a
+  transaction error without consuming/corrupting FIFO data. These deliberate
+  strict-model policies are not claims that silicon raises BusFault for
+  those software mistakes or for its valid device-ID registers.
+* GLOBAL bit0 acts as synchronous reset release. Reset assertion or clearing
+  CFG.EN cancels a pending byte, clears controller queues/status and releases
+  the bus. Bytes already delivered to a slave remain delivered; reset cannot
+  roll back an external device. Chip cold reset covers both controllers.
+  Distinct power/reset-domain retention is not yet established.
+
+Native qtests exercise both buses, all four FIFO service modes, overflow
+rejection/readback integrity, W0C, ACK/NAK and three-core route masks,
+repeated START, clock pause/recovery and reset before an external write.
+Source-built guest tests perform real IRQ6/14 entry and EEPROM readback on
+each machine. Their missing-route negative requires observing a completed
+controller transaction with the specific absent SYS route, rather than
+accepting an unrelated early failure. Empty-read fault probes separately
+validate the strict-model access boundary.
+
 General timer functional boundaries
 -----------------------------------
 
@@ -488,6 +633,8 @@ Flash controller   0x44030000                     0x54030000
 UART0              0x44820000                     0x54820000
 UART1              0x45830000                     0x55830000
 UART2              0x45840000                     0x55840000
+I2C0               0x45850000                     0x55850000
+I2C1               0x45860000                     0x55860000
 =================  ============================  ====================
 
 Aliases alone do not implement the BK7258 TrustZone attribution/security
@@ -793,6 +940,14 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   snapshot handshake, W1C usage and live-period-change hazard. BK7258 SYS
   structure/HAL supplies gate/source bits and IRQ3/13. Ambiguous clock-net,
   snapshot and reset details remain named functional policies above.
+* ``ap/include/soc/bk7258/i2c_cap.h``,
+  ``ap/middleware/soc/bk7258_ap/soc/i2c_struct.h``, matching I2C LL,
+  ``ap/middleware/soc/common/hal/i2c_hal.c`` and
+  ``ap/middleware/driver/i2c/i2c_driver.c``: two hardware controllers,
+  FIFO service levels, W0C combined-command handshake, address-before-START,
+  repeated-START read sequence, ACK polarity and XTAL divider expression.
+  Datasheet section 4.12 corroborates the 16-byte FIFOs and distinguishes
+  supported silicon features from this narrower seven-bit master model.
 * ``cp/middleware/soc/bk7258/soc/aon_rtc_struct.h``, matching RTC LL,
   ``cp/middleware/soc/common/hal/aon_rtc_hal_64bit.c`` and
   ``cp/middleware/driver/rtc/aon_rtc_driver_64bit.c``: 64-bit register layout,
