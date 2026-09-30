@@ -19,3 +19,5 @@ system_ss.add(when: 'CONFIG_VHOST_USER_BLK', if_true: files('vhost-user-blk.c'))
 system_ss.add(when: 'CONFIG_VHOST_USER_BLK', if_true: files('virtio-blk-common.c'))
 
 subdir('dataplane')
+
+system_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258_nor.c', 'bk7258_flash.c'))

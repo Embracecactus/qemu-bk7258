@@ -19,10 +19,15 @@ Implemented slice
 * Three Cortex-M33 CPUs with separate NVICs (64 inputs, three priority bits)
   and separate 16-KiB ITCM / 16-KiB DTCM. CPU0 starts; CPU1 and CPU2 are held.
 * Shared 640-KiB SRAM and all four address aliases below.
-* Read-only logical XIP storage, loaded from ELF segments. All three current
-  board profiles specify 8-MiB physical flash; the model exposes complete
-  32-byte logical units after removing each physical 2-byte CRC trailer.
-  Raw operator images, encryption and CRC decoding are not implemented.
+* Two explicit entry modes: diagnostic ELF-backed logical XIP, or a physical
+  8-MiB NOR backing with CRC-framed XIP. The modes cannot be combined. Flash
+  MMIO is mapped only with the NOR backing, so an ELF-loaded ROM cannot be
+  mistaken for the controller's physical byte array.
+* A bounded GD25WQ64E NOR model (JEDEC C86517, an explicit part choice, not
+  board identification), 32-byte controller read/program FIFO, asynchronous
+  status/ID/erase commands, real protection ranges and persistent array/NV
+  status. Logical XIP removes each 2-byte CRC trailer from 32-byte payloads
+  and faults on bad CRC. Controller reads and secure/NS XIP share one array.
 * Three functional UARTs: transmit, bounded receive queue, RX threshold, baud-derived RX-idle completion and
   TX-finish status, W1C acknowledgement, and per-CPU interrupt routing.
   Connect UART0/1/2 with the first/second/third ``-serial`` option.
@@ -124,14 +129,15 @@ APB/NMI watchdog   0x44800000                     0x54800000
 MBOX0 v2           0x41000000                     0x51000000
 SYS                0x44010000                     0x54010000
 CKMN               0x448a0000                     0x548a0000
+Flash controller   0x44030000                     0x54030000
 UART0              0x44820000                     0x54820000
 UART1              0x45830000                     0x55830000
 UART2              0x45840000                     0x55840000
 =================  ============================  ====================
 
 Aliases alone do not implement the BK7258 TrustZone attribution/security
-controller. ROM, PSRAM, external timers, legacy MBOX1, DMA, caches, flash
-controller/remap/persistence, MCUboot/OTA and physical-board devices are absent.
+controller. ROM, PSRAM, external timers, legacy MBOX1, DMA, physical caches,
+flash remap/encryption, MCUboot/OTA and physical-board devices are absent.
 Wi-Fi/BT, camera, audio, codec, power and performance behavior are not modeled.
 
 Building and running
@@ -178,11 +184,64 @@ NuttX ``arm_enable_dbgmonitor()`` probes them because ARCH_CORTEXM33 selects
 ARCH_HAVE_DEBUG. The NSH harness preserves and counts exactly those eight
 startup messages, rejecting every other unknown access, including DWT cycle
 counter reads. No debugger, breakpoint or performance-counter claim follows.
-The prior published slice stopped at CKMN 0x448a0008. With CKMN and MBOX0,
-the unchanged product CP next stops at the flash controller 0x44030008;
-the known-stop regression is explicitly a failure-boundary test, not a product-boot pass.
+The restricted native NSH also passes through physical NOR XIP without the
+ELF loader. The unchanged direct product CP passes Flash initialization and
+next faults at unimplemented RF register 0x4980c000 (SDK rc_drv_set_rf_en).
+The MCUboot-configured CP reads unimplemented AON R7A reset-cause storage
+0x440001e8 before Flash. Its snapshot/POR/reset-domain semantics are not
+established by the pinned SDK, whose register definition is reserved. Both
+probes enter CP directly: they do not execute ROM/BL1/BL2. Known-stop tests
+retain exact configuration-specific missing-device boundaries; they do not
+assert successful product boot.
 Production CP/AP boot, AP SMP scheduling, RPMsg software traffic, firmware
 updates and hardware timing remain outside this acceptance.
+
+Physical NOR contract
+---------------------
+
+Use an operator-owned 8-MiB raw simulation image with
+``-drive if=pflash,unit=0,format=raw,file=nor.bin``. An optional second raw
+512-byte sector at ``unit=1`` persists NV SR1/SR2/SR3 in its first three bytes;
+the remaining bytes must be zero. Fresh delivery state is 00 00 20. Omitting
+that status drive makes status process-local, not restart-persistent. Both
+backends require exclusive write/resize ownership; the device flushes a
+successful mutation before updating its cached array/status. Readonly backing
+or host I/O failure stops the VM rather than claiming a completed write.
+A failed host commit can have partially changed the host file; the NOR latches
+that failure and rejects further array access, even after reset.
+
+The entry vector remains 0x02010000, bypassing bootloaders. The contest CLI's
+``qemu native-nsh --physical-nor`` builds a fresh simulation-only image from
+validated finalized artifacts and layout offsets, leaves identity/calibration
+areas erased, and refuses to overwrite existing NOR files. It does not create
+a board-flashable production release or run a bootloader/OTA flow.
+
+Controller operations complete after one microsecond of virtual time, solely
+as an asynchronous functional boundary, not physical program/erase timing.
+Reset before that deadline cancels the operation. NOR programming ANDs bits
+and wraps within a 256-byte page; erases and BP/CMP protection follow the part
+contract. Protected writes are no-ops. Malformed or unsupported asynchronous
+operations stop the VM; unknown MMIO/command accesses fault. FIFO underflow,
+overflow and writes during active transactions are rejected. XIP observes
+the last committed array during a pending operation, an explicit functional
+read-cache abstraction rather than SPI bus arbitration.
+
+CRC16 uses polynomial 0x8005, initial 0xffff and big-endian trailers. Complete
+erased FF frames may be read when ALL_FF_OK is enabled. Failed-read counts
+saturate at 255; this counter policy is functional, not measured hardware.
+Quad XIP requires QE. The direct-entry configuration enables CRC/ALL_FF_OK;
+this is not a claim about silicon power-on state. Controller-managed WREN is
+inferred from the SDK's no-op write-enable wrappers. Its op7 16-bit status
+transaction is modeled as two separately enabled SR-byte writes; the exact
+physical controller waveform is not known.
+
+Unsupported: raw SPI framing, SFDP/UID/security/OTP, SRP1 special modes,
+volatile-status enable, suspend/deep-powerdown, page-select modes, direct CPU
+XIP writes, CRC-disabled mode, remap/encryption, flash performance, brownout
+atomicity and migration. The canonical tests include actual file-backed
+persistence and error rejection, a production-helper ASan/UBSan harness with
+mocked block failures, and real Thumb-2 instruction fetch spanning an MMIO
+page. The latter also covers the downstream translator record-page fix.
 
 Register provenance
 -------------------
@@ -197,6 +256,9 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   ``cp/middleware/soc/bk7258/hal/uart_ll.h``: register fields and W1C
 * ``cp/middleware/soc/bk7258/soc/sys_reg.h``, ``sys_struct.h`` and
   ``cp/components/bk_startup/system_main.c``: CPU controls and IRQ routing
+* ``cp/middleware/soc/bk7258/soc/flash_struct.h``, matching Flash HAL/LL,
+  ``cp/middleware/driver/flash/flash_driver.c``: controller fields/commands,
+  32-byte transfers, selected part configuration and write-enable behavior
 * ``cp/include/driver/int_types.h``: UART IRQ numbers 4, 15 and 16, GPIO IRQ55
 * ``cp/middleware/soc/bk7258/soc/mbox0_struct.h``, matching HAL/LL and
   ``cp/middleware/driver/mailbox/mbox0_drv.c``: v2 registers, eight slots,
@@ -221,6 +283,10 @@ The Apache-2.0 contest repository at
 * ``chips/bk7258/common/bk7258_timerisr.c``: 32,000-Hz external reference
 * ``tools/bk7258/_lib/layout.py`` and board-selected partition CSVs: XIP
   conversion and physical flash capacity
+
+The NOR protocol/protection facts use GigaDevice's primary datasheet
+`GD25WQ64E Rev1.2 <https://download.gigadevice.com/Datasheet/DS-00476-GD25WQ64E-Rev1.2.pdf>`_,
+including tables 4/5. No datasheet text or vendor implementation is copied.
 
 New model files are GPL-2.0-or-later. QEMU APIs and Cortex-M33 implementation
 come from the existing QEMU base. This experiment carries no invented author

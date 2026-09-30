@@ -6,6 +6,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/arm/bk7258.h"
 #include "hw/arm/boot.h"
@@ -16,6 +17,7 @@
 #include "hw/core/qdev-properties-system.h"
 #include "system/address-spaces.h"
 #include "system/system.h"
+#include "system/blockdev.h"
 #include "target/arm/internals.h"
 #include "migration/vmstate.h"
 
@@ -265,16 +267,33 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         0x08000000, 0x18000000, 0x38000000,
     };
     unsigned i;
+    MemoryRegion *xip;
 
-    if (!memory_region_init_rom(&s->flash, obj, "bk7258.xip", s->flash_size,
-                                errp) ||
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->flashctrl), errp) ||
         !memory_region_init_ram(&s->sram, obj, "bk7258.sram", SRAM_SIZE,
                                 errp)) {
         return;
     }
-    memory_region_add_subregion(memory, FLASH_BASE, &s->flash);
+    if (s->flashctrl.nor.blk) {
+        if (s->flash_size != BK7258_XIP_SIZE) {
+            error_setg(errp,
+                       "BK7258 physical NOR mode requires its exact XIP size");
+            return;
+        }
+        xip = &s->flashctrl.xip;
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->flashctrl), 0, 0x44030000);
+        bk7258_alias(&s->flashctrl_ns, obj, "bk7258.flashctrl-ns",
+                     &s->flashctrl.regs, memory, 0x54030000, 0x1000);
+    } else {
+        if (!memory_region_init_rom(&s->flash, obj, "bk7258.diagnostic-xip",
+                                     s->flash_size, errp)) {
+            return;
+        }
+        xip = &s->flash;
+    }
+    memory_region_add_subregion(memory, FLASH_BASE, xip);
     memory_region_add_subregion(memory, SRAM_BASE, &s->sram);
-    bk7258_alias(&s->flash_ns, obj, "bk7258.xip-ns", &s->flash, memory,
+    bk7258_alias(&s->flash_ns, obj, "bk7258.xip-ns", xip, memory,
                  FLASH_BASE + NS_OFFSET, s->flash_size);
     for (i = 0; i < 3; i++) {
         g_autofree char *name = g_strdup_printf("bk7258.sram-alias%u", i);
@@ -443,6 +462,7 @@ static void bk7258_init(Object *obj)
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);
     object_initialize_child(obj, "ckmn", &s->ckmn, TYPE_BK7258_CKMN);
     object_initialize_child(obj, "mailbox", &s->mailbox, TYPE_BK7258_MAILBOX);
+    object_initialize_child(obj, "flashctrl", &s->flashctrl, TYPE_BK7258_FLASH);
     qdev_init_gpio_in_named(DEVICE(obj), bk7258_mailbox_irq, "mailbox", 3);
     qdev_init_gpio_in(DEVICE(obj), bk7258_irq, 64);
     s->analog_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
@@ -483,6 +503,23 @@ static void bk7258_machine_init(MachineState *machine)
     unsigned i;
 
     object_property_add_child(OBJECT(machine), "soc", OBJECT(dev));
+    if (drive_get(IF_PFLASH, 0, 1) && !drive_get(IF_PFLASH, 0, 0)) {
+        error_report("BK7258: NOR status drive requires the array drive");
+        exit(1);
+    }
+    for (i = 0; i < 2; i++) {
+        DriveInfo *drive = drive_get(IF_PFLASH, 0, i);
+        if (drive) {
+            if (!i && machine->kernel_filename) {
+                error_report("BK7258: choose physical NOR image or "
+                             "diagnostic ELF, not both");
+                exit(1);
+            }
+            qdev_prop_set_drive(DEVICE(&soc->flashctrl.nor),
+                                i ? "status-drive" : "drive",
+                                blk_by_legacy_dinfo(drive));
+        }
+    }
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     for (i = 0; i < 3; i++) {
         armv7m_load_kernel(soc->cpu[i].cpu,

@@ -4771,12 +4771,16 @@ F: scripts/compare-machine-types.py
 BK7258 downstream diagnostic experiment
 S: Odd Fixes
 F: hw/arm/bk7258.c
+F: hw/block/bk7258_flash.c
+F: hw/block/bk7258_nor.c
 F: hw/char/bk7258_uart.c
 F: hw/misc/bk7258_aon.c
 F: hw/misc/bk7258_ckmn.c
 F: hw/misc/bk7258_mailbox.c
 F: hw/watchdog/bk7258_wdt.c
 F: include/hw/arm/bk7258.h
+F: include/hw/block/bk7258_flash.h
+F: include/hw/block/bk7258_nor.h
 F: include/hw/char/bk7258_uart.h
 F: include/hw/misc/bk7258_aon.h
 F: include/hw/misc/bk7258_ckmn.h

@@ -8,6 +8,7 @@
 #include "hw/misc/bk7258_aon.h"
 #include "hw/misc/bk7258_ckmn.h"
 #include "hw/misc/bk7258_mailbox.h"
+#include "hw/block/bk7258_flash.h"
 
 #define TYPE_BK7258_SOC "bk7258-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(BK7258State, BK7258_SOC)
@@ -20,6 +21,8 @@ struct BK7258State {
     BK7258AONState aon;
     BK7258CKMNState ckmn;
     BK7258MailboxState mailbox;
+    BK7258FlashState flashctrl;
+    MemoryRegion flashctrl_ns;
     MemoryRegion mailbox_ns[3];
     uint64_t private_irqs[3];
     Clock *xtalclk;

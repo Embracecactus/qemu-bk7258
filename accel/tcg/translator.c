@@ -303,6 +303,22 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
     if (unlikely(tb_page_addr0(tb) == -1)) {
         /* We capped translation with first page MMIO in tb_gen_code. */
         tcg_debug_assert(db->max_insns == 1);
+        /*
+         * A single instruction can still cross a page (e.g. Thumb-2).
+         * The slow-path fetch below records its bytes too, so retain the
+         * second virtual page even though no host page will be mapped.
+         */
+        if (((db->pc_first ^ last) & TARGET_PAGE_MASK) != 0) {
+            vaddr page = last & TARGET_PAGE_MASK;
+
+            assert(((db->pc_first ^ pc) & TARGET_PAGE_MASK) == 0 ||
+                   (pc & TARGET_PAGE_MASK) == page);
+            if (db->pc_second_page == -1) {
+                db->pc_second_page = page;
+            } else {
+                assert(db->pc_second_page == page);
+            }
+        }
         return false;
     }
 
