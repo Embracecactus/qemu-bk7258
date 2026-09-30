@@ -9,6 +9,7 @@
 #include "hw/dma/bk7258_dma.h"
 #include "hw/timer/bk7258_rtc.h"
 #include "hw/timer/bk7258_timer.h"
+#include "hw/timer/bk7258_pwm.h"
 #include "hw/watchdog/bk7258_wdt.h"
 #include "hw/misc/bk7258_aon.h"
 #include "hw/misc/bk7258_ckmn.h"
@@ -24,6 +25,9 @@ struct BK7258State {
     SysBusDevice parent_obj;
     ARMv7MState cpu[3];
     BK7258UARTState uart[3];
+    BK7258PWMState pwm[2];
+    MemoryRegion pwm_ns[2];
+    Clock *pwmclk[2];
     BK7258DMAState dma[2];
     MemoryRegion dma_ns[2];
     MemoryRegion dma_memory;

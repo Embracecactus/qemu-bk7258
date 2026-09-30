@@ -2013,6 +2013,211 @@ static void test_dma_unsupported_modes(const void *board)
     qtest_quit(qts);
 }
 
+static uint32_t pwm_base(unsigned unit)
+{
+    return 0x458a0000 + unit * 0x50000;
+}
+
+static void pwm_setup(QTestState *qts, unsigned unit)
+{
+    qtest_writel(qts, SYS + 0x30, (1U << 3) | (1U << 12));
+    qtest_writel(qts, SYS + 0x20, (1U << 18) | (1U << 19));
+    qtest_writel(qts, pwm_base(unit) + 8, 0);
+    qtest_writel(qts, pwm_base(unit) + 8, 1);
+}
+
+static void test_pwm_counters_compares_routes(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = pwm_base(unit), bank = unit ? 4 : 0;
+        uint32_t irq = 1U << (unit ? 11 : 5);
+
+        for (unsigned core = 0; core < 3; core++) {
+            qtest_writel(qts, SYS + 0x80 + 8 * core + bank, irq);
+        }
+        for (unsigned timer = 0; timer < 3; timer++) {
+            uint32_t flags = (7U << (3 * timer)) | (1U << (9 + timer));
+
+            pwm_setup(qts, unit);
+            qtest_writel(qts, b + 0x3c + 4 * timer, 51);
+            for (unsigned n = 0; n < 3; n++) {
+                qtest_writel(qts, b + 0x54 + 12 * timer + 4 * n,
+                             13 * (n + 1));
+            }
+            qtest_writel(qts, b + 0x10, 1U << (2 - timer));
+            for (unsigned n = 0; n < 3; n++) {
+                qtest_clock_step(qts, 500);
+                expect(qts, b + 0x2c + 4 * timer, 13 * (n + 1));
+                expect(qts, b + 0x20, ((1U << (n + 1)) - 1) << (3 * timer));
+            }
+            qtest_clock_step(qts, 500);
+            expect(qts, b + 0x2c + 4 * timer, 0);
+            expect(qts, b + 0x20, flags);
+            expect(qts, SYS + 0xa0 + bank, 0); /* Locally masked. */
+            qtest_writel(qts, b + 0x1c, flags);
+            for (unsigned core = 0; core < 3; core++) {
+                expect(qts, SYS + 0xa0 + 8 * core + bank, irq);
+            }
+            qtest_writel(qts, b + 0x20, 0); /* W0 is not W1C. */
+            expect(qts, b + 0x20, flags);
+            qtest_writel(qts, b + 0x10000020, 7U << (3 * timer));
+            expect(qts, SYS + 0xa0 + bank, irq);
+            qtest_writel(qts, b + 0x20, 1U << (9 + timer));
+            expect(qts, SYS + 0xa0 + bank, 0);
+            qtest_writel(qts, b + 0x10, 0);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_pwm_dividers_gates(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = pwm_base(unit), gate = 1U << (unit ? 12 : 3);
+        g_autofree char *path = g_strdup_printf("/machine/soc/pwm[%u]/pclk",
+                                                unit);
+
+        pwm_setup(qts, unit);
+        expect_clock(qts, path, 26000000);
+        qtest_writel(qts, b + 0x38, 0xff7f00); /* /1, /128, /256. */
+        for (unsigned n = 0; n < 3; n++) {
+            qtest_writel(qts, b + 0x3c + 4 * n, UINT32_MAX);
+        }
+        qtest_writel(qts, b + 0x10, 7);
+        qtest_clock_step(qts, 128000);
+        expect(qts, b + 0x2c, 3328);
+        expect(qts, b + 0x30, 26);
+        expect(qts, b + 0x34, 13);
+        qtest_writel(qts, SYS + 0x30, 0);
+        expect_clock(qts, path, 0);
+        qtest_clock_step(qts, 1000000000);
+        expect(qts, b + 0x2c, 3328);
+        /* Unconnected CLK32 is not guessed. */
+        qtest_writel(qts, SYS + 0x20, 0);
+        qtest_writel(qts, SYS + 0x30, gate);
+        expect_clock(qts, path, 0);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, b + 0x2c, 3328);
+        qtest_writel(qts, SYS + 0x20, 1U << (18 + unit));
+        qtest_clock_step(qts, 128000);
+        expect(qts, b + 0x2c, 6656);
+        expect(qts, b + 0x30, 52);
+        expect(qts, b + 0x34, 26);
+        qtest_writel(qts, b + 0x10, 0);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, b + 0x2c, 6656); /* Disable retains the counter. */
+        qtest_system_reset(qts);
+        expect_clock(qts, path, 0);
+        expect(qts, b + 0x2c, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_pwm_preload_update_cancel(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = pwm_base(unit);
+
+        pwm_setup(qts, unit);
+        qtest_writel(qts, b + 0x10, 0x120); /* ARR/CCR preload for counter1. */
+        qtest_writel(qts, b + 0x3c, 51);
+        qtest_writel(qts, b + 0x54, 13);
+        expect(qts, b + 0x7c, 0);
+        expect(qts, b + 0x94, 0);
+        qtest_writel(qts, b + 0x24, 0x200);
+        qtest_clock_step(qts, 1);
+        expect(qts, b + 0x24, 0x200);
+        qtest_clock_step(qts, 38);
+        expect(qts, b + 0x24, 0);
+        expect(qts, b + 0x20, 0x200);
+        expect(qts, b + 0x7c, 51);
+        expect(qts, b + 0x94, 13);
+        qtest_writel(qts, b + 0x20, 0xfff);
+        qtest_writel(qts, b + 0x10, 0x124);
+        qtest_clock_step(qts, 500);
+        expect(qts, b + 0x20, 1);
+        qtest_writel(qts, b + 0x54, 15);
+        qtest_writel(qts, b + 0x3c, 77);
+        expect(qts, b + 0x7c, 51);
+        expect(qts, b + 0x94, 13);
+        qtest_clock_step(qts, 1500);
+        expect(qts, b + 0x7c, 77);
+        expect(qts, b + 0x94, 15);
+        expect(qts, b + 0x2c, 0);
+        /* Stop; URS excludes UG IRQ. */
+        qtest_writel(qts, b + 0x10, 0x10000120);
+        qtest_writel(qts, b + 0x20, 0xfff);
+        qtest_writel(qts, b + 0x24, 0x200);
+        qtest_clock_step(qts, 39);
+        expect(qts, b + 0x20, 0);
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_writel(qts, b + 0x3c, 103);
+        qtest_writel(qts, b + 0x24, 0x200);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x24, 0x200);
+        expect(qts, b + 0x7c, 77);
+        qtest_writel(qts, b + 8, 0);
+        qtest_writel(qts, SYS + 0x30, (1U << 3) | (1U << 12));
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x24, 0);
+        expect(qts, b + 0x7c, 0);
+        expect(qts, b + 0x20, 0);
+        qtest_writel(qts, b + 8, 1);
+        qtest_writel(qts, b + 0x24, 0xe00);
+        qtest_system_reset(qts);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x24, 0);
+        expect(qts, b + 0x20, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_pwm_wrap_and_rejection(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = pwm_base(unit);
+
+        pwm_setup(qts, unit);
+        qtest_writel(qts, b + 0x3c, UINT32_MAX);
+        qtest_writel(qts, b + 0x54, 2);
+        qtest_writel(qts, b + 0x10, 4);
+        qtest_clock_step(qts, 165191049847LL); /* 2^32 XTAL cycles. */
+        expect(qts, b + 0x2c, 0);
+        expect(qts, b + 0x20, 0x201);
+        qtest_writel(qts, b + 0x10, 0);
+        qtest_writel(qts, b + 8, 0);
+        qtest_writel(qts, b + 8, 1);
+        qtest_writel(qts, b + 0x3c, 25);
+        qtest_writel(qts, b + 0x54, 13);
+        qtest_writel(qts, b + 0x10, 4);
+        qtest_clock_step(qts, 100000000000LL); /* 100M periods, coalesced. */
+        expect(qts, b + 0x20, 0x201);
+        /* Rejected active config does not change an existing valid compare. */
+        qtest_writel(qts, b + 0x54, 1);
+        expect(qts, b + 0x54, 13);
+        qtest_writel(qts, b + 0x54, 26); /* ARR+1 is outside this slice. */
+        expect(qts, b + 0x54, 13);
+        qtest_writel(qts, b + 0x10, 0x80000004); /* Down-counting. */
+        expect(qts, b + 0x10, 4);
+        qtest_writel(qts, b + 0x28, 0x00201000); /* Pad/waveform mode. */
+        expect(qts, b + 0x28, 0);
+        qtest_writel(qts, b + 0x48, 1); /* Repetition counter. */
+        expect(qts, b + 0x48, 0);
+        qtest_writel(qts, b + 0x78, 1); /* Deadtime. */
+        expect(qts, b + 0x78, 0);
+        qtest_writel(qts, b + 0x10, 0);
+    }
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     static const char *boards[] = {"t5_board", "t5ai_core", "aidk_ai_toy"};
@@ -2020,6 +2225,10 @@ int main(int argc, char **argv)
         const char *name;
         GTestDataFunc test;
     } tests[] = {
+        {"pwm-counters-compares-routes", test_pwm_counters_compares_routes},
+        {"pwm-prescalers-gates", test_pwm_dividers_gates},
+        {"pwm-preload-update-reset-cancel", test_pwm_preload_update_cancel},
+        {"pwm-wrap-coalesce-unsupported", test_pwm_wrap_and_rejection},
         {"dma-widths-aliases-all-channels", test_dma_widths_aliases},
         {"dma-half-mask-w1c-routes", test_dma_half_mask_routes},
         {"dma-bus-error-partial-progress", test_dma_fault_progress},

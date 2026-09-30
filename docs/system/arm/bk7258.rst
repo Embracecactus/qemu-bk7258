@@ -110,9 +110,11 @@ OpenVela source or profile changes are required for that gate.
        real memory transactions, partial-error progress and NS IRQ0/57
      - Peripheral request ports, private TCM/Flash/PSRAM access, security,
        dynamic HCLK, repeat/burst modes and full arbitration/counter behavior
-   * - PWM
-     - Register sources identified; not yet modeled
-     - Counter/compare/clock-domain/reset behavior and pin-output delivery
+   * - PWM counter core
+     - Two legacy three-counter register blocks, XTAL gates, /1..256,
+       up-count/compare, preload/update, mask/W1C, IRQ5/43 and reset cancel
+     - PWM waveforms/pads, independent-counter extensions, CLK32 topology,
+       capture/trigger/deadtime/center/down modes and measured edge behavior
    * - Other chip interfaces
      - Not modeled
      - QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
@@ -169,10 +171,11 @@ names and counts of passing tests cannot close these gates.
        Missing sources remain absent, not synthetic ready/completion bits.
    * - Basic peripheral buses and pads
      - UART stream RX/idle and GPIO digital contacts are functional;
-       general timers, bounded I2C master and finite SSI master transactions
-       run independently of host firmware
+       general timers, PWM counter/IRQ core, bounded I2C master and finite
+       SSI master transactions run independently of host firmware
      - Remaining I2C/SPI modes, PWM outputs and peripheral DMA requests
-       with error/cancel/clock-loss cases; source-backed alternate-function
+       with error/cancel/clock-loss cases; resolve PWM topology/polarity
+       and source-backed alternate-function
        routing. No fabricated fixed ACK, slave data or pin wiring.
    * - Independent reproducibility
      - Native libqtest and source-built bare-metal functional gates run
@@ -416,6 +419,85 @@ modeled timer CLK32 path; other fan-out remains unimplemented. Native qtests
 read QEMU's existing read-only clock-period property to verify source loss,
 recovery, all three independent gates and reset cancellation. External-source
 presence/frequency is a board input, not a firmware-specific success setting.
+
+PWM counter/compare boundaries
+------------------------------
+
+This is the counter/compare core of the legacy paired-channel PWM register
+interface, not PWM waveform or pad emulation. Two units are mapped at
+``0x458a0000``/``0x458f0000`` and their nonsecure aliases. Each exposes the
+three legacy TIM1/2/3 register sets used by the SDK's selected V1PX driver.
+The IRQs are physical IRQ5 and IRQ43 (high-bank bit11), respectively.
+SYS+0x30 gates3/12 and SYS+0x20 source bits18/19 select their clocks.
+Only encoding1, XTAL, is connected. Encoding0, CLK32, is deliberately
+unconnected until that net's topology is established; it supplies no clock.
+The general-timer model's named CLK32 assumption is not silently extended.
+
+The first slice implements up-counting, divide-by-1..256 per legacy timer,
+32-bit ARR with period ARR+1, three compare registers per timer, preload/
+shadow readback, software update, mask/W1C and reset cancellation. Nonzero
+compares are restricted to 2..ARR. Zero means an unused compare in this
+bounded contract. Compare1 and ARR+1 are not accepted in an active counter.
+The SDK explicitly avoids compare1, but its ordinary waveform initialization
+also writes ARR+1; that waveform configuration is outside this slice.
+
+The following edge rules are explicit functional policies. They have source
+usage evidence, but are not silicon timing measurements:
+
+* The counter starts at zero and increments on divided input edges. An
+  ordinary nonzero compare latches when the increment reaches its value;
+  overflow clears the counter to zero and latches update status. ARR=0 has
+  a one-tick period. Disabling a counter preserves its count and prescaler.
+  Lowering an immediate ARR below the current count does not clamp it; the
+  count wraps through 32 bits before reaching the new update point.
+* Without ARPE/OCPE, ARR/CCR writes update their shadow values immediately.
+  With preload enabled, the next overflow or software update transfers the
+  pending values. While running, every accepted pending/immediate change
+  must remain inside the supported compare range; contradictory changes
+  are rejected without modifying the valid configuration. Stop the counter
+  before changing prescaler or preload policy.
+* Software UG completes on one live input-clock edge, clears count and
+  prescale, and transfers preloads. A stopped clock holds this pending
+  request; reset cancels it. URS excludes the software update from update
+  IRQ generation, while overflow still generates it. The pending strobe
+  readback and one-edge synchronization are model policies.
+* Input-clock changes preserve whole prescaler cycles and discard fractional
+  input phase. MMIO and local IRQ delivery stay accessible with the clock
+  stopped. Mask/unmask and W1C do not reset counters or prescaler phase.
+  Large virtual-time jumps coalesce periodic events into their latched
+  status; the model does not schedule one host callback per elapsed period.
+* Global reset and whole-system reset cancel updates, clear counters,
+  preloads and IRQ state. This does not implement deep-sleep retention.
+
+Waveform/pad output, polarity, complementary/deadtime modes, down/center
+counting, capture, triggers, repetition counters and independent-counter
+extensions are not implemented. Nonzero settings for these modes return a
+bus error under the strict unsupported-access policy; this is not a claim
+that silicon faults those valid hardware configurations. In particular, no
+unverified PWM level is connected to a board LED or GPIO pad.
+
+There are important source gaps behind this boundary. The manufacturer's
+V2.1 datasheet section4.26 specifies four independent counters per PWM group
+(one simple independent PWM1 and paired PWM2/3 and PWM4/5). The selected SDK
+structure ends at the three-counter legacy block, while its generated macro
+header extends to TIM4/5/6. Neither header alone proves six independent
+counters exist on BK7258. The same core structure/LL/HAL are still present
+in the manufacturer's official SDK at
+``4ca389311a7ef641f10b94d298dc07ee16b0f79c``. Generic API waveform diagrams
+and comments inherited from another IP version do not resolve this conflict.
+CHxP is described as input polarity in generated fields but used as output
+initial level by the HAL; exact pad-pair inversion and compare0/ARR+1 edges
+remain unresolved. These modes stay blocked pending a revision-specific
+register description or corroborating hardware trace.
+
+Native qtests cover both units and all six legacy counter registers,
+individual compares, three-core routes, masking/W1C, independent prescalers,
+gates/source loss, preload transfer, URS, reset during a pending update,
+32-bit wrap, coalescing and rejected modes. Native Cortex-M33 probes enter
+actual IRQ5/43 handlers; a missing PWM1 SYS route must fail with completion
+status present. Unsupported pad-output writes must produce a precise
+BusFault at their actual address. These tests establish counter/IRQ paths,
+not working PWM waveforms, pad routing or complete PWM support.
 
 DMA shared-RAM functional boundaries
 ------------------------------------
@@ -818,10 +900,13 @@ SPI0               0x44870000                     0x54870000
 SPI1               0x45880000                     0x55880000
 DMA0               0x45020000                     0x55020000
 DMA1               0x45030000                     0x55030000
+PWM counter0       0x458a0000                     0x558a0000
+PWM counter1       0x458f0000                     0x558f0000
 =================  ============================  ====================
 
 Aliases alone do not implement the BK7258 TrustZone attribution/security
-controller. ROM, PSRAM, PWM, legacy MBOX1, peripheral DMA, physical caches,
+controller. ROM, PSRAM, PWM waveforms, legacy MBOX1, peripheral DMA,
+physical caches,
 flash remap/encryption, MCUboot/OTA and other physical-board devices are absent.
 Wi-Fi/BT, camera, audio, codec, power and performance behavior are not modeled.
 
@@ -1123,6 +1208,14 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   snapshot handshake, W1C usage and live-period-change hazard. BK7258 SYS
   structure/HAL supplies gate/source bits and IRQ3/13. Ambiguous clock-net,
   snapshot and reset details remain named functional policies above.
+* ``ap/include/soc/bk7258/{pwm_cap,reg_base}.h``, selected
+  ``CONFIG_PWM_V1PX``, ``ap/middleware/soc/bk7258_ap/soc/pwm_struct.h`` and
+  ``pwm_ll_macro_def.h``, ``ap/middleware/soc/common/hal/pwm_hal_v1px.c`` and
+  ``ap/middleware/driver/pwm/v1px/pwm_driver.c``: legacy timer mapping,
+  gates/mux, ARR+1 period usage, prescaler, preload, update and W1C fields.
+  The older ``pwm_hal.c`` is not the selected implementation. Manufacturer
+  datasheet section4.26 and the macro extensions disagree on independent
+  counter inventory; this remains a documented gap, not guessed hardware.
 * ``ap/include/soc/bk7258/dma_cap.h``,
   ``ap/middleware/soc/bk7258_ap/soc/{dma_struct,dma_reg}.h``, matching DMA LL,
   ``ap/middleware/soc/bk7258_ap/hal/dma_hal_debug.c``, common DMA HAL and

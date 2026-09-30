@@ -355,6 +355,86 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_spi1_empty_read_fault(self):
         self.run_spi_empty_fault("aidk_ai_toy", 1)
 
+    def run_pwm_output_fault(self, board, unit):
+        elf = self.build_fixture(
+            board,
+            "sys_fault.c",
+            WRITE_PROBE=1,
+            PROBE_ADDRESS=hex(0x558A0028 + unit * 0x50000),
+            PROBE_NAME='"PWM"',
+        )
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(
+            self,
+            "BK7258 PWM ACCESS FAULT OK",
+            "BK7258 PWM ACCESS FAULT FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        self.assertEqual(
+            mmio.read_text(),
+            "bk7258-pwm: unsupported write 0x12345678 at 0x28\n",
+        )
+
+    def test_t5_board_pwm0_unsupported_output(self):
+        self.run_pwm_output_fault("t5_board", 0)
+
+    def test_t5_board_pwm1_unsupported_output(self):
+        self.run_pwm_output_fault("t5_board", 1)
+
+    def test_t5ai_core_pwm0_unsupported_output(self):
+        self.run_pwm_output_fault("t5ai_core", 0)
+
+    def test_t5ai_core_pwm1_unsupported_output(self):
+        self.run_pwm_output_fault("t5ai_core", 1)
+
+    def test_aidk_ai_toy_pwm0_unsupported_output(self):
+        self.run_pwm_output_fault("aidk_ai_toy", 0)
+
+    def test_aidk_ai_toy_pwm1_unsupported_output(self):
+        self.run_pwm_output_fault("aidk_ai_toy", 1)
+
+    def run_pwm_counter(self, board, missing_route=False):
+        elf = self.build_fixture(
+            board, "pwm.c", MISSING_ROUTE=int(missing_route)
+        )
+        mmio = self.launch_fixture(elf)
+        if missing_route:
+            wait_for_console_pattern(
+                self,
+                "BK7258 MISSING PWM1 ROUTE DETECTED",
+                "BK7258 PWM COUNTER PROBE FAILED",
+            )
+        wait_for_console_pattern(
+            self,
+            (
+                "BK7258 PWM COUNTER PROBE FAILED"
+                if missing_route
+                else "BK7258 PWM COUNTER COMPARE IRQ OK"
+            ),
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), int(missing_route))
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_t5_board_pwm_counter(self):
+        self.run_pwm_counter("t5_board")
+
+    def test_t5_board_pwm_missing_route(self):
+        self.run_pwm_counter("t5_board", True)
+
+    def test_t5ai_core_pwm_counter(self):
+        self.run_pwm_counter("t5ai_core")
+
+    def test_t5ai_core_pwm_missing_route(self):
+        self.run_pwm_counter("t5ai_core", True)
+
+    def test_aidk_ai_toy_pwm_counter(self):
+        self.run_pwm_counter("aidk_ai_toy")
+
+    def test_aidk_ai_toy_pwm_missing_route(self):
+        self.run_pwm_counter("aidk_ai_toy", True)
+
     def run_dma(self, board, missing_route=False):
         elf = self.build_fixture(
             board, "dma.c", MISSING_ROUTE=int(missing_route)

@@ -82,6 +82,19 @@ static void bk7258_update_timer_clocks(BK7258State *s)
     }
 }
 
+static void bk7258_update_pwm_clocks(BK7258State *s)
+{
+    static const unsigned gate[] = { 3, 12 };
+
+    for (unsigned i = 0; i < 2; i++) {
+        /* CLK32 topology remains unresolved; only sourced XTAL is connected. */
+        clock_update(s->pwmclk[i],
+                     (s->peripheral_clocks & (1U << gate[i])) &&
+                     (s->clock_mode & (1U << (18 + i))) ?
+                     clock_get(s->xtalclk) : 0);
+    }
+}
+
 static void bk7258_update_wdt_clock(BK7258State *s)
 {
     unsigned divider = 1U << (((s->clock_select >> 2) & 3) + 1);
@@ -276,6 +289,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         }
         bk7258_update_uart_clocks(s);
         bk7258_update_timer_clocks(s);
+        bk7258_update_pwm_clocks(s);
         break;
     case 0x40:
         s->power_sleep = value;
@@ -313,6 +327,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         bk7258_update_wdt_clock(s);
         bk7258_update_uart_clocks(s);
         bk7258_update_timer_clocks(s);
+        bk7258_update_pwm_clocks(s);
         bk7258_update_i2c_clocks(s);
         bk7258_update_spi_clocks(s);
         break;
@@ -567,6 +582,20 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < 2; i++) {
+        SysBusDevice *bus = SYS_BUS_DEVICE(&s->pwm[i]);
+        uint32_t base = 0x458a0000 + i * 0x50000;
+
+        qdev_connect_clock_in(DEVICE(bus), "pclk", s->pwmclk[i]);
+        if (!sysbus_realize(bus, errp)) {
+            return;
+        }
+        sysbus_mmio_map(bus, 0, base);
+        sysbus_connect_irq(bus, 0, qdev_get_gpio_in(dev, i ? 43 : 5));
+        bk7258_alias(&s->pwm_ns[i], obj, "bk7258.pwm-ns",
+                     &s->pwm[i].iomem, memory, base + NS_OFFSET, 0x100);
+    }
+
+    for (i = 0; i < 2; i++) {
         DeviceState *dma = DEVICE(&s->dma[i]);
         SysBusDevice *bus = SYS_BUS_DEVICE(dma);
         uint32_t base = 0x45020000 + 0x10000 * i;
@@ -640,6 +669,7 @@ static void bk7258_reset(DeviceState *dev)
     bk7258_update_timer_clocks(s);
     bk7258_update_i2c_clocks(s);
     bk7258_update_spi_clocks(s);
+    bk7258_update_pwm_clocks(s);
     bk7258_update_irqs(s);
 }
 
@@ -666,6 +696,10 @@ static void bk7258_init(Object *obj)
         name = g_strdup_printf("spiclk%u", i);
         object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_BK7258_SPI);
         s->spiclk[i] = clock_new(obj, name);
+        g_clear_pointer(&name, g_free);
+        name = g_strdup_printf("pwmclk%u", i);
+        object_initialize_child(obj, "pwm[*]", &s->pwm[i], TYPE_BK7258_PWM);
+        s->pwmclk[i] = clock_new(obj, name);
         object_initialize_child(obj, "dma[*]", &s->dma[i], TYPE_BK7258_DMA);
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }

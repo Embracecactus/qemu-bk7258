@@ -1,3 +1,4 @@
+system_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258_pwm.c'))
 system_ss.add(when: 'CONFIG_A9_GTIMER', if_true: files('a9gtimer.c'))
 system_ss.add(when: 'CONFIG_ALLWINNER_A10_PIT', if_true: files('allwinner-a10-pit.c'))
 system_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258_rtc.c', 'bk7258_timer.c'))
