@@ -212,8 +212,23 @@ static void cp_start(void)
     REG(0x44010030) = 1u << 31;
     REG(0x44800008) = 1;
     __asm__ volatile("cpsid i" : : : "memory");
+    REG(0x44000104) = 1; /* Unconnected external LPO source. */
     REG(0x44800010) = 0x5a0002;
     REG(0x44800010) = 0xa50002;
+    /* CPU-clock SysTick keeps time while the watchdog source is stopped. */
+    REG(0xe000e014) = 25999;
+    REG(0xe000e018) = 0;
+    REG(0xe000e010) = 5;
+    for (unsigned i = 0; i < 3; i++) {
+        while (!(REG(0xe000e010) & (1u << 16))) {
+        }
+    }
+    if (nmi_seen) {
+        fault();
+    }
+    REG(0xe000e010) = 0;
+    REG(0x44000104) = 0; /* Restore DIVD; the armed count must resume. */
+    text("BK7258 WATCHDOG CLOCK LOSS OK\n");
     for (uint32_t n = 0; !nmi_seen && n < 10000000; n++) {
         __asm__ volatile("nop");
     }

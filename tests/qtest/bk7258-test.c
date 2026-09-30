@@ -133,6 +133,48 @@ static void test_memory_uart(const void *board)
     qtest_quit(qts);
 }
 
+static void test_watchdog_sources(const void *board)
+{
+    QTestState *qts = start(board);
+    const char *awdt = "/machine/soc/wdt[0]/clk";
+    const char *dwdt = "/machine/soc/wdt[1]/clk";
+
+    expect_clock(qts, awdt, 1000);
+    expect_clock(qts, dwdt, 0);
+    qtest_writel(qts, SYS + 0x30, 1U << 31);
+    for (unsigned div = 0; div < 4; div++) {
+        qtest_writel(qts, SYS + 0x28, div << 2);
+        expect_clock(qts, dwdt, 32000 / (2U << div));
+    }
+    qtest_writel(qts, 0x44000104, 1); /* Missing LPO stops DWDT, not AWDT. */
+    expect_clock(qts, dwdt, 0);
+    expect_clock(qts, awdt, 1000);
+    qtest_writel(qts, SYS + 0x80, 16);
+    aon_wdt(qts, 3);
+    qtest_clock_step(qts, 1000000);
+    qtest_writel(qts, SYS + 0x114, 1U << 14);
+    qtest_clock_step(qts, 1000);
+    expect_clock(qts, awdt, 0);
+    qtest_clock_step(qts, 20000000);
+    expect(qts, SYS + 0x80, 16); /* Stopped ROSC must prevent reset. */
+    qtest_writel(qts, 0x44000104, 0);
+    expect_clock(qts, dwdt, 2000); /* DIVD works while ROSC is stopped. */
+    expect_clock(qts, awdt, 0);
+    qtest_writel(qts, SYS + 0x30, 0);
+    expect_clock(qts, dwdt, 0);
+    qtest_writel(qts, SYS + 0x114, 0);
+    qtest_clock_step(qts, 1000);
+    expect_clock(qts, awdt, 1000);
+    expect_clock(qts, dwdt, 0); /* Recovery does not undo the APB gate. */
+    qtest_clock_step(qts, 1999999);
+    expect(qts, SYS + 0x80, 16);
+    qtest_clock_step(qts, 1);
+    expect(qts, SYS + 0x80, 0);
+    expect_clock(qts, awdt, 1000);
+    expect_clock(qts, dwdt, 0);
+    qtest_quit(qts);
+}
+
 static void test_watchdog(const void *board)
 {
     QTestState *qts = start(board);
@@ -657,6 +699,7 @@ int main(int argc, char **argv)
     } tests[] = {
         {"memory-uart-reset", test_memory_uart},
         {"watchdog-keys-expiry", test_watchdog},
+        {"watchdog-sources-pause-recovery", test_watchdog_sources},
         {"gpio-mask-w1c", test_gpio},
         {"board-led-key-wiring", test_board_wiring},
         {"gpio-external-release", test_gpio_external_release},

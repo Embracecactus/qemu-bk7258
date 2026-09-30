@@ -30,6 +30,15 @@
 static const uint32_t uart_base[] = { 0x44820000, 0x45830000, 0x45840000 };
 static const unsigned uart_irq[] = { 4, 15, 16 };
 
+static void bk7258_update_wdt_clock(BK7258State *s)
+{
+    unsigned divider = 1U << (((s->clock_select >> 2) & 3) + 1);
+
+    clock_update_hz(s->wdtclk[0], clock_get_hz(s->roscclk) / 32);
+    clock_update_hz(s->wdtclk[1], s->peripheral_clocks & (1U << 31) ?
+                    clock_get_hz(s->lpoclk) / divider : 0);
+}
+
 static void bk7258_update_tick_clocks(BK7258State *s)
 {
     static const unsigned bit[] = { 29, 30, 27 };
@@ -42,7 +51,10 @@ static void bk7258_update_tick_clocks(BK7258State *s)
 
 static void bk7258_lpo_changed(void *opaque, ClockEvent event)
 {
-    bk7258_update_tick_clocks(BK7258_SOC(opaque));
+    BK7258State *s = BK7258_SOC(opaque);
+
+    bk7258_update_tick_clocks(s);
+    bk7258_update_wdt_clock(s);
 }
 
 static void bk7258_analog_complete(void *opaque)
@@ -56,14 +68,7 @@ static void bk7258_analog_complete(void *opaque)
     }
     s->analog_busy = 0;
     clock_update_hz(s->roscclk, s->analog[5] & (1U << 14) ? 0 : 32000);
-}
-
-static void bk7258_update_wdt_clock(BK7258State *s)
-{
-    unsigned divider = 1U << (((s->clock_select >> 2) & 3) + 1);
-
-    clock_update_hz(s->wdtclk[1],
-                    s->peripheral_clocks & (1U << 31) ? 32000 / divider : 0);
+    bk7258_update_wdt_clock(s);
 }
 
 static void bk7258_update_irqs(BK7258State *s)

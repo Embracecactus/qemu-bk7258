@@ -57,9 +57,10 @@ OpenVela source or profile changes are required for that gate.
      - Keyed retention, digital pad configuration, edge/level IRQ and
        external drive/release; LPO mux, source loss and per-core tick gates
      - R7A reset-cause lifecycle, analog rails, brownouts and pin contention
-   * - Watchdogs
-     - AON timed system reset; APB divider/gate/key and real CPU0 NMI
-     - Oscillator tolerance and undocumented reset escalation
+  * - Watchdogs
+     - ROSC-derived AON reset; LPO-derived APB divider/gate and CPU0 NMI;
+       keys, source-loss pause and recovery of the remaining count
+     - Oscillator tolerance, sub-tick phase and reset-domain conformance
    * - CKMN
      - Timed reference/measured clock ratio, mask/W1C, source-loss and cancel
      - Physical oscillator tuning/lock and automatic source switching
@@ -193,6 +194,9 @@ Implemented slice
 * AON watchdog key/reload/stop and timed system reset. APB watchdog clock
   gate/divider, key/reload/stop and real CP (physical CPU0) NMI delivery;
   the NMI handler, rather than the device, decides whether to reset.
+  AWDT follows ROSC/32, while DWDT follows the selected LPO through its
+  SYS divider and gate. Selecting an absent LPO stops DWDT but leaves AWDT
+  running; disabling ROSC stops AWDT even when DIVD still clocks DWDT.
 * AON PMU R0/R1/R2, keyed retention commit, sleep/wake configuration readback,
   and a selectable chip ID. Default 0x24940610 is the SDK MP-I revision choice,
   not a claim that every physical board has this revision. Override with
@@ -247,9 +251,11 @@ route masks reset to zero, CPU1 control resets to 0x2 and CPU2 to 0xa. These
 reset defaults are an emulator boot contract, not measured power-on defaults.
 External SysTick routes start enabled, watchdogs start disarmed, and GPIO pads
 start output-disabled with pull-down. AON retained state survives warm reset;
-this is not a power-loss persistence model. AON watchdog periods use the SDK
-millisecond API contract, APB uses 32 kHz / {2,4,8,16}; oscillator tolerances,
-undocumented invalid-key behavior and secondary reset escalation are absent.
+this is not a power-loss persistence model. AON watchdog periods use ROSC/32
+(nominal 1 kHz), APB uses LPO / {2,4,8,16}. Clock interruption preserves the
+remaining count rounded up to a whole watchdog tick; sub-tick phase is not
+retained. Oscillator tolerances, undocumented invalid-key behavior, PMU R2's
+selective reset domains and secondary reset escalation are absent.
 UART idle detection uses 26 MHz/(divider+1) and 32/64/128/256 bit-times. It is
 canceled on drain, RX disable and reset; IRQ status remains W1C. Flow/wake
 configuration has masked readback, but enabling physical RTS/CTS or sleep-wake
@@ -261,8 +267,8 @@ The LPO mux resets to encoding 0 as part of the existing diagnostic R41 reset
 contract, not a measured cold/warm silicon reset value. DIVD and ROSC both use
 the SDK's nominal 32,000-Hz timebase; the physical divider ratio, jitter,
 switching latency, oscillator startup and sleep-entry ``halt_lpo`` sequencing
-are not modeled. The watchdogs retain their separately documented timebases;
-LPO fan-out beyond the SysTick references is not yet established. Native qtests
+are not modeled. LPO currently feeds SysTick references and the APB watchdog;
+other fan-out remains unimplemented. Native qtests
 read QEMU's existing read-only clock-period property to verify source loss,
 recovery, all three independent gates and reset cancellation. External-source
 presence/frequency is a board input, not a firmware-specific success setting.
@@ -498,11 +504,22 @@ adapted from the Apache-2.0 contest fixture at
 ``ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43``,
 ``tests/host/bk7258/qemu/diagnostic.{c,ld}``. Their original license is retained
 beside them. Formatting/comments and declaration placement were adapted to
-this tree; local GCC 14.2 produced a byte-identical ELF before and after that
-adaptation. The Python runner is a new GPL-2.0-or-later downstream test.
+this tree; the initial import produced a byte-identical ELF with local GCC
+14.2. The fixture has since gained a source-loss check: CPU-clock SysTick
+measures three milliseconds with DWDT armed but its LPO absent, then restoring
+DIVD must deliver NMI under PRIMASK. The Python runner is a new
+GPL-2.0-or-later downstream test.
 
 Register provenance
 -------------------
+
+The Beken-authored `BK7258 datasheet DS-BK7258-E13 V2.2
+<https://atta.szlcsc.com/upload/public/pdf/source/20251127/3E2C5A125F7501CF8881A2782356EC17.pdf>`_
+(2025-08-04, distributor-hosted copy) corroborates the LPO source tree in
+section 4.3 and the distinct watchdog/RTC clocks in sections 4.31/4.32.
+Section 4.4 distinguishes whole-chip and digital-domain resets. The existing
+single QEMU system-reset contract does not yet implement those reset domains;
+retention across every reset cause must not be inferred from it.
 
 No vendor source is compiled into the model. Register facts were checked against
 Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
