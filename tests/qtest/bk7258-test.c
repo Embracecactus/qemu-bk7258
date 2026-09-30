@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qobject/qdict.h"
+#include "qemu/sockets.h"
 
 #define SYS 0x44010000
 #define CKMN 0x448a0000
@@ -117,6 +118,8 @@ static void test_memory_uart(const void *board)
     }
     expect(qts, SYS + 0x14, 2);
     expect(qts, SYS + 0x18, 10);
+    expect(qts, 0x44820018, 0x0a0000);
+    qtest_writel(qts, SYS + 0x30, 1U << 2);
     expect(qts, 0x44820018, 0x1a0000);
     qtest_writel(qts, 0x44820008, 1);
     qtest_writel(qts, 0x44820010, 3);
@@ -131,6 +134,123 @@ static void test_memory_uart(const void *board)
     qtest_system_reset(qts);
     expect(qts, SYS + 0x80, 0);
     expect(qts, 0x44820024, 0);
+    qtest_quit(qts);
+}
+
+static void test_uart_clocks(const void *board)
+{
+    QTestState *qts = start(board);
+    static const unsigned gate[] = { 2, 10, 11 };
+    static const unsigned shift[] = { 8, 11, 14 };
+    static const uint32_t base[] = { 0x44820000, 0x45830000, 0x45840000 };
+
+    for (unsigned i = 0; i < 3; i++) {
+        g_autofree char *path =
+            g_strdup_printf("/machine/soc/uart[%u]/pclk", i);
+
+        expect_clock(qts, path, 0);
+        qtest_writel(qts, base[i] + 8, 1);
+        qtest_writel(qts, base[i] + 0x10, 3);
+        qtest_writel(qts, base[i] + 0x1c, 'X');
+        expect(qts, base[i] + 0x24, 0); /* No fabricated TX completion. */
+        qtest_writel(qts, SYS + 0x30, 1U << gate[i]);
+        for (unsigned div = 0; div < 4; div++) {
+            qtest_writel(qts, 0x54010020, div << shift[i]);
+            expect_clock(qts, path, 26000000U >> div);
+            qtest_writel(qts, base[i] + 0x1c, 'A');
+            expect(qts, base[i] + 0x24, 32);
+            qtest_writel(qts, base[i] + 0x24, 32);
+        }
+        qtest_writel(qts, SYS + 0x20, 7U << shift[i]);
+        expect_clock(qts, path, 0); /* Unmodeled APLL is not a fixed clock. */
+        g_assert_cmphex(qtest_readl(qts, base[i] + 0x18) & (1U << 20), ==, 0);
+        qtest_writel(qts, base[i] + 0x1c, 'X');
+        expect(qts, base[i] + 0x24, 0);
+        qtest_writel(qts, SYS + 0x20, 3U << shift[i]);
+        expect_clock(qts, path, 3250000);
+        qtest_writel(qts, SYS + 0x30, 0);
+        expect_clock(qts, path, 0);
+    }
+    qtest_system_reset(qts);
+    expect(qts, SYS + 0x20, 0);
+    expect(qts, SYS + 0x30, 0);
+    for (unsigned i = 0; i < 3; i++) {
+        g_autofree char *path =
+            g_strdup_printf("/machine/soc/uart[%u]/pclk", i);
+
+        expect_clock(qts, path, 0);
+        expect(qts, base[i] + 0x24, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void uart_wait_rx(QTestState *qts)
+{
+    int64_t deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+
+    while (!(qtest_readl(qts, 0x44820018) & (1U << 21))) {
+        g_assert_cmpint(g_get_monotonic_time(), <, deadline);
+        g_usleep(1000);
+    }
+}
+
+static void uart_rx_setup(QTestState *qts)
+{
+    qtest_writel(qts, SYS + 0x30, 1U << 2);
+    qtest_writel(qts, 0x44820008, 1);
+    qtest_writel(qts, 0x44820010, (259U << 8) | 3); /* 100 kbit/s at XTAL. */
+    qtest_writel(qts, 0x44820014, 128U << 8);
+    qtest_writel(qts, 0x44820020, 64);
+    qtest_writel(qts, SYS + 0x80, 16);
+}
+
+static void test_uart_rx_clock_pause(const void *board)
+{
+    int fd;
+    g_autofree char *args = g_strdup_printf("-machine %s", (const char *)board);
+    QTestState *qts = qtest_init_with_serial(args, &fd);
+
+    uart_rx_setup(qts);
+    g_assert_cmpint(send(fd, "A", 1, 0), ==, 1);
+    uart_wait_rx(qts);
+    qtest_clock_step(qts, 160000); /* Half of the 32-bit-time idle window. */
+    qtest_writel(qts, SYS + 0x30, 0);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, 0x44820024, 0);
+    qtest_writel(qts, SYS + 0x20, 1U << 8); /* Resume at XTAL/2. */
+    qtest_writel(qts, SYS + 0x30, 1U << 2);
+    qtest_clock_step(qts, 319999);
+    expect(qts, 0x44820024, 0);
+    qtest_clock_step(qts, 1);
+    expect(qts, 0x44820024, 64);
+    expect(qts, SYS + 0xa0, 16);
+    qtest_writel(qts, 0x44820020, 0);
+    expect(qts, 0x44820024, 64);
+    expect(qts, SYS + 0xa0, 0);
+    qtest_writel(qts, 0x44820024, 64);
+    expect(qts, 0x4482001c, 'A' << 8);
+    qtest_writel(qts, 0x44820020, 64);
+    qtest_writel(qts, SYS + 0x20, 1U << 10);
+    g_assert_cmpint(send(fd, "B", 1, 0), ==, 1);
+    qtest_clock_step(qts, 1000000);
+    g_assert_cmphex(qtest_readl(qts, 0x44820018) & (1U << 21), ==, 0);
+    qtest_writel(qts, SYS + 0x20, 0);
+    uart_wait_rx(qts);
+    qtest_clock_step(qts, 320000);
+    expect(qts, 0x44820024, 64);
+    expect(qts, 0x4482001c, 'B' << 8);
+    qtest_writel(qts, 0x44820024, 64);
+    g_assert_cmpint(send(fd, "C", 1, 0), ==, 1);
+    uart_wait_rx(qts);
+    qtest_clock_step(qts, 160000);
+    qtest_system_reset(qts);
+    qtest_clock_step(qts, 1000000);
+    uart_rx_setup(qts);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, 0x44820024, 0);
+    expect(qts, SYS + 0xa0, 0);
+    g_assert_cmphex(qtest_readl(qts, 0x44820018) & (1U << 21), ==, 0);
+    close(fd);
     qtest_quit(qts);
 }
 
@@ -878,6 +998,8 @@ int main(int argc, char **argv)
         GTestDataFunc test;
     } tests[] = {
         {"memory-uart-reset", test_memory_uart},
+        {"uart-clocks-gates-divider", test_uart_clocks},
+        {"uart-rx-clock-pause-reset", test_uart_rx_clock_pause},
         {"watchdog-keys-expiry", test_watchdog},
         {"watchdog-sources-pause-recovery", test_watchdog_sources},
         {"rtc-counter-clock-sync-reset", test_rtc_counter_clock},

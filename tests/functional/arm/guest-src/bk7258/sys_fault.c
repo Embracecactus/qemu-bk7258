@@ -58,6 +58,7 @@ static void fault(void)
 
 static void start(void)
 {
+    REG(0x44010030) = 1u << 2;
     REG(UART + 8) = 1;
     REG(UART + 0x10) = 0xe11b;
 #if WRITE_PROBE

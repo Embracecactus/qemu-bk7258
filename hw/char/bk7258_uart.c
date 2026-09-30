@@ -8,6 +8,7 @@
 #include "qemu/module.h"
 #include "hw/char/bk7258_uart.h"
 #include "hw/core/irq.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties-system.h"
 
 #define RX_IRQ (1U << 1)
@@ -15,12 +16,9 @@
 #define RX_FINISH_IRQ (1U << 6)
 #define SUPPORTED_IRQS (RX_IRQ | TX_DONE_IRQ | RX_FINISH_IRQ)
 
-/* The current board integration uses the SDK's 26 MHz XTAL UART source. */
-#define UART_CLOCK_HZ 26000000
-
 static bool bk7258_uart_rx_enabled(BK7258UARTState *s)
 {
-    return (s->global_ctrl & 1) && (s->config & 2);
+    return s->hz && (s->global_ctrl & 1) && (s->config & 2);
 }
 
 static void bk7258_uart_update(BK7258UARTState *s)
@@ -38,9 +36,26 @@ static void bk7258_uart_rx_idle(void *opaque)
 {
     BK7258UARTState *s = opaque;
 
+    s->idle_armed = false;
+    s->idle_cycles = 0;
     if (bk7258_uart_rx_enabled(s) && s->rx_count) {
         s->int_status |= RX_FINISH_IRQ;
         bk7258_uart_update(s);
+    }
+}
+
+static void bk7258_uart_arm_idle(BK7258UARTState *s)
+{
+    uint64_t delay;
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    timer_del(s->rx_idle_timer);
+    if (s->idle_armed && s->hz) {
+        delay = DIV_ROUND_UP(s->idle_cycles * NANOSECONDS_PER_SECOND, s->hz);
+        if (delay <= INT64_MAX - now) {
+            s->idle_deadline = now + delay;
+            timer_mod(s->rx_idle_timer, s->idle_deadline);
+        }
     }
 }
 
@@ -48,10 +63,11 @@ static void bk7258_uart_schedule_rx_idle(BK7258UARTState *s)
 {
     uint64_t divider = ((s->config >> 8) & 0xffff) + 1;
     uint64_t idle_bits = 32U << ((s->fifo_config >> 16) & 3);
-    uint64_t delay;
 
-    if (!bk7258_uart_rx_enabled(s) || !s->rx_count) {
+    if (!(s->global_ctrl & 1) || !(s->config & 2) || !s->rx_count) {
         timer_del(s->rx_idle_timer);
+        s->idle_armed = false;
+        s->idle_cycles = 0;
         return;
     }
 
@@ -61,10 +77,27 @@ static void bk7258_uart_schedule_rx_idle(BK7258UARTState *s)
      * bit-times. Chardev input represents complete received bytes;
      * this timer models the subsequent idle interval, not wire framing.
      */
-    delay = DIV_ROUND_UP(idle_bits * divider * NANOSECONDS_PER_SECOND,
-                        UART_CLOCK_HZ);
-    timer_mod(s->rx_idle_timer,
-              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + delay);
+    s->idle_cycles = idle_bits * divider;
+    s->idle_armed = true;
+    bk7258_uart_arm_idle(s);
+}
+
+static void bk7258_uart_clock(void *opaque, ClockEvent event)
+{
+    BK7258UARTState *s = opaque;
+
+    if (event == ClockPreUpdate) {
+        if (s->idle_armed && s->hz && timer_pending(s->rx_idle_timer)) {
+            int64_t left = MAX(s->idle_deadline -
+                               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 0);
+            s->idle_cycles = DIV_ROUND_UP((uint64_t)left * s->hz,
+                                          NANOSECONDS_PER_SECOND);
+        }
+    } else {
+        s->hz = clock_get_hz(s->clk);
+        bk7258_uart_arm_idle(s);
+        qemu_chr_fe_accept_input(&s->chr);
+    }
 }
 
 static int bk7258_uart_can_receive(void *opaque)
@@ -110,7 +143,7 @@ static uint64_t bk7258_uart_read(void *opaque, hwaddr offset, unsigned size)
         return s->fifo_config;
     case 0x18:
         /* TX is drained synchronously; RX remains a bounded FIFO. */
-        return (s->rx_count << 8) | (1U << 17) | (1U << 20) |
+        return (s->rx_count << 8) | (1U << 17) | (s->hz ? (1U << 20) : 0) |
                (s->rx_count ? (1U << 21) : (1U << 19)) |
                (s->rx_count == sizeof(s->rx_fifo) ? (1U << 18) : 0);
     case 0x1c:
@@ -122,6 +155,8 @@ static uint64_t bk7258_uart_read(void *opaque, hwaddr offset, unsigned size)
         s->rx_count--;
         if (!s->rx_count) {
             timer_del(s->rx_idle_timer);
+            s->idle_armed = false;
+            s->idle_cycles = 0;
         }
         bk7258_uart_update(s);
         qemu_chr_fe_accept_input(&s->chr);
@@ -152,6 +187,8 @@ static void bk7258_uart_write(void *opaque, hwaddr offset,
         s->global_ctrl = value;
         if (!(value & 1)) {
             timer_del(s->rx_idle_timer);
+            s->idle_armed = false;
+            s->idle_cycles = 0;
             s->rx_head = s->rx_count = 0;
             s->int_status = 0;
         }
@@ -167,7 +204,7 @@ static void bk7258_uart_write(void *opaque, hwaddr offset,
         bk7258_uart_schedule_rx_idle(s);
         break;
     case 0x1c:
-        if ((s->global_ctrl & 1) && (s->config & 1)) {
+        if (s->hz && (s->global_ctrl & 1) && (s->config & 1)) {
             qemu_chr_fe_write_all(&s->chr, &ch, 1);
             s->int_status |= TX_DONE_IRQ;
         }
@@ -222,6 +259,8 @@ static void bk7258_uart_reset(DeviceState *dev)
     BK7258UARTState *s = BK7258_UART(dev);
 
     timer_del(s->rx_idle_timer);
+    s->idle_armed = false;
+    s->idle_cycles = 0;
     s->global_ctrl = 0;
     s->config = 0;
     s->fifo_config = 0;
@@ -235,6 +274,7 @@ static void bk7258_uart_realize(DeviceState *dev, Error **errp)
 {
     BK7258UARTState *s = BK7258_UART(dev);
 
+    s->hz = clock_get_hz(s->clk);
     qemu_chr_fe_set_handlers(&s->chr, bk7258_uart_can_receive,
                             bk7258_uart_receive, NULL, NULL, s, NULL, true);
 }
@@ -243,6 +283,8 @@ static void bk7258_uart_init(Object *obj)
 {
     BK7258UARTState *s = BK7258_UART(obj);
 
+    s->clk = qdev_init_clock_in(DEVICE(obj), "pclk", bk7258_uart_clock, s,
+                                ClockPreUpdate | ClockUpdate);
     s->rx_idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                      bk7258_uart_rx_idle, s);
     memory_region_init_io(&s->iomem, obj, &bk7258_uart_ops, s,

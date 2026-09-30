@@ -81,6 +81,7 @@ static void start(void)
     uint32_t paused, begin;
 
     ticks = seen = 0;
+    REG(0x44010030) = 1u << 2;
     REG(UART + 8) = 1;
     REG(UART + 0x10) = 0xe11b;
     REG(0xe000e014) = 25999;

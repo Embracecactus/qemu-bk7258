@@ -51,8 +51,9 @@ OpenVela source or profile changes are required for that gate.
      - Full SYS register inventory, PLL/DVFS/rail dynamics and reset-domain
        conformance beyond the documented diagnostic contract
    * - UART0/1/2
-     - TX, bounded RX, threshold/idle IRQ, masks/W1C and chip IRQ routing
-     - DMA, real TX/FIFO timing, framing errors and physical flow control
+     - Gated/divided XTAL inputs, TX, bounded RX, timed idle pause/recovery,
+       threshold/idle IRQ, masks/W1C and chip IRQ routing
+     - APLL generation, DMA, TX/FIFO timing, framing errors and flow control
   * - AON PMU/GPIO
      - Keyed retention, digital pad configuration, edge/level IRQ and
        external drive/release; LPO mux, source loss and per-core tick gates
@@ -190,6 +191,11 @@ Implemented slice
 * Three functional UARTs: transmit, bounded receive queue, RX threshold, baud-derived RX-idle completion and
   TX-finish status, W1C acknowledgement, and per-CPU interrupt routing.
   Connect UART0/1/2 with the first/second/third ``-serial`` option.
+  SYS+0x30 bits 2/10/11 gate their functional clocks. SYS+0x20 uses divider
+  fields 8:9/11:12/14:15 (divide by 1/2/4/8) and source bits 10/13/16
+  (XTAL/APLL). The fixed 26-MHz XTAL is available; APLL generation is absent,
+  so selecting APLL logs the omission and supplies no clock. The UART model
+  receives a QEMU clock rather than assuming every source is always 26 MHz.
 * SYS core control and interrupt enable/status registers. Reset release samples
   the vector address; changing vector bits while running does not reset a CPU.
   Halt/power gates preserve CPU state. Changes run in target-CPU order.
@@ -265,15 +271,28 @@ bytes, matching the datasheet FIFO depth, but FIFO-mode selection is not yet
 implemented and TX drains synchronously. Interrupt
 route masks reset to zero, CPU1 control resets to 0x2 and CPU2 to 0xa. These
 reset defaults are an emulator boot contract, not measured power-on defaults.
-External SysTick routes start enabled, watchdogs start disarmed, and GPIO pads
+External SysTick routes start enabled, UART functional clocks start gated,
+watchdogs start disarmed, and GPIO pads
 start output-disabled with pull-down. AON retained state survives warm reset;
 this is not a power-loss persistence model. AON watchdog periods use ROSC/32
 (nominal 1 kHz), APB uses LPO / {2,4,8,16}. Clock interruption preserves the
 remaining count rounded up to a whole watchdog tick; sub-tick phase is not
 retained. Oscillator tolerances, undocumented invalid-key behavior, PMU R2's
 selective reset domains and secondary reset escalation are absent.
-UART idle detection uses 26 MHz/(divider+1) and 32/64/128/256 bit-times. It is
-canceled on drain, RX disable and reset; IRQ status remains W1C. Flow/wake
+UART idle detection uses its selected input clock/(baud divider+1) and
+32/64/128/256 bit-times. Gating or loss of the selected source pauses the
+remaining source cycles, rounded up to a whole input-clock cycle; recovery
+uses the new input rate. Draining RX, disabling RX or reset cancels the idle
+window; baud/FIFO reconfiguration restarts it. IRQ status remains W1C.
+Register access and latched IRQ state
+remain available while the functional clock is gated. The synchronous TX
+subset reports no write-ready or completion with a stopped clock; it does not
+model a TX FIFO that accepts writes while stopped. Host chardev backpressure
+retains bytes outside the device until RX is clocked; this is a logical stream
+abstraction, not physical serial-line capture or framing across a clock loss.
+The standalone guests explicitly enable UART0's clock and preserve it when
+enabling other peripherals. No external firmware source changes are required.
+Flow/wake
 configuration has masked readback, but enabling physical RTS/CTS or sleep-wake
 signaling emits an unsupported warning. DMA, error framing and TX timing are
 not modeled. SYS clock-mode and PMU power fields retain configuration only;
@@ -634,6 +653,10 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
 * ``cp/middleware/soc/bk7258/Kconfig`` and ``bk7258_bsp.ld``: TCM and SRAM
 * ``cp/middleware/soc/bk7258/soc/uart_struct.h`` and
   ``cp/middleware/soc/bk7258/hal/uart_ll.h``: register fields and W1C
+* ``cp/middleware/soc/bk7258/soc/sys_struct.h``,
+  ``cp/middleware/soc/bk7258/hal/sys_hal.c`` and
+  ``cp/middleware/soc/common/hal/include/sys_hal.h``: UART gate bits,
+  XTAL/APLL selection and divide-by-1/2/4/8 encodings
 * ``cp/middleware/soc/bk7258/soc/sys_reg.h``, ``sys_struct.h`` and
   ``cp/components/bk_startup/system_main.c``: CPU controls and IRQ routing
 * ``cp/middleware/soc/bk7258/soc/flash_struct.h``, matching Flash HAL/LL,

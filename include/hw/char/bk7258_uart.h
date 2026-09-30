@@ -3,6 +3,7 @@
 #define HW_CHAR_BK7258_UART_H
 
 #include "hw/core/sysbus.h"
+#include "hw/core/clock.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 #include "qemu/timer.h"
@@ -26,6 +27,11 @@ struct BK7258UARTState {
     uint32_t rx_head;
     uint32_t rx_count;
     QEMUTimer *rx_idle_timer;
+    Clock *clk;
+    unsigned hz;
+    uint64_t idle_cycles;
+    int64_t idle_deadline;
+    bool idle_armed;
 };
 
 #endif

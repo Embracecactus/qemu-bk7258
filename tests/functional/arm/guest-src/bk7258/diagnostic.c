@@ -191,7 +191,10 @@ static void ap2_start(void)
 
 static void cp_start(void)
 {
+    uint32_t bad_gate;
+
     ticks = received = nmi_seen = mail_seen = 0;
+    REG(0x44010030) = 1u << 2; /* UART0 functional clock. */
     REG(UART + 0x08) = 1;
     REG(UART + 0x10) = 0xe11b; /* 26 MHz, 115200 baud, 8N1, TX/RX */
     REG(UART + 0x14) = 0x100;
@@ -207,9 +210,20 @@ static void cp_start(void)
     }
     text("BK7258 SRAM ALIASES OK\n");
 
+    REG(UART + 0x24) = 0xff;
+    REG(0x44010030) &= ~(1u << 2);
+    bad_gate = REG(UART + 0x18) & (1u << 20);
+    REG(UART + 0x1c) = '!';
+    bad_gate |= REG(UART + 0x24) & (1u << 5);
+    REG(0x44010030) |= 1u << 2;
+    if (bad_gate) {
+        fault();
+    }
+    text("BK7258 UART CLOCK GATE OK\n");
+
     /* APB watchdog must execute CP NMI even with maskable interrupts off. */
     REG(0x44010028) = 0xc;
-    REG(0x44010030) = 1u << 31;
+    REG(0x44010030) |= 1u << 31;
     REG(0x44800008) = 1;
     __asm__ volatile("cpsid i" : : : "memory");
     REG(0x44000104) = 1; /* Unconnected external LPO source. */

@@ -30,6 +30,23 @@
 static const uint32_t uart_base[] = { 0x44820000, 0x45830000, 0x45840000 };
 static const unsigned uart_irq[] = { 4, 15, 16 };
 
+static void bk7258_update_uart_clocks(BK7258State *s)
+{
+    static const unsigned gate[] = { 2, 10, 11 };
+    static const unsigned shift[] = { 8, 11, 14 };
+
+    for (unsigned i = 0; i < 3; i++) {
+        unsigned mode = (s->clock_mode >> shift[i]) & 7;
+        unsigned hz = 0;
+
+        /* APLL is not modeled; selecting it must not invent a live source. */
+        if ((s->peripheral_clocks & (1U << gate[i])) && !(mode & 4)) {
+            hz = clock_get_hz(s->xtalclk) >> (mode & 3);
+        }
+        clock_update_hz(s->uartclk[i], hz);
+    }
+}
+
 static void bk7258_update_wdt_clock(BK7258State *s)
 {
     unsigned divider = 1U << (((s->clock_select >> 2) & 3) + 1);
@@ -216,6 +233,11 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         break;
     case 0x20:
         s->clock_mode = value;
+        if (value & ((1U << 10) | (1U << 13) | (1U << 16))) {
+            qemu_log_mask(LOG_UNIMP,
+                          "bk7258-sys: UART APLL source is not implemented\n");
+        }
+        bk7258_update_uart_clocks(s);
         break;
     case 0x40:
         s->power_sleep = value;
@@ -246,6 +268,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
     case 0x30:
         s->peripheral_clocks = value;
         bk7258_update_wdt_clock(s);
+        bk7258_update_uart_clocks(s);
         break;
     case 0x80 ... 0x94:
         index = (offset - 0x80) / 4;
@@ -452,7 +475,10 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < 3; i++) {
         DeviceState *uart = DEVICE(&s->uart[i]);
         SysBusDevice *bus = SYS_BUS_DEVICE(uart);
+        g_autofree char *name = g_strdup_printf("uartclk%u", i);
 
+        s->uartclk[i] = clock_new(obj, name);
+        qdev_connect_clock_in(uart, "pclk", s->uartclk[i]);
         qdev_prop_set_chr(uart, "chardev", serial_hd(i));
         if (!sysbus_realize(bus, errp)) {
             return;
@@ -483,6 +509,7 @@ static void bk7258_reset(DeviceState *dev)
     timer_del(s->analog_timer);
     bk7258_update_tick_clocks(s);
     bk7258_update_wdt_clock(s);
+    bk7258_update_uart_clocks(s);
     bk7258_update_irqs(s);
 }
 

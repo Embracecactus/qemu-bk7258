@@ -38,6 +38,7 @@ struct BK7258State {
     MemoryRegion aon_ns[2];
     MemoryRegion wdt_ns[2];
     Clock *wdtclk[2];
+    Clock *uartclk[3];
     uint32_t clock_select;
     uint32_t peripheral_clocks;
     uint32_t power_sleep;

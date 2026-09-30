@@ -17,6 +17,7 @@ from qemu_test import QemuSystemTest, wait_for_console_pattern
 class BK7258Machine(QemuSystemTest):
     HARDWARE_MARKERS = (
         "BK7258 SRAM ALIASES OK",
+        "BK7258 UART CLOCK GATE OK",
         "BK7258 WATCHDOG NMI OK",
         "BK7258 WATCHDOG CLOCK LOSS OK",
         "BK7258 SYSTICK IRQ OK",
