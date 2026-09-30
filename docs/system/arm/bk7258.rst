@@ -554,6 +554,12 @@ Python test dependencies. Without a compiler the test explicitly skips; this
 repository's CI installs the compiler and runs all twenty-seven cases.
 No OS checkout or firmware download is required.
 
+Both launch paths start with ``-S``, finish QMP negotiation, assert that the
+guest is stopped, and then issue ``cont``. This prevents tiny semihosting
+fixtures from exiting before the runner is ready. For local stress repetitions
+use ``--repeat 5 --num-processes 1``: concurrent repetitions share the standard
+runner's per-test artifact directories and must not overwrite each other.
+
 ``tests/functional/arm/test_bk7258.py`` compiles the adjacent
 ``guest-src/bk7258/diagnostic.c`` and linker script, then executes positive and
 negative inputs on all three boards using TCG. It checks guest UART markers
