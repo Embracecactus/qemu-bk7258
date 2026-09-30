@@ -20,6 +20,8 @@ on:
       - 'hw/arm/Kconfig'
       - 'hw/arm/meson.build'
       - 'hw/char/meson.build'
+      - 'tests/qtest/bk7258-test.*'
+      - 'tests/qtest/meson.build'
       - '.github/workflows/bk7258-build.yml'
   workflow_dispatch:
 permissions:
@@ -41,11 +43,20 @@ jobs:
           cd build-bk7258
           ../configure --target-list=arm-softmmu --without-default-features \
             --disable-docs --disable-user --disable-tools --disable-rust \
-            --enable-tcg --enable-werror
-          ninja -j2 qemu-system-arm
+            --enable-tcg --enable-werror --enable-tests
+          ninja -j2 qemu-system-arm tests/qtest/bk7258-test
       - name: Check three machine registrations
         run: |
           build-bk7258/qemu-system-arm -M help | tee machines.txt
           for machine in t5_board t5ai_core aidk_ai_toy; do
             grep -E "^${machine}[[:space:]]" machines.txt
           done
+      - name: Run independent BK7258 hardware qtests
+        run: |
+          cd build-bk7258
+          ./pyvenv/bin/meson test --no-rebuild --print-errorlogs qtest-arm/bk7258-test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bk7258-qtest-${{ github.sha }}
+          path: build-bk7258/meson-logs/testlog.*

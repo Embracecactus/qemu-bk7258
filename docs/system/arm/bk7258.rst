@@ -243,6 +243,44 @@ persistence and error rejection, a production-helper ASan/UBSan harness with
 mocked block failures, and real Thumb-2 instruction fetch spanning an MMIO
 page. The latter also covers the downstream translator record-page fix.
 
+Independent hardware regression
+-------------------------------
+
+The downstream QEMU repository owns its model tests. They run without an
+OpenVela checkout, its CLI, a firmware build, an Arm cross-compiler or a guest
+image. From a clean QEMU checkout::
+
+  mkdir build-bk7258 && cd build-bk7258
+  ../configure --target-list=arm-softmmu --without-default-features \
+    --disable-docs --disable-user --disable-tools --disable-rust \
+    --enable-tcg --enable-werror --enable-tests
+  ninja qemu-system-arm tests/qtest/bk7258-test
+  ./pyvenv/bin/meson test --no-rebuild --print-errorlogs qtest-arm/bk7258-test
+
+The registered libqtest cases cover SRAM/MMIO aliases, UART IRQ mask/W1C,
+whole-system reset, watchdog keys/feed/stop/expiry, GPIO edge/level masking,
+asynchronous analog cancellation, clock ratio/IRQ routing/source loss,
+mailbox routing/order/full/protection/reset, and persistent NOR AND-program,
+protection, erase, reset cancellation, CRC/XIP and read-only error handling.
+Each hardware case runs on all three machine names. This currently checks
+the shared SoC, not three distinct sets of board wiring or CPU execution.
+
+These cases were adapted from the Apache-2.0 contest hardware tests at
+``ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43``,
+``tests/host/bk7258/test_bk7258_qemu.py``. The source attribution and license
+are retained in ``tests/qtest/bk7258-test.c`` and its adjacent LICENSE file.
+They are maintained here independently, not imported or executed from the
+contest project. QEMU checkpatch currently rejects Apache-2.0 in its license
+allowlist; this downstream adaptation preserves its actual source license
+rather than relabeling it to make the lint result green.
+
+OpenVela is an optional external firmware consumer and evidence source.
+Earlier integration/firmware checks in that independent project do not serve
+as this repository's core test runner. The initial qtest slice does not replace
+all earlier guest-execution, sanitizer or firmware checks. Future boot tests
+must identify their external firmware assets and hashes without changing the
+consumer's product code or requiring its build workflow.
+
 Register provenance
 -------------------
 
