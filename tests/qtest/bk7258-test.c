@@ -384,6 +384,248 @@ static void test_watchdog(const void *board)
     qtest_quit(qts);
 }
 
+static const uint32_t spi_base[] = { 0x44870000, 0x45880000 };
+static const unsigned spi_gate[] = { 1, 9 };
+static const unsigned spi_irq[] = { 7, 17 };
+
+static QTestState *start_spi(const void *board)
+{
+    return qtest_initf("-machine %s -serial null "
+                      "-device w25q32,bus=spi0,cs=0 "
+                      "-device w25q32,bus=spi1,cs=0", (const char *)board);
+}
+
+static void spi_setup(QTestState *qts, unsigned g)
+{
+    qtest_writel(qts, SYS + 0x30, (1U << spi_gate[0]) | (1U << spi_gate[1]));
+    qtest_writel(qts, SYS + 0x28, 0);
+    qtest_writel(qts, spi_base[g] + 8, 3);
+    /* XTAL/(2*13), 8-bit master, interval1: model word period is 9000 ns. */
+    qtest_writel(qts, spi_base[g] + 0x10, 0x41c00d00);
+}
+
+static void spi_wait(QTestState *qts, unsigned g)
+{
+    for (unsigned step = 0; step < 70; step++) {
+        if (qtest_readl(qts, spi_base[g] + 0x18) & 0x2000) {
+            return;
+        }
+        qtest_clock_step(qts, 9000);
+    }
+    g_assert_not_reached();
+}
+
+static void spi_xfer(QTestState *qts, unsigned g, const uint8_t *data,
+                     unsigned count, uint8_t *received)
+{
+    uint32_t base = spi_base[g];
+
+    qtest_writel(qts, base + 0x14, 0);
+    qtest_writel(qts, base + 0x18, 0x37f00);
+    for (unsigned i = 0; i < count; i++) {
+        qtest_writel(qts, base + 0x1c, data[i]);
+    }
+    qtest_writel(qts, base + 0x14, (count << 8) | (count << 20) | 3);
+    spi_wait(qts, g);
+    g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x7800, ==, 0x6000);
+    for (unsigned i = 0; i < count; i++) {
+        received[i] = qtest_readl(qts, base + 0x1c);
+    }
+    g_assert_cmphex(qtest_readl(qts, base + 0x18) & 4, ==, 0);
+}
+
+static void test_spi_native_frames_routes(const void *board)
+{
+    QTestState *qts = start_spi(board);
+    const uint8_t id[] = { 0x9f, 0, 0, 0 };
+    const uint8_t enable[] = { 0x06 };
+    const uint8_t status[] = { 0x05, 0 };
+    const uint8_t disable[] = { 0x04 };
+    uint8_t rx[4];
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = spi_base[g], irq = 1U << spi_irq[g];
+
+        spi_setup(qts, g);
+        spi_xfer(qts, g, id, sizeof(id), rx);
+        g_assert_cmphex(rx[1], ==, 0xef);
+        g_assert_cmphex(rx[2], ==, 0x40);
+        g_assert_cmphex(rx[3], ==, 0x16);
+        for (unsigned core = 0; core < 3; core++) {
+            qtest_writel(qts, SYS + 0x80 + 8 * core, irq);
+            expect(qts, SYS + 0xa0 + 8 * core, 0);
+        }
+        qtest_writel(qts, base + 0x14, 0x0040040f); /* Unmask latched done. */
+        for (unsigned core = 0; core < 3; core++) {
+            expect(qts, SYS + 0xa0 + 8 * core, irq);
+        }
+        qtest_writel(qts, base + 0x18, 0x2000);
+        expect(qts, SYS + 0xa0, irq);
+        qtest_writel(qts, base + 0x10000018, 0x4000);
+        expect(qts, SYS + 0xa0, 0);
+        spi_xfer(qts, g, enable, sizeof(enable), rx);
+        spi_xfer(qts, g, status, sizeof(status), rx);
+        g_assert_cmphex(rx[1] & 2, ==, 2); /* Native slave retained WEL. */
+        spi_xfer(qts, g, disable, sizeof(disable), rx);
+        spi_xfer(qts, g, status, sizeof(status), rx);
+        g_assert_cmphex(rx[1] & 2, ==, 0);
+        for (unsigned core = 0; core < 3; core++) {
+            qtest_writel(qts, SYS + 0x80 + 8 * core, 0);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_spi_fifo_errors(const void *board)
+{
+    QTestState *qts = start_spi(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = spi_base[g];
+
+        spi_setup(qts, g);
+        /* Native flash READ command, followed by address zero. */
+        qtest_writel(qts, base + 0x1c, 3);
+        for (unsigned i = 1; i < 64; i++) {
+            qtest_writel(qts, base + 0x1c, 0);
+        }
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 2, ==, 0);
+        qtest_writel(qts, base + 0x1c, 0xee); /* FIFO overflow is rejected. */
+        qtest_writel(qts, base + 0x14, (65U << 8) | (65U << 20) | 3);
+        for (unsigned i = 0; i < 64; i++) {
+            qtest_clock_step(qts, 9000);
+        }
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x7800, ==, 0x800);
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x6000, ==, 0);
+        qtest_writel(qts, base + 0x1c, 0); /* Recover the starved last word. */
+        qtest_clock_step(qts, 9000);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x7800, ==, 0x7800);
+        for (unsigned i = 0; i < 64; i++) {
+            /* Drop-new preserves the first four command/address responses. */
+            expect(qts, base + 0x1c, i < 4 ? 0 : 0xff);
+        }
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 4, ==, 0);
+        qtest_writel(qts, base + 0x18, 0x800);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x7800, ==, 0x7000);
+        qtest_writel(qts, base + 0x18, 0x1700);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x7800, ==, 0x6000);
+        qtest_writel(qts, base + 8, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_spi_fifo_thresholds(const void *board)
+{
+    QTestState *qts = start_spi(board);
+    static const unsigned threshold[] = { 1, 16, 32, 48 };
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = spi_base[g];
+
+        for (unsigned mode = 0; mode < 4; mode++) {
+            qtest_writel(qts, base + 8, 0);
+            spi_setup(qts, g);
+            qtest_writel(qts, base + 0x10, 0x41c00d00 | mode | (mode << 2));
+            qtest_writel(qts, base + 0x1c, 3);
+            for (unsigned i = 1; i < 64; i++) {
+                qtest_writel(qts, base + 0x1c, 0);
+            }
+            qtest_writel(qts, base + 0x14, (64U << 8) | (64U << 20) | 3);
+            for (unsigned i = 1; i <= 64; i++) {
+                unsigned flags = 0;
+
+                qtest_clock_step(qts, 9000);
+                if (i >= threshold[mode]) {
+                    flags |= 0x200;
+                }
+                if (64 - i < threshold[mode]) {
+                    flags |= 0x100;
+                }
+                g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x300,
+                                 ==, flags);
+            }
+            qtest_writel(qts, base + 0x18, 0x200);
+            g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x200, ==, 0x200);
+            qtest_writel(qts, base + 0x14, 0); /* Disable TX level condition. */
+            qtest_writel(qts, base + 0x18, 0x20700); /* RX clear + W1C. */
+            g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x700, ==, 0);
+        }
+        qtest_writel(qts, base + 8, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_spi_clock_cancel(const void *board)
+{
+    QTestState *qts = start_spi(board);
+    const uint8_t read_status[] = { 0x05, 0 };
+    uint8_t rx[2];
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = spi_base[g];
+        g_autofree char *path = g_strdup_printf("/machine/soc/spi[%u]/pclk", g);
+
+        spi_setup(qts, g);
+        qtest_writel(qts, base + 0x1c, 4);
+        qtest_writel(qts, base + 0x14, 0x101);
+        qtest_clock_step(qts, 1);
+        qtest_writel(qts, base + 0x10, 0x41c00d10); /* IRQ mask only. */
+        qtest_writel(qts, base + 8, 1); /* Bypass readback only. */
+        qtest_clock_step(qts, 8998);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x2000, ==, 0);
+        qtest_clock_step(qts, 1); /* Register updates must not restart phase. */
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x2000, ==, 0x2000);
+        qtest_writel(qts, base + 0x14, 0);
+        qtest_writel(qts, base + 0x18, 0x37f00);
+        spi_setup(qts, g);
+        qtest_writel(qts, SYS + 0x30, 0);
+        /* The queued write-enable opcode must not reach the slave yet. */
+        qtest_writel(qts, base + 0x1c, 6);
+        qtest_writel(qts, base + 0x14, 0x101);
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x2000, ==, 0);
+        qtest_writel(qts, SYS + 0x30, 1U << spi_gate[g]);
+        qtest_clock_step(qts, 4000);
+        qtest_writel(qts, SYS + 0x28, 1U << (4 + g)); /* Missing APLL. */
+        expect_clock(qts, path, 0);
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x2000, ==, 0);
+        qtest_writel(qts, base + 0x10, 0x41c00100); /* Live divider rejected. */
+        expect(qts, base + 0x10, 0x41c00d00);
+        qtest_writel(qts, SYS + 0x28, 0);
+        expect_clock(qts, path, 26000000);
+        qtest_clock_step(qts, 4999);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x2000, ==, 0);
+        qtest_clock_step(qts, 1);
+        g_assert_cmphex(qtest_readl(qts, base + 0x18) & 0x2000, ==, 0x2000);
+        spi_xfer(qts, g, read_status, sizeof(read_status), rx);
+        g_assert_cmphex(rx[1] & 2, ==, 2);
+        qtest_writel(qts, base + 0x14, 0);
+        qtest_writel(qts, base + 0x18, 0x37f00);
+        qtest_writel(qts, base + 0x1c, 4); /* Cancel WRDI before delivery. */
+        qtest_writel(qts, base + 0x14, 0x101);
+        qtest_clock_step(qts, 4000);
+        qtest_writel(qts, base + 8, 0);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, base + 0x18, 0);
+        spi_setup(qts, g);
+        spi_xfer(qts, g, read_status, sizeof(read_status), rx);
+        g_assert_cmphex(rx[1] & 2, ==, 2); /* Reset did not deliver WRDI. */
+        qtest_writel(qts, base + 0x14, 0);
+        qtest_writel(qts, base + 0x10, 0x41c00000); /* Raw divider0 unknown. */
+        expect(qts, base + 0x10, 0x41c00d00);
+        qtest_writel(qts, base + 0x10, 0x41c40d00); /* 16-bit unsupported. */
+        expect(qts, base + 0x10, 0x41c00d00);
+        qtest_writel(qts, base + 0x14, 0x0000040f); /* Mismatched RX count. */
+        expect(qts, base + 0x14, 0);
+        qtest_system_reset(qts);
+        expect(qts, base + 8, 0);
+        expect(qts, base + 0x18, 0);
+    }
+    qtest_quit(qts);
+}
+
 static const uint32_t i2c_base[] = { 0x45850000, 0x45860000 };
 static const unsigned i2c_gate[] = { 0, 8 };
 static const unsigned i2c_irq[] = { 6, 14 };
@@ -1339,6 +1581,21 @@ static void reject_start(const char *args)
     qtest_quit(qts);
 }
 
+static void test_spi_bus_wiring_rejection(const void *board)
+{
+    for (unsigned g = 0; g < 2; g++) {
+        g_autofree char *wrong = g_strdup_printf(
+            "-machine %s -device w25q32,bus=spi%u,cs=1",
+            (const char *)board, g);
+        g_autofree char *multiple = g_strdup_printf(
+            "-machine %s -device w25q32,bus=spi%u,cs=0 "
+            "-device w25q32,bus=spi%u,cs=0", (const char *)board, g, g);
+
+        reject_start(wrong);
+        reject_start(multiple);
+    }
+}
+
 static void test_explicit_xip_mode(const void *board)
 {
     static const char vector[] = {
@@ -1484,6 +1741,11 @@ int main(int argc, char **argv)
         {"uart-rx-capacity-wrap-backpressure", test_uart_rx_capacity},
         {"watchdog-keys-expiry", test_watchdog},
         {"watchdog-sources-pause-recovery", test_watchdog_sources},
+        {"spi-native-frames-irq-routes", test_spi_native_frames_routes},
+        {"spi-fifo-overflow-starvation", test_spi_fifo_errors},
+        {"spi-fifo-threshold-boundaries", test_spi_fifo_thresholds},
+        {"spi-clock-loss-reset-cancel", test_spi_clock_cancel},
+        {"spi-invalid-cs-wiring", test_spi_bus_wiring_rejection},
         {"i2c-fifo-native-bus-transactions", test_i2c_fifo_transactions},
         {"i2c-w0c-nak-irq-routes", test_i2c_w0c_nak_routes},
         {"i2c-clock-reset-cancel", test_i2c_clock_reset_cancel},

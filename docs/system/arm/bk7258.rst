@@ -100,12 +100,17 @@ OpenVela source or profile changes are required for that gate.
        repeated START, W0C service, clock pause, reset cancel and IRQ6/14
      - Slave/10-bit/multi-master modes, pin waveforms/stretch/timeout,
        different-address repeated START and measured edge/reset behavior
+   * - SPI0/1
+     - Native SSI 8-bit MSB master, one logical CS0, finite TX/full-duplex,
+       bounded FIFOs, clock pause, W1C/error/done IRQ7/17 and reset cancel
+     - 16-bit/LSB/3-wire/slave/RX-only modes, raw-divider0, wire-edge timing,
+       APLL, DMA and physical pinmux/CS routing
    * - PWM
      - Register sources identified; not yet modeled
      - Counter/compare/clock-domain/reset behavior and pin-output delivery
    * - Other chip interfaces
      - Not modeled
-     - DMA, SPI/QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
+     - DMA, QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
        audio/video, Wi-Fi/BT and other absent register blocks
 
 For each added chip block, require source-backed access/reset/clock/IRQ
@@ -157,9 +162,9 @@ names and counts of passing tests cannot close these gates.
        Missing sources remain absent, not synthetic ready/completion bits.
    * - Basic peripheral buses and pads
      - UART stream RX/idle and GPIO digital contacts are functional;
-       general timers and bounded 7-bit I2C master transactions now run
-       independently of host firmware
-     - Remaining I2C modes, SPI transactions, PWM outputs and DMA basics with
+       general timers, bounded I2C master and finite SSI master transactions
+       run independently of host firmware
+     - Remaining I2C/SPI modes, PWM outputs and DMA basics with
        error/cancel/clock-loss cases; source-backed alternate-function
        routing. No fabricated fixed ACK, slave data or pin wiring.
    * - Independent reproducibility
@@ -405,6 +410,87 @@ read QEMU's existing read-only clock-period property to verify source loss,
 recovery, all three independent gates and reset cancellation. External-source
 presence/frequency is a board input, not a firmware-specific success setting.
 
+SPI master functional boundaries
+-------------------------------
+
+Two ``bk7258-spi`` controllers expose native SSI buses ``spi0`` and ``spi1``
+at 0x44870000/0x45880000, with +0x10000000 aliases and IRQ7/17. SYS+0x30
+bits 1/9 gate their inputs. SYS+0x28 bits 4/5 select XTAL (0) or the absent
+APLL (1); selecting APLL logs that omission and stops the clock. Neither
+controller chooses or constructs an external peripheral. Test invocations
+explicitly attach QEMU's existing ``w25q32`` model, for example
+``-device w25q32,bus=spi0,cs=0``. Its JEDEC EF4016 response is produced by
+that upstream device model, not hardcoded in the BK7258 controller and not
+claimed as a board BOM.
+
+The supported initial slice is finite 8-bit, MSB-first, four-wire master
+transfers: TX alone, or TX plus equal-length full-duplex RX. Both FIFOs hold
+64 bytes. Channel enable, 12-bit word counts, source masks, FIFO-clear strobes
+and W1C flags follow the SDK register layout. Data moves through ``ssi_transfer``;
+there is no firmware identity detection or synthetic command response.
+Missing SSI endpoints yield the core SSI API's zero-valued undriven input.
+SPI has no address ACK, so the controller still finishes its clocks; the
+source-built identification probe must reject the resulting wrong device ID.
+This is a logical input policy, not an analog floating-MISO voltage model.
+
+The SSI bus subtype accepts one CS0 endpoint with standard active-low CS or
+no CS. Nonzero/duplicate chip selects and active-high endpoints are rejected,
+rather than ORing multiple unintended responses. The controller exports a
+``cs`` GPIO output and connects a standard attached CS0 input at reset/frame
+start. This represents a direct logical bus attachment. Physical GPIO
+alternate functions, external CS gates/inverters and board-specific routing
+remain absent and must be modeled before claiming those board connections.
+A peripheral lacking the promised standard CS input is rejected on use.
+
+Clock/timing and error boundaries are deliberately explicit:
+
+* The selected BK7258 AP configuration enables SYSTEM_CTRL; its HAL programs
+  nonzero raw clock divisors from ``source / (2 * baud)``. The 13-MHz SPI-flash
+  example therefore uses raw divisor 1 with the 26-MHz source. Raw divisor 0
+  is rejected because its hardware meaning is not established; the unrelated
+  older HAL branch using ``source / baud - 1`` is not used here.
+* A modeled word takes ``(8 + byte_interval) * 2 * divider`` input cycles.
+  The extra interval is a named functional spacing policy, not a measured
+  interpretation of every encoding. The LL's configured interval 1 and
+  RX sample-edge setting are retained. CPOL/CPHA/sample-edge fields have
+  readback only: packet-level SSI does not validate SCK/MOSI/MISO edge timing
+  or polarity mismatch. Tests use mode 0, not physical waveform assertions.
+* CS asserts for a finite frame and releases at completion, channel stop,
+  controller disable or reset. Gating pauses the pending word and preserves
+  CS. Remaining source cycles round upward on a source change; sub-cycle
+  phase is not preserved. Interrupt-mask/W1C/bypass-readback writes must not
+  restart a pending deadline. Live divider/format/count changes are rejected.
+  Channel-enable bits retain their programmed value on completion; software
+  must clear them before arming a new frame and acknowledge old W1C status.
+* TX service is a level below the selected 1/16/32/48 threshold while the TX
+  channel is enabled; RX service is at or above the corresponding threshold.
+  Status remains latched under masking and reasserts on W1C while its level
+  condition persists. These level/reassertion details are functional policies
+  beyond the source-proven threshold encodings.
+* Initial empty TX waits for data without claiming completion. Starvation
+  after the first word latches underflow and pauses until refilled. RX overflow
+  latches an error and drops the newest word, preserving already queued data.
+  These explicit policies are not measured silicon overflow/underflow timing.
+* Controller reset cancels an undelivered word, clears queues/configuration
+  and releases CS. TX FIFO clear also cancels its pending word. Bytes already
+  delivered to a peripheral cannot be undone; that device may itself act on
+  CS release. Whole-machine QEMU reset also invokes attached devices' own
+  reset handlers and does not establish silicon reset-domain retention.
+* Slave, 16-bit, LSB-first, three-wire, RX-only and unequal-length full-duplex
+  modes, zero-length frame encodings, DMA and slave-release IRQ are outside
+  this slice. Unsupported configurations, unknown registers, full TX writes
+  and empty RX reads return transaction errors. As with UART/I2C, these are
+  strict-model diagnostics, not claims about silicon BusFault responses.
+
+Native qtests cover both buses, real peripheral ID/write-enable state,
+CS-separated command frames, all threshold encodings, FIFO integrity,
+starvation/recovery, drop-new overflow, masks/W1C, three-core routes,
+clock loss/recovery, unchanged deadlines on mask writes, canceled commands
+and invalid chip-select wiring. Source-built probes execute IRQ7/17 and
+must distinguish a missing SPI1 route from an absent endpoint; an unrelated
+early failure cannot satisfy either negative. Separate precise-fault probes
+cover the model's empty-read error policy.
+
 I2C master functional boundaries
 -------------------------------
 
@@ -635,6 +721,8 @@ UART1              0x45830000                     0x55830000
 UART2              0x45840000                     0x55840000
 I2C0               0x45850000                     0x55850000
 I2C1               0x45860000                     0x55860000
+SPI0               0x44870000                     0x54870000
+SPI1               0x45880000                     0x55880000
 =================  ============================  ====================
 
 Aliases alone do not implement the BK7258 TrustZone attribution/security
@@ -940,6 +1028,14 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   snapshot handshake, W1C usage and live-period-change hazard. BK7258 SYS
   structure/HAL supplies gate/source bits and IRQ3/13. Ambiguous clock-net,
   snapshot and reset details remain named functional policies above.
+* ``ap/include/soc/bk7258/spi_cap.h``,
+  ``ap/middleware/soc/bk7258_ap/soc/spi_struct.h``, matching SPI LL,
+  ``ap/middleware/soc/common/hal/spi_hal.c``, the selected
+  ``bk7258_ap.defconfig`` and ``ap/middleware/driver/spi/{spi_driver,spi_flash}.c``:
+  controller count, 8/16-bit count units, 1/16/32/48 thresholds, W1C/strobes,
+  selected SYSTEM_CTRL clock branch and full-duplex flash frame usage.
+  Datasheet section 4.7 establishes the 64-depth FIFOs and broader silicon
+  capabilities. The model's narrower scope and unmeasured policies are above.
 * ``ap/include/soc/bk7258/i2c_cap.h``,
   ``ap/middleware/soc/bk7258_ap/soc/i2c_struct.h``, matching I2C LL,
   ``ap/middleware/soc/common/hal/i2c_hal.c`` and

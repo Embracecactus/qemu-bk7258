@@ -47,6 +47,18 @@ static void bk7258_update_uart_clocks(BK7258State *s)
     }
 }
 
+static void bk7258_update_spi_clocks(BK7258State *s)
+{
+    static const unsigned gate[] = { 1, 9 };
+
+    for (unsigned i = 0; i < 2; i++) {
+        clock_update(s->spiclk[i],
+                     (s->peripheral_clocks & (1U << gate[i])) &&
+                     !(s->clock_select & (1U << (4 + i))) ?
+                     clock_get(s->xtalclk) : 0);
+    }
+}
+
 static void bk7258_update_i2c_clocks(BK7258State *s)
 {
     static const unsigned gate[] = { 0, 8 };
@@ -289,6 +301,11 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         break;
     case 0x28:
         s->clock_select = value;
+        if (value & 0x30) {
+            qemu_log_mask(LOG_UNIMP,
+                          "bk7258-sys: SPI APLL source is not implemented\n");
+        }
+        bk7258_update_spi_clocks(s);
         bk7258_update_wdt_clock(s);
         break;
     case 0x30:
@@ -297,6 +314,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         bk7258_update_uart_clocks(s);
         bk7258_update_timer_clocks(s);
         bk7258_update_i2c_clocks(s);
+        bk7258_update_spi_clocks(s);
         break;
     case 0x80 ... 0x94:
         index = (offset - 0x80) / 4;
@@ -519,6 +537,23 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
                      &s->i2c[i].iomem, memory, base + NS_OFFSET, 0x100);
     }
 
+    for (i = 0; i < 2; i++) {
+        DeviceState *spi = DEVICE(&s->spi[i]);
+        SysBusDevice *bus = SYS_BUS_DEVICE(spi);
+        uint32_t base = 0x44870000 + 0x1010000 * i;
+        g_autofree char *name = g_strdup_printf("spi%u", i);
+
+        qdev_prop_set_string(spi, "bus-name", name);
+        qdev_connect_clock_in(spi, "pclk", s->spiclk[i]);
+        if (!sysbus_realize(bus, errp)) {
+            return;
+        }
+        sysbus_mmio_map(bus, 0, base);
+        sysbus_connect_irq(bus, 0, qdev_get_gpio_in(dev, i ? 17 : 7));
+        bk7258_alias(&s->spi_ns[i], obj, "bk7258.spi-ns",
+                     &s->spi[i].iomem, memory, base + NS_OFFSET, 0x100);
+    }
+
     qdev_connect_clock_in(DEVICE(&s->rtc), "lpo", s->aon.lpo);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), errp)) {
         return;
@@ -573,6 +608,7 @@ static void bk7258_reset(DeviceState *dev)
     bk7258_update_uart_clocks(s);
     bk7258_update_timer_clocks(s);
     bk7258_update_i2c_clocks(s);
+    bk7258_update_spi_clocks(s);
     bk7258_update_irqs(s);
 }
 
@@ -595,6 +631,10 @@ static void bk7258_init(Object *obj)
         name = g_strdup_printf("i2cclk%u", i);
         object_initialize_child(obj, "i2c[*]", &s->i2c[i], TYPE_BK7258_I2C);
         s->i2cclk[i] = clock_new(obj, name);
+        g_clear_pointer(&name, g_free);
+        name = g_strdup_printf("spiclk%u", i);
+        object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_BK7258_SPI);
+        s->spiclk[i] = clock_new(obj, name);
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);

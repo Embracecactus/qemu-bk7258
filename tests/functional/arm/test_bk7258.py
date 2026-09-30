@@ -317,6 +317,106 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_i2c_missing_route(self):
         self.run_i2c("aidk_ai_toy", True)
 
+    def run_spi_empty_fault(self, board, index):
+        elf = self.build_fixture(
+            board,
+            "sys_fault.c",
+            WRITE_PROBE=0,
+            PROBE_ADDRESS=hex(0x4487001C + index * 0x1010000),
+            PROBE_NAME='"SPI"',
+        )
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(
+            self,
+            "BK7258 SPI ACCESS FAULT OK",
+            "BK7258 SPI ACCESS FAULT FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        self.assertEqual(
+            mmio.read_text(), "bk7258-spi: unsupported read at 0x1c\n"
+        )
+
+    def test_t5_board_spi0_empty_read_fault(self):
+        self.run_spi_empty_fault("t5_board", 0)
+
+    def test_t5_board_spi1_empty_read_fault(self):
+        self.run_spi_empty_fault("t5_board", 1)
+
+    def test_t5ai_core_spi0_empty_read_fault(self):
+        self.run_spi_empty_fault("t5ai_core", 0)
+
+    def test_t5ai_core_spi1_empty_read_fault(self):
+        self.run_spi_empty_fault("t5ai_core", 1)
+
+    def test_aidk_ai_toy_spi0_empty_read_fault(self):
+        self.run_spi_empty_fault("aidk_ai_toy", 0)
+
+    def test_aidk_ai_toy_spi1_empty_read_fault(self):
+        self.run_spi_empty_fault("aidk_ai_toy", 1)
+
+    def run_spi(self, board, missing_route=False, missing_endpoint=False):
+        elf = self.build_fixture(
+            board,
+            "spi.c",
+            MISSING_ROUTE=int(missing_route),
+            MISSING_ENDPOINT=int(missing_endpoint),
+        )
+        if not missing_endpoint:
+            for bus in ("spi0", "spi1"):
+                self.vm.add_args("-device", f"w25q32,bus={bus},cs=0")
+        mmio = self.launch_fixture(elf)
+        if missing_route or missing_endpoint:
+            wait_for_console_pattern(
+                self,
+                (
+                    "BK7258 MISSING SPI1 ROUTE DETECTED"
+                    if missing_route
+                    else "BK7258 ABSENT SPI ENDPOINT DETECTED"
+                ),
+                "BK7258 SPI PROBE FAILED",
+            )
+        wait_for_console_pattern(
+            self,
+            (
+                "BK7258 SPI PROBE FAILED"
+                if missing_route or missing_endpoint
+                else "BK7258 SPI SSI ID IRQ OK"
+            ),
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(
+            self.vm.exitcode(), int(missing_route or missing_endpoint)
+        )
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_t5_board_spi(self):
+        self.run_spi("t5_board")
+
+    def test_t5_board_spi_missing_route(self):
+        self.run_spi("t5_board", missing_route=True)
+
+    def test_t5_board_spi_missing_endpoint(self):
+        self.run_spi("t5_board", missing_endpoint=True)
+
+    def test_t5ai_core_spi(self):
+        self.run_spi("t5ai_core")
+
+    def test_t5ai_core_spi_missing_route(self):
+        self.run_spi("t5ai_core", missing_route=True)
+
+    def test_t5ai_core_spi_missing_endpoint(self):
+        self.run_spi("t5ai_core", missing_endpoint=True)
+
+    def test_aidk_ai_toy_spi(self):
+        self.run_spi("aidk_ai_toy")
+
+    def test_aidk_ai_toy_spi_missing_route(self):
+        self.run_spi("aidk_ai_toy", missing_route=True)
+
+    def test_aidk_ai_toy_spi_missing_endpoint(self):
+        self.run_spi("aidk_ai_toy", missing_endpoint=True)
+
     def run_timer(self, board, missing_route=False, fault=False):
         elf = self.build_fixture(
             board,
