@@ -306,6 +306,20 @@ subset reports no write-ready or completion with a stopped clock; it does not
 model a TX FIFO that accepts writes while stopped. Host chardev backpressure
 retains bytes outside the device until RX is clocked; this is a logical stream
 abstraction, not physical serial-line capture or framing across a clock loss.
+Unknown UART register reads and writes, including unmodeled device IDs and
+writes to FIFO status, return a transaction error. Guest tests require a
+precise escalated BusFault and matching BFAR on all three UARTs and their
+nonsecure aliases. This is the same strict diagnostic policy used for SYS:
+it exposes missing implementation instead of silently returning zero, and
+is not a claim that silicon faults on its valid identification registers.
+The 128-byte RX capacity and count/full/empty view are bounded and tested,
+including ring wrap and threshold boundary. Host chardev backpressure retains
+a 129th byte outside the full FIFO; it must arrive in order after space is
+freed. This does not implement physical overflow, RX line errors or the
+unidentified FIFO-mode-enable control mentioned by the datasheet. Threshold
+status reasserts while the modeled level remains high and stays latched
+until acknowledged after draining. Reset discards queued RX bytes and
+cancels their idle deadline.
 The standalone guests explicitly enable UART0's clock and preserve it when
 enabling other peripherals. No external firmware source changes are required.
 Flow/wake
@@ -710,6 +724,13 @@ Six RTC cases build ``rtc.c`` and test pause, missing LPO, restart and real
 IRQ54 delivery on every board. Deliberately withholding the SYS interrupt
 route must fail within the CPU-clock deadline; it must not receive a synthetic
 success. These are chip-level probes, not an OS profile or application.
+
+Eighteen UART access cases reuse the MMIO fault fixture, covering unknown
+reads and read-only status writes for UART0/1/2 on every board. They require
+the exact exception/status/address and fail against the earlier read-zero,
+ignored-write model. Supported console operations retain their existing
+strict output/exit checks. Native qtests additionally cover a 128-byte FIFO
+boundary, a host-buffered extra byte, ring wrap, IRQ masking/W1C and reset.
 
 Nine timer-group cases build ``timer.c``. Each board must deliver real
 IRQ3 and IRQ13 from independently selected CLK32 and divided XTAL sources,

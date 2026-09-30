@@ -129,26 +129,33 @@ static void bk7258_uart_receive(void *opaque, const uint8_t *buf, int size)
     bk7258_uart_update(s);
 }
 
-static uint64_t bk7258_uart_read(void *opaque, hwaddr offset, unsigned size)
+static MemTxResult bk7258_uart_read(void *opaque, hwaddr offset,
+                                   uint64_t *result, unsigned size,
+                                   MemTxAttrs attrs)
 {
     BK7258UARTState *s = opaque;
     uint32_t value;
 
     switch (offset) {
     case 0x08:
-        return s->global_ctrl;
+        *result = s->global_ctrl;
+        break;
     case 0x10:
-        return s->config;
+        *result = s->config;
+        break;
     case 0x14:
-        return s->fifo_config;
+        *result = s->fifo_config;
+        break;
     case 0x18:
         /* TX is drained synchronously; RX remains a bounded FIFO. */
-        return (s->rx_count << 8) | (1U << 17) | (s->hz ? (1U << 20) : 0) |
-               (s->rx_count ? (1U << 21) : (1U << 19)) |
-               (s->rx_count == sizeof(s->rx_fifo) ? (1U << 18) : 0);
+        *result = (s->rx_count << 8) | (1U << 17) | (s->hz ? (1U << 20) : 0) |
+                  (s->rx_count ? (1U << 21) : (1U << 19)) |
+                  (s->rx_count == sizeof(s->rx_fifo) ? (1U << 18) : 0);
+        break;
     case 0x1c:
         if (!s->rx_count) {
-            return 0;
+            *result = 0;
+            break;
         }
         value = s->rx_fifo[s->rx_head] << 8;
         s->rx_head = (s->rx_head + 1) % sizeof(s->rx_fifo);
@@ -160,24 +167,31 @@ static uint64_t bk7258_uart_read(void *opaque, hwaddr offset, unsigned size)
         }
         bk7258_uart_update(s);
         qemu_chr_fe_accept_input(&s->chr);
-        return value;
+        *result = value;
+        break;
     case 0x20:
-        return s->int_enable;
+        *result = s->int_enable;
+        break;
     case 0x24:
-        return s->int_status;
+        *result = s->int_status;
+        break;
     case 0x28:
-        return s->flow_config;
+        *result = s->flow_config;
+        break;
     case 0x2c:
-        return s->wake_config;
+        *result = s->wake_config;
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "bk7258-uart: read offset 0x%" HWADDR_PRIx
                       " is not implemented\n", offset);
-        return 0;
+        return MEMTX_ERROR;
     }
+    return MEMTX_OK;
 }
 
-static void bk7258_uart_write(void *opaque, hwaddr offset,
-                              uint64_t value, unsigned size)
+static MemTxResult bk7258_uart_write(void *opaque, hwaddr offset,
+                                    uint64_t value, unsigned size,
+                                    MemTxAttrs attrs)
 {
     BK7258UARTState *s = opaque;
     uint8_t ch = value;
@@ -239,14 +253,15 @@ static void bk7258_uart_write(void *opaque, hwaddr offset,
     default:
         qemu_log_mask(LOG_UNIMP, "bk7258-uart: write offset 0x%" HWADDR_PRIx
                       " is not implemented\n", offset);
-        return;
+        return MEMTX_ERROR;
     }
     bk7258_uart_update(s);
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps bk7258_uart_ops = {
-    .read = bk7258_uart_read,
-    .write = bk7258_uart_write,
+    .read_with_attrs = bk7258_uart_read,
+    .write_with_attrs = bk7258_uart_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,

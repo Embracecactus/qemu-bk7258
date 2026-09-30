@@ -254,6 +254,66 @@ static void test_uart_rx_clock_pause(const void *board)
     qtest_quit(qts);
 }
 
+static void uart_wait_count(QTestState *qts, unsigned count)
+{
+    int64_t deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+
+    while (((qtest_readl(qts, 0x44820018) >> 8) & 0xff) != count) {
+        g_assert_cmpint(g_get_monotonic_time(), <, deadline);
+        g_usleep(1000);
+    }
+}
+
+static void test_uart_rx_capacity(const void *board)
+{
+    int fd;
+    uint8_t data[129];
+    g_autofree char *args = g_strdup_printf("-machine %s", (const char *)board);
+    QTestState *qts = qtest_init_with_serial(args, &fd);
+
+    for (unsigned i = 0; i < sizeof(data); i++) {
+        data[i] = i;
+    }
+    uart_rx_setup(qts);
+    qtest_writel(qts, 0x44820020, 0);
+    g_assert_cmpint(qemu_send_full(fd, data, 127), ==, 127);
+    uart_wait_count(qts, 127);
+    expect(qts, 0x44820024, 0); /* Threshold is 128, not almost full. */
+    g_assert_cmpint(qemu_send_full(fd, data + 127, 2), ==, 2);
+    uart_wait_count(qts, 128);
+    g_assert_cmphex(qtest_readl(qts, 0x44820018) & (1U << 18), ==, 1U << 18);
+    expect(qts, 0x44820024, 2);
+    expect(qts, SYS + 0xa0, 0); /* Status latches while delivery is masked. */
+    qtest_writel(qts, 0x44820020, 2);
+    expect(qts, SYS + 0xa0, 16);
+    qtest_writel(qts, 0x44820024, 2);
+    expect(qts, SYS + 0xa0, 16); /* Still at threshold: immediately reassert. */
+    expect(qts, 0x4482001c, 0);
+    uart_wait_count(qts, 128); /* The 129th byte was held outside the FIFO. */
+    qtest_writel(qts, SYS + 0x30, 0);
+    for (unsigned i = 1; i < sizeof(data); i++) {
+        /* Ring wrap via the NS alias, with no duplicate or lost byte. */
+        expect(qts, 0x5482001c, data[i] << 8);
+    }
+    expect(qts, 0x44820018, (1U << 17) | (1U << 19));
+    expect(qts, 0x44820024, 2); /* Draining does not ACK latched status. */
+    qtest_writel(qts, 0x44820024, 2);
+    expect(qts, SYS + 0xa0, 0);
+    qtest_writel(qts, SYS + 0x30, 1U << 2);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, 0x44820024, 0); /* Empty FIFO cancels the idle deadline. */
+    g_assert_cmpint(qemu_send_full(fd, data, 10), ==, 10);
+    uart_wait_count(qts, 10);
+    qtest_clock_step(qts, 160000);
+    qtest_writel(qts, 0x44820008, 0);
+    qtest_clock_step(qts, 1000000);
+    qtest_writel(qts, 0x44820008, 1);
+    expect(qts, 0x44820024, 0);
+    expect(qts, 0x44820018, (1U << 17) | (1U << 19) | (1U << 20));
+    close(fd);
+    qtest_quit(qts);
+}
+
 static void test_watchdog_sources(const void *board)
 {
     QTestState *qts = start(board);
@@ -1234,6 +1294,7 @@ int main(int argc, char **argv)
         {"memory-uart-reset", test_memory_uart},
         {"uart-clocks-gates-divider", test_uart_clocks},
         {"uart-rx-clock-pause-reset", test_uart_rx_clock_pause},
+        {"uart-rx-capacity-wrap-backpressure", test_uart_rx_capacity},
         {"watchdog-keys-expiry", test_watchdog},
         {"watchdog-sources-pause-recovery", test_watchdog_sources},
         {"timer-groups-channels-routes-w1c", test_timg_channels},

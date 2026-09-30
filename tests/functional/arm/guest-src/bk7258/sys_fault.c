@@ -1,5 +1,5 @@
 /*
- * BK7258 unsupported SYS-access fault probe.
+ * BK7258 unsupported MMIO-access fault probe.
  * SPDX-License-Identifier: Apache-2.0
  * Adapted from the adjacent diagnostic.c's bare-metal UART/semihosting setup.
  * AI-assisted downstream experiment, not an upstream contribution.
@@ -9,10 +9,15 @@
 /* Real guest MMIO accesses, never host device-model state. */
 #define REG(a) (*(volatile uint32_t *)(uintptr_t)(a))
 #define UART 0x44820000u
+#ifndef PROBE_ADDRESS
 #if WRITE_PROBE
 #define PROBE_ADDRESS 0x540100a0u
 #else
 #define PROBE_ADDRESS 0x44010000u
+#endif
+#endif
+#ifndef PROBE_NAME
+#define PROBE_NAME "SYS"
 #endif
 
 static void start(void);
@@ -26,8 +31,8 @@ __attribute__((section(".vectors.cp"), used)) const uintptr_t cp_vectors[16] = {
 
 static __attribute__((noreturn)) void finish(uint32_t status)
 {
-    const char *text = status ? "BK7258 SYS ACCESS FAULT FAILED\n" :
-                               "BK7258 SYS ACCESS FAULT OK\n";
+    const char *text = status ? "BK7258 " PROBE_NAME " ACCESS FAULT FAILED\n" :
+                               "BK7258 " PROBE_NAME " ACCESS FAULT OK\n";
     uint32_t args[2] = {0x20026, status};
     register uint32_t r0 __asm__("r0") = 0x20;
     register uint32_t *r1 __asm__("r1") = args;
@@ -62,7 +67,7 @@ static void start(void)
     REG(UART + 8) = 1;
     REG(UART + 0x10) = 0xe11b;
 #if WRITE_PROBE
-    /* SYS IRQ status is not a writable register; use the NS address alias. */
+    /* Status is not writable; select the nonsecure alias in write probes. */
     REG(PROBE_ADDRESS) = 0x12345678;
 #else
     /* Device identity is absent from this model, not a fabricated zero ID. */

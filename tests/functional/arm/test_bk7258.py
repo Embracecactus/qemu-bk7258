@@ -158,6 +158,82 @@ class BK7258Machine(QemuSystemTest):
             f"bk7258-sys: {operation} is not implemented\n",
         )
 
+    def run_uart_fault(self, board, index, write):
+        base = (0x44820000, 0x45830000, 0x45840000)[index]
+        elf = self.build_fixture(
+            board,
+            "sys_fault.c",
+            WRITE_PROBE=int(write),
+            PROBE_ADDRESS=hex(base + (0x10000018 if write else 0)),
+            PROBE_NAME='"UART"',
+        )
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(
+            self,
+            "BK7258 UART ACCESS FAULT OK",
+            "BK7258 UART ACCESS FAULT FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        operation = "write offset 0x18" if write else "read offset 0x0"
+        self.assertEqual(
+            mmio.read_text(), f"bk7258-uart: {operation} is not implemented\n"
+        )
+
+    def test_t5_board_uart0_invalid_read(self):
+        self.run_uart_fault("t5_board", 0, False)
+
+    def test_t5_board_uart0_invalid_write(self):
+        self.run_uart_fault("t5_board", 0, True)
+
+    def test_t5_board_uart1_invalid_read(self):
+        self.run_uart_fault("t5_board", 1, False)
+
+    def test_t5_board_uart1_invalid_write(self):
+        self.run_uart_fault("t5_board", 1, True)
+
+    def test_t5_board_uart2_invalid_read(self):
+        self.run_uart_fault("t5_board", 2, False)
+
+    def test_t5_board_uart2_invalid_write(self):
+        self.run_uart_fault("t5_board", 2, True)
+
+    def test_t5ai_core_uart0_invalid_read(self):
+        self.run_uart_fault("t5ai_core", 0, False)
+
+    def test_t5ai_core_uart0_invalid_write(self):
+        self.run_uart_fault("t5ai_core", 0, True)
+
+    def test_t5ai_core_uart1_invalid_read(self):
+        self.run_uart_fault("t5ai_core", 1, False)
+
+    def test_t5ai_core_uart1_invalid_write(self):
+        self.run_uart_fault("t5ai_core", 1, True)
+
+    def test_t5ai_core_uart2_invalid_read(self):
+        self.run_uart_fault("t5ai_core", 2, False)
+
+    def test_t5ai_core_uart2_invalid_write(self):
+        self.run_uart_fault("t5ai_core", 2, True)
+
+    def test_aidk_ai_toy_uart0_invalid_read(self):
+        self.run_uart_fault("aidk_ai_toy", 0, False)
+
+    def test_aidk_ai_toy_uart0_invalid_write(self):
+        self.run_uart_fault("aidk_ai_toy", 0, True)
+
+    def test_aidk_ai_toy_uart1_invalid_read(self):
+        self.run_uart_fault("aidk_ai_toy", 1, False)
+
+    def test_aidk_ai_toy_uart1_invalid_write(self):
+        self.run_uart_fault("aidk_ai_toy", 1, True)
+
+    def test_aidk_ai_toy_uart2_invalid_read(self):
+        self.run_uart_fault("aidk_ai_toy", 2, False)
+
+    def test_aidk_ai_toy_uart2_invalid_write(self):
+        self.run_uart_fault("aidk_ai_toy", 2, True)
+
     def run_timer(self, board, missing_route=False, fault=False):
         elf = self.build_fixture(
             board,
