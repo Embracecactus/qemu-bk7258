@@ -158,6 +158,56 @@ class BK7258Machine(QemuSystemTest):
             f"bk7258-sys: {operation} is not implemented\n",
         )
 
+    def run_timer(self, board, missing_route=False, fault=False):
+        elf = self.build_fixture(
+            board,
+            "timer.c",
+            MISSING_ROUTE=int(missing_route),
+            FAULT_PROBE=int(fault),
+        )
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(
+            self,
+            (
+                "BK7258 TIMER PROBE FAILED"
+                if missing_route
+                else "BK7258 TIMER GROUP PROBE OK"
+            ),
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), int(missing_route))
+        self.assertEqual(
+            mmio.read_text(),
+            "bk7258-timer: unsupported write 0xd at 0x20\n" if fault else "",
+        )
+
+    def test_t5_board_timer(self):
+        self.run_timer("t5_board")
+
+    def test_t5_board_timer_missing_route(self):
+        self.run_timer("t5_board", missing_route=True)
+
+    def test_t5_board_timer_invalid_channel(self):
+        self.run_timer("t5_board", fault=True)
+
+    def test_t5ai_core_timer(self):
+        self.run_timer("t5ai_core")
+
+    def test_t5ai_core_timer_missing_route(self):
+        self.run_timer("t5ai_core", missing_route=True)
+
+    def test_t5ai_core_timer_invalid_channel(self):
+        self.run_timer("t5ai_core", fault=True)
+
+    def test_aidk_ai_toy_timer(self):
+        self.run_timer("aidk_ai_toy")
+
+    def test_aidk_ai_toy_timer_missing_route(self):
+        self.run_timer("aidk_ai_toy", missing_route=True)
+
+    def test_aidk_ai_toy_timer_invalid_channel(self):
+        self.run_timer("aidk_ai_toy", fault=True)
+
     def run_rtc(self, board, missing_route):
         elf = self.build_fixture(
             board, "rtc.c", MISSING_ROUTE=int(missing_route)

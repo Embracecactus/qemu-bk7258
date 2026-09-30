@@ -47,6 +47,19 @@ static void bk7258_update_uart_clocks(BK7258State *s)
     }
 }
 
+static void bk7258_update_timer_clocks(BK7258State *s)
+{
+    static const unsigned gate[] = { 4, 13 };
+
+    for (unsigned i = 0; i < 2; i++) {
+        Clock *source = s->clock_mode & (1U << (20 + i)) ?
+                        s->xtalclk : s->lpoclk;
+
+        clock_update(s->timerclk[i], s->peripheral_clocks & (1U << gate[i]) ?
+                     clock_get(source) : 0);
+    }
+}
+
 static void bk7258_update_wdt_clock(BK7258State *s)
 {
     unsigned divider = 1U << (((s->clock_select >> 2) & 3) + 1);
@@ -72,6 +85,7 @@ static void bk7258_lpo_changed(void *opaque, ClockEvent event)
 
     bk7258_update_tick_clocks(s);
     bk7258_update_wdt_clock(s);
+    bk7258_update_timer_clocks(s);
 }
 
 static void bk7258_analog_complete(void *opaque)
@@ -86,6 +100,7 @@ static void bk7258_analog_complete(void *opaque)
     s->analog_busy = 0;
     clock_update_hz(s->roscclk, s->analog[5] & (1U << 14) ? 0 : 32000);
     bk7258_update_wdt_clock(s);
+    bk7258_update_timer_clocks(s);
 }
 
 static void bk7258_update_irqs(BK7258State *s)
@@ -238,6 +253,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
                           "bk7258-sys: UART APLL source is not implemented\n");
         }
         bk7258_update_uart_clocks(s);
+        bk7258_update_timer_clocks(s);
         break;
     case 0x40:
         s->power_sleep = value;
@@ -269,6 +285,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         s->peripheral_clocks = value;
         bk7258_update_wdt_clock(s);
         bk7258_update_uart_clocks(s);
+        bk7258_update_timer_clocks(s);
         break;
     case 0x80 ... 0x94:
         index = (offset - 0x80) / 4;
@@ -458,6 +475,22 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     bk7258_alias(&s->aon_ns[1], obj, "bk7258.gpio-ns", &s->aon.gpio,
                  memory, 0x54000400, 0x200);
 
+    for (i = 0; i < 2; i++) {
+        static const uint32_t base[] = { 0x44810000, 0x45800000 };
+        static const unsigned irq[] = { 3, 13 };
+        DeviceState *timer = DEVICE(&s->timer[i]);
+        SysBusDevice *bus = SYS_BUS_DEVICE(timer);
+
+        qdev_connect_clock_in(timer, "pclk", s->timerclk[i]);
+        if (!sysbus_realize(bus, errp)) {
+            return;
+        }
+        sysbus_mmio_map(bus, 0, base[i]);
+        sysbus_connect_irq(bus, 0, qdev_get_gpio_in(dev, irq[i]));
+        bk7258_alias(&s->timer_ns[i], obj, "bk7258.timer-ns",
+                     &s->timer[i].iomem, memory, base[i] + NS_OFFSET, 0x100);
+    }
+
     qdev_connect_clock_in(DEVICE(&s->rtc), "lpo", s->aon.lpo);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), errp)) {
         return;
@@ -510,6 +543,7 @@ static void bk7258_reset(DeviceState *dev)
     bk7258_update_tick_clocks(s);
     bk7258_update_wdt_clock(s);
     bk7258_update_uart_clocks(s);
+    bk7258_update_timer_clocks(s);
     bk7258_update_irqs(s);
 }
 
@@ -523,6 +557,11 @@ static void bk7258_init(Object *obj)
         object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_BK7258_UART);
     }
     for (i = 0; i < 2; i++) {
+        g_autofree char *name = g_strdup_printf("timerclk%u", i);
+
+        object_initialize_child(obj, "timer[*]", &s->timer[i],
+                                TYPE_BK7258_TIMER);
+        s->timerclk[i] = clock_new(obj, name);
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);

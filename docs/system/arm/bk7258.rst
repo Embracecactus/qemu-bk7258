@@ -65,11 +65,11 @@ OpenVela source or profile changes are required for that gate.
      - Gated/divided XTAL inputs, TX, bounded RX, timed idle pause/recovery,
        threshold/idle IRQ, masks/W1C and chip IRQ routing
      - APLL generation, DMA, TX/FIFO timing, framing errors and flow control
-  * - AON PMU/GPIO
+   * - AON PMU/GPIO
      - Keyed retention, digital pad configuration, edge/level IRQ and
        external drive/release; LPO mux, source loss and per-core tick gates
      - R7A reset-cause lifecycle, analog rails, brownouts and pin contention
-  * - Watchdogs
+   * - Watchdogs
      - ROSC-derived AON reset; LPO-derived APB divider/gate and CPU0 NMI;
        keys, source-loss pause and recovery of the remaining count
      - Oscillator tolerance, sub-tick phase and reset-domain conformance
@@ -90,9 +90,14 @@ OpenVela source or profile changes are required for that gate.
        mask/W1C, IRQ54 and cold reset; explicit edge policies below
      - Measured compare/synchronizer edge timing, digital-only reset and
        deep-sleep retention/wakeup domains
-   * - General timers/PWM
+   * - General timers
+     - Two three-channel 32-bit groups, divide-by-1..16, clock mux/gates,
+       snapshot, periodic status/W1C, IRQ3/13 and explicit wrap/reset policies
+     - Measured CDC/disable/reset edges, CLK32 mux topology, power retention
+       and identification/status registers
+   * - PWM
      - Register sources identified; not yet modeled
-     - Counter/compare/clock-domain/reset behavior and IRQ/output delivery
+     - Counter/compare/clock-domain/reset behavior and pin-output delivery
    * - Other chip interfaces
      - Not modeled
      - DMA, I2C/SPI/QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
@@ -313,11 +318,70 @@ The LPO mux resets to encoding 0 as part of the existing diagnostic R41 reset
 contract, not a measured cold/warm silicon reset value. DIVD and ROSC both use
 the SDK's nominal 32,000-Hz timebase; the physical divider ratio, jitter,
 switching latency, oscillator startup and sleep-entry ``halt_lpo`` sequencing
-are not modeled. LPO currently feeds SysTick references, RTC and the APB watchdog;
-other fan-out remains unimplemented. Native qtests
+are not modeled. LPO currently feeds SysTick references, RTC, the APB watchdog and the
+modeled timer CLK32 path; other fan-out remains unimplemented. Native qtests
 read QEMU's existing read-only clock-period property to verify source loss,
 recovery, all three independent gates and reset cancellation. External-source
 presence/frequency is a board input, not a firmware-specific success setting.
+
+General timer functional boundaries
+-----------------------------------
+
+Two independent ``bk7258-timer`` devices each contain three 32-bit up counters
+and one 4-bit common prescaler (divide by 1..16). Group0 is at 0x44810000,
+group1 at 0x45800000, with +0x10000000 aliases and shared group IRQ3/13.
+SYS+0x30 bits 4/13 gate them independently. SYS+0x20 bits 20/21 select
+CLK32 (0) or XTAL (1). CLK32 is connected to the selected AON LPO as an
+explicit topology assumption: the SDK establishes the selector names but
+not the complete internal clock netlist. XTAL is the existing 26-MHz source.
+
+The SDK names CTRL bits 7..9 ``timer*_int_en``, but its active status getter
+and write-one-clear loop use them as interrupt status. Accordingly, this
+model makes them latched W1C, ORed into the group IRQ; it does not fabricate
+an additional local interrupt mask. The existing per-core SYS and NVIC masks
+control delivery. CTRL bits 0..2 enable channels and bits 3..6 select the
+prescaler. Words +0x10/+0x14/+0x18 are channel end values, not live counts.
+READ_CTRL +0x20 has channel bits 2..3 and request bit0; the completed result
+is at +0x24. Hardware IDs/version/device-status remain unimplemented and
+return transaction errors rather than invented fixed values.
+
+The following are bounded, testable functional policies, not measured silicon
+edge conformance:
+
+* On reaching a nonzero end value the counter returns to zero and latches
+  status. End zero denotes a complete 2^32-edge cycle. Lowering a live end
+  below the current count waits through natural 32-bit wrap; it does not
+  clamp or synthesize completion. This preserves the failure mode described
+  by the driver's stop-before-changing-period workaround, without imitating
+  its physical asynchronous-disable delay.
+* Disabling a channel clears its count, but not latched status. A status-only
+  acknowledgment with unchanged enables/divider preserves counter phase.
+  The common prescaler continues while the group clock is live; changing
+  its divisor clears its partial prescaler count.
+* Snapshot completes on the next live input-clock edge, after any coincident
+  counter increment. It can read disabled channels. A stopped source leaves
+  the request pending. Rewriting a busy request or selecting channel 3
+  returns an error and preserves the pending operation; writing zero to the
+  result clears only the read latch. The source proves a hardware-cleared
+  request but does not specify the one-edge latency chosen here.
+* GLOBAL +0x08 bit0 is treated as reset release. Writing it clear cancels
+  pending work and clears counters/configuration/status; bit1 retains the
+  clock-bypass setting but cannot generate an absent source. Reset assertion
+  is synchronous in this model. Register accesses and latched IRQ status
+  remain available while the functional source is gated.
+* Clock interruption retains whole input clocks, prescaler progress and
+  counters. Fractional source-clock phase is discarded on source changes.
+  Elapsed periods coalesce while status is already pending; this prevents
+  host callback storms without dropping the counter's modulo progress.
+* QEMU system reset clears both groups. Separate AON/digital power-domain
+  retention, deep-sleep wake routing and vendor identity are not established.
+
+Native qtests cover both groups/all channels, all 16 divisors at deadline
+boundaries, W1C and three-core routes, live end changes, 32-bit wrap, absent
+sources, stalled/busy/invalid snapshots and reset cancellation. Bare-metal
+functional probes exercise actual IRQ3/13 exception entry and a missing-route
+negative, plus a genuine BusFault on invalid channel selection. No OS or
+production firmware source is changed for these tests.
 
 RTC functional boundaries
 -------------------------
@@ -401,6 +465,8 @@ AON RTC            0x44000200                     0x54000200
 GPIO               0x44000400                     0x54000400
 AON watchdog       0x44000600                     0x54000600
 APB/NMI watchdog   0x44800000                     0x54800000
+Timer group0       0x44810000                     0x54810000
+Timer group1       0x45800000                     0x55800000
 MBOX0 v2           0x41000000                     0x51000000
 SYS                0x44010000                     0x54010000
 CKMN               0x448a0000                     0x548a0000
@@ -411,7 +477,7 @@ UART2              0x45840000                     0x55840000
 =================  ============================  ====================
 
 Aliases alone do not implement the BK7258 TrustZone attribution/security
-controller. ROM, PSRAM, general-purpose timers, legacy MBOX1, DMA, physical caches,
+controller. ROM, PSRAM, PWM, legacy MBOX1, DMA, physical caches,
 flash remap/encryption, MCUboot/OTA and other physical-board devices are absent.
 Wi-Fi/BT, camera, audio, codec, power and performance behavior are not modeled.
 
@@ -645,6 +711,13 @@ IRQ54 delivery on every board. Deliberately withholding the SYS interrupt
 route must fail within the CPU-clock deadline; it must not receive a synthetic
 success. These are chip-level probes, not an OS profile or application.
 
+Nine timer-group cases build ``timer.c``. Each board must deliver real
+IRQ3 and IRQ13 from independently selected CLK32 and divided XTAL sources,
+pause a snapshot across clock gating, and cancel it on reset. Withholding the
+group1 SYS route must fail within the independent CPU-clock deadline. An
+invalid channel request must enter the genuine HardFault handler with
+precise BusFault status and matching BFAR, rather than returning success.
+
 Register provenance
 -------------------
 
@@ -656,7 +729,8 @@ and Beken-authored `DS-BK7258-E13 V2.2
 <https://atta.szlcsc.com/upload/public/pdf/source/20251127/3E2C5A125F7501CF8881A2782356EC17.pdf>`_
 (2025-08-04, distributor-hosted copy) corroborate the LPO source tree in
 section 4.3 and the distinct watchdog/RTC clocks in sections 4.31/4.32.
-Section 4.9 specifies 128-byte UART TX/RX FIFOs.
+Section 4.9 specifies 128-byte UART TX/RX FIFOs; section 4.30 establishes
+two groups of three 32-bit up counters and the divide-by-1..16 prescaler.
 Section 4.4 distinguishes whole-chip and digital-domain resets. The existing
 single QEMU system-reset contract does not yet implement those reset domains;
 retention across every reset cause must not be inferred from it.
@@ -691,6 +765,13 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   ``cp/middleware/soc/bk7258/hal/aon_pmu_hal.c``: modern LPO source enum and
   direct R41 selection; ANA5 ROSC power control. The unrelated legacy
   ``sys_ctrl.h`` source enum has a different ordering and is not used here.
+* ``cp/include/soc/bk7258/timer_cap.h``,
+  ``cp/middleware/soc/bk7258/soc/timer_struct.h``, matching timer LL,
+  ``cp/middleware/soc/common/hal/timer_hal.c`` and
+  ``cp/middleware/driver/timer/timer_driver.c``: groups, register layout,
+  snapshot handshake, W1C usage and live-period-change hazard. BK7258 SYS
+  structure/HAL supplies gate/source bits and IRQ3/13. Ambiguous clock-net,
+  snapshot and reset details remain named functional policies above.
 * ``cp/middleware/soc/bk7258/soc/aon_rtc_struct.h``, matching RTC LL,
   ``cp/middleware/soc/common/hal/aon_rtc_hal_64bit.c`` and
   ``cp/middleware/driver/rtc/aon_rtc_driver_64bit.c``: 64-bit register layout,

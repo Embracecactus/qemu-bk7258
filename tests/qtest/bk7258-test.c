@@ -324,6 +324,200 @@ static void test_watchdog(const void *board)
     qtest_quit(qts);
 }
 
+static const uint32_t timg_base[] = { 0x44810000, 0x45800000 };
+static const unsigned timg_gate[] = { 4, 13 };
+static const unsigned timg_irq[] = { 3, 13 };
+
+static void timg_reset(QTestState *qts, unsigned group)
+{
+    qtest_writel(qts, timg_base[group] + 8, 0);
+    qtest_writel(qts, timg_base[group] + 8, 1);
+    qtest_writel(qts, SYS + 0x30, 1U << timg_gate[group]);
+    qtest_writel(qts, SYS + 0x20, 0); /* CLK32 selection. */
+}
+
+static void test_timg_channels(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = timg_base[g], irq = 1U << timg_irq[g];
+
+        timg_reset(qts, g);
+        for (unsigned i = 0; i < 3; i++) {
+            qtest_writel(qts, base + 0x10 + 4 * i, 3 + 2 * i);
+            qtest_writel(qts, SYS + 0x80 + 8 * i, irq);
+        }
+        qtest_writel(qts, base + 0x1c, 7);
+        qtest_clock_step(qts, 3 * 31250);
+        expect(qts, base + 0x1c, 0x87);
+        for (unsigned i = 0; i < 3; i++) {
+            expect(qts, SYS + 0xa0 + 8 * i, irq);
+        }
+        qtest_writel(qts, SYS + 0x88, 0);
+        expect(qts, SYS + 0xa8, 0);
+        qtest_clock_step(qts, 2 * 31250);
+        expect(qts, base + 0x1c, 0x187);
+        qtest_writel(qts, base + 0x1c, 0x87);
+        expect(qts, base + 0x1c, 0x107); /* Other channel remains pending. */
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x1c, 0x187); /* ACK did not restart the count. */
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x1c, 0x387);
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, base + 0x1c, 0x387);
+        qtest_writel(qts, SYS + 0x88, irq);
+        expect(qts, SYS + 0xa8, irq); /* Clock gating does not ACK IRQ. */
+        qtest_writel(qts, base + 0x1c, 0x387);
+        expect(qts, base + 0x1c, 7);
+        expect(qts, SYS + 0xa8, 0);
+        qtest_writel(qts, base + 8, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_timg_clock_snapshot(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = timg_base[g];
+        g_autofree char *path = g_strdup_printf("/machine/soc/timer[%u]/pclk",
+                                                g);
+
+        timg_reset(qts, g);
+        expect_clock(qts, path, 32000);
+        qtest_writel(qts, base + 0x10, 1000);
+        qtest_writel(qts, base + 0x1c, 1);
+        qtest_clock_step(qts, 8 * 31250);
+        qtest_writel(qts, base + 0x20, 1);
+        expect(qts, base + 0x20, 1);
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x20, 0);
+        expect(qts, base + 0x24, 9);
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_writel(qts, base + 0x20, 1);
+        qtest_writel(qts, base + 0x20, 9); /* Busy rewrite is rejected. */
+        qtest_clock_step(qts, 1000000);
+        expect_clock(qts, path, 0);
+        expect(qts, base + 0x20, 1);
+        expect(qts, base + 0x24, 9);
+        qtest_writel(qts, SYS + 0x30, 1U << timg_gate[g]);
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x24, 10);
+        qtest_writel(qts, base + 0x20, 13); /* No channel three exists. */
+        expect(qts, base + 0x20, 0);
+        qtest_writel(qts, 0x44000104, 1); /* External source unconnected. */
+        qtest_writel(qts, base + 0x20, 1);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, base + 0x20, 1);
+        expect(qts, base + 0x24, 10);
+        qtest_writel(qts, SYS + 0x20, 1U << (20 + g));
+        expect_clock(qts, path, 26000000);
+        qtest_clock_step(qts, 39);
+        expect(qts, base + 0x20, 0);
+        expect(qts, base + 0x24, 11);
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_writel(qts, base + 0x20, 1);
+        qtest_writel(qts, base + 8, 0); /* Pending snapshot canceled. */
+        qtest_writel(qts, SYS + 0x30, 1U << timg_gate[g]);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, base + 0x20, 0);
+        expect(qts, base + 0x24, 0);
+        expect(qts, base + 0x1c, 0);
+        qtest_writel(qts, base + 0x10000008, 1); /* NS alias. */
+        expect(qts, base + 8, 1);
+        qtest_writel(qts, 0x44000104, 0);
+    }
+    qtest_system_reset(qts);
+    for (unsigned g = 0; g < 2; g++) {
+        expect(qts, timg_base[g] + 8, 0);
+        expect(qts, timg_base[g] + 0x24, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_timg_prescaler(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = timg_base[g];
+
+        for (unsigned divisor = 1; divisor <= 16; divisor++) {
+            unsigned control = 1 | ((divisor - 1) << 3);
+            uint64_t period = 2 * divisor * 31250;
+
+            timg_reset(qts, g);
+            qtest_writel(qts, base + 0x10, 2);
+            qtest_writel(qts, base + 0x1c, control);
+            qtest_clock_step(qts, period - 1);
+            expect(qts, base + 0x1c, control);
+            qtest_clock_step(qts, 1);
+            expect(qts, base + 0x1c, control | 0x80);
+            qtest_writel(qts, base + 0x1c, control | 0x80);
+            qtest_clock_step(qts, period - 1);
+            expect(qts, base + 0x1c, control);
+            qtest_clock_step(qts, 1);
+            expect(qts, base + 0x1c, control | 0x80);
+        }
+        timg_reset(qts, g);
+        qtest_writel(qts, base + 0x10, 3);
+        qtest_writel(qts, base + 0x1c, 1 | (3U << 3));
+        qtest_clock_step(qts, 6 * 31250); /* One tick plus two input edges. */
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_clock_step(qts, 1000000);
+        qtest_writel(qts, SYS + 0x30, 1U << timg_gate[g]);
+        qtest_clock_step(qts, 5 * 31250);
+        expect(qts, base + 0x1c, 1 | (3U << 3));
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x1c, 0x81 | (3U << 3));
+        qtest_writel(qts, base + 8, 0);
+    }
+    qtest_quit(qts);
+}
+
+static void test_timg_wrap(const void *board)
+{
+    QTestState *qts = start(board);
+    const uint64_t wrap = UINT64_C(1) << 32;
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t base = timg_base[g];
+
+        timg_reset(qts, g);
+        qtest_writel(qts, base + 0x1c, 1); /* End zero: natural 32-bit wrap. */
+        qtest_clock_step(qts, (wrap - 1) * 31250);
+        expect(qts, base + 0x1c, 1);
+        qtest_writel(qts, base + 0x20, 1);
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x24, 0);
+        expect(qts, base + 0x1c, 0x81);
+        timg_reset(qts, g);
+        qtest_writel(qts, base + 0x10, 100);
+        qtest_writel(qts, base + 0x1c, 1);
+        qtest_clock_step(qts, 10 * 31250);
+        qtest_writel(qts, base + 0x10, 5); /* Below current count, no clamp. */
+        qtest_clock_step(qts, (wrap - 10 + 4) * 31250);
+        expect(qts, base + 0x1c, 1);
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x1c, 0x81);
+        /* Millions of elapsed short periods coalesce under a latched IRQ. */
+        qtest_clock_step(qts, 100000000 * 31250LL);
+        qtest_writel(qts, base + 0x20, 1);
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x24, 1);
+        qtest_writel(qts, base + 0x1c, 0x80); /* Disable clears counter. */
+        qtest_writel(qts, base + 0x20, 1);
+        qtest_clock_step(qts, 31250);
+        expect(qts, base + 0x24, 0);
+        expect(qts, base + 0x1c, 0);
+        qtest_writel(qts, base + 8, 0);
+    }
+    qtest_quit(qts);
+}
+
 static void rtc_configure(QTestState *qts, uint64_t upper, uint64_t tick)
 {
     /* Enabled synchronizer, counter held reset. */
@@ -1042,6 +1236,10 @@ int main(int argc, char **argv)
         {"uart-rx-clock-pause-reset", test_uart_rx_clock_pause},
         {"watchdog-keys-expiry", test_watchdog},
         {"watchdog-sources-pause-recovery", test_watchdog_sources},
+        {"timer-groups-channels-routes-w1c", test_timg_channels},
+        {"timer-clock-snapshot-cancel", test_timg_clock_snapshot},
+        {"timer-prescaler-boundaries", test_timg_prescaler},
+        {"timer-32bit-wrap-lowered-end", test_timg_wrap},
         {"rtc-counter-clock-sync-reset", test_rtc_counter_clock},
         {"rtc-compare-routes-w1c", test_rtc_irq_w1c},
         {"rtc-64bit-upper-wrap", test_rtc_upper64},

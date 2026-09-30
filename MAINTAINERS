@@ -4780,6 +4780,7 @@ F: hw/misc/bk7258_ckmn.c
 F: hw/misc/bk7258_mailbox.c
 F: hw/watchdog/bk7258_wdt.c
 F: hw/timer/bk7258_rtc.c
+F: hw/timer/bk7258_timer.c
 F: include/hw/arm/bk7258.h
 F: include/hw/block/bk7258_flash.h
 F: include/hw/block/bk7258_nor.h
@@ -4789,6 +4790,7 @@ F: include/hw/misc/bk7258_ckmn.h
 F: include/hw/misc/bk7258_mailbox.h
 F: include/hw/watchdog/bk7258_wdt.h
 F: include/hw/timer/bk7258_rtc.h
+F: include/hw/timer/bk7258_timer.h
 F: tests/qtest/bk7258-test.*
 F: tests/functional/arm/test_bk7258.py
 F: tests/functional/arm/guest-src/bk7258/
