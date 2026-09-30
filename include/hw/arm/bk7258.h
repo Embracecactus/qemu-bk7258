@@ -10,6 +10,8 @@
 #include "hw/misc/bk7258_mailbox.h"
 #include "hw/block/bk7258_flash.h"
 
+#define BK7258_FLASH_BASE 0x02000000
+
 #define TYPE_BK7258_SOC "bk7258-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(BK7258State, BK7258_SOC)
 

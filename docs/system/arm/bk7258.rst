@@ -13,6 +13,12 @@ The three machine names identify the project's physical boards. They currently
 instantiate the same shared diagnostic SoC: board-specific peripherals are not
 implemented. Listing all three names does not establish complete board support.
 
+``hw/arm/bk7258.c`` owns the shared SoC, register map, physical cores and
+on-chip devices. ``hw/arm/bk7258_boards.c`` owns the machine registrations
+and explicit diagnostic image/drive loading. The initial separation preserves
+behavior; it does not yet claim distinct board wiring or a hardware reset-ROM
+implementation. Firmware partition/role policy is not part of the SoC.
+
 Implemented slice
 -----------------
 

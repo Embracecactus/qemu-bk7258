@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - 'hw/arm/bk7258.c'
+      - 'hw/arm/bk7258*.c'
       - 'hw/char/bk7258_uart.c'
       - 'hw/block/bk7258_*.c'
       - 'hw/block/meson.build'
