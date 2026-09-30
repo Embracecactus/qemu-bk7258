@@ -150,6 +150,9 @@ static void test_board_wiring(const void *board)
 
     g_assert_false(board_property(qts, "user-led-on"));
     g_assert_false(board_property(qts, "user-key-pressed"));
+    /* Reset disables input sampling, including externally pulled-up pins. */
+    expect(qts, pin, 0x28);
+    qtest_writel(qts, pin, 0x2c);
     /* The AIDK open contact has no external pull-up in its schematic. */
     g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, aidk ? 0 : 1);
     qtest_writel(qts, 0x44000400 + wrong_led * 4, 0x86);
@@ -176,10 +179,13 @@ static void test_board_wiring(const void *board)
     expect(qts, SYS + 0xa4, 0);
     qtest_system_reset(qts);
     g_assert_true(board_property(qts, "user-key-pressed"));
+    expect(qts, pin, 0x28);
+    qtest_writel(qts, pin, 0x3c); /* Re-enable sampling while still held. */
     g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 0);
     g_assert_false(board_property(qts, "user-led-on"));
     expect(qts, SYS + 0xa4, 0);
     set_key(qts, false);
+    qtest_writel(qts, pin, 0x2c);
     g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, aidk ? 0 : 1);
     qtest_writel(qts, pin, 0x3c);
     g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 1);
