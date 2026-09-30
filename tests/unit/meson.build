@@ -2,6 +2,7 @@
 testblock = declare_dependency(dependencies: [block], sources: 'iothread.c')
 
 tests = {
+  'test-bk7258-clock': [],
   'check-block-qdict': [],
   'check-qdict': [],
   'check-qnum': [],

@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/misc/bk7258_clock.h"
 #include "hw/watchdog/bk7258_wdt.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/core/irq.h"
@@ -18,10 +19,14 @@ static void bk7258_wdt_schedule(BK7258WDTState *s)
 {
     timer_del(s->timer);
     if (s->armed && s->hz) {
+        int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         uint64_t delay = DIV_ROUND_UP(
             (uint64_t)s->remaining * NANOSECONDS_PER_SECOND, s->hz);
-        s->deadline = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + delay;
-        timer_mod(s->timer, s->deadline);
+
+        if (delay <= INT64_MAX - now) {
+            s->deadline = now + delay;
+            timer_mod(s->timer, s->deadline);
+        }
     }
 }
 
@@ -45,10 +50,9 @@ static void bk7258_wdt_clock(void *opaque, ClockEvent event)
 
     if (event == ClockPreUpdate) {
         if (s->armed && s->hz && timer_pending(s->timer)) {
-            int64_t delta = MAX(s->deadline -
-                                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 0);
-            s->remaining = DIV_ROUND_UP((uint64_t)delta * s->hz,
-                                       NANOSECONDS_PER_SECOND);
+            s->remaining = bk7258_remaining_cycles(
+                s->remaining, s->hz, s->deadline,
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         }
     } else {
         s->hz = clock_get_hz(s->clk);

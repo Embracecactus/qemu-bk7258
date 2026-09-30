@@ -6,6 +6,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/misc/bk7258_clock.h"
 #include "hw/char/bk7258_uart.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-clock.h"
@@ -88,10 +89,9 @@ static void bk7258_uart_clock(void *opaque, ClockEvent event)
 
     if (event == ClockPreUpdate) {
         if (s->idle_armed && s->hz && timer_pending(s->rx_idle_timer)) {
-            int64_t left = MAX(s->idle_deadline -
-                               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 0);
-            s->idle_cycles = DIV_ROUND_UP((uint64_t)left * s->hz,
-                                          NANOSECONDS_PER_SECOND);
+            s->idle_cycles = bk7258_remaining_cycles(
+                s->idle_cycles, s->hz, s->idle_deadline,
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         }
     } else {
         s->hz = clock_get_hz(s->clk);

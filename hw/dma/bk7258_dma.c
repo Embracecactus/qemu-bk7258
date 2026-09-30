@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/misc/bk7258_clock.h"
 #include "qemu/rcu.h"
 #include "qapi/error.h"
 #include "hw/core/irq.h"
@@ -91,11 +92,9 @@ static void bk7258_dma_clock(void *opaque, ClockEvent event)
 
     if (event == ClockPreUpdate) {
         if (s->phase_valid && s->hz && timer_pending(s->timer)) {
-            int64_t left = MAX(s->deadline -
-                               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 0);
-
-            s->cycles = DIV_ROUND_UP((uint64_t)left * s->hz,
-                                     NANOSECONDS_PER_SECOND);
+            s->cycles = bk7258_remaining_cycles(
+                s->cycles, s->hz, s->deadline,
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         }
         timer_del(s->timer);
     } else {

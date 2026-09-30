@@ -4792,6 +4792,7 @@ F: include/hw/char/bk7258_uart.h
 F: include/hw/i2c/bk7258_i2c.h
 F: include/hw/ssi/bk7258_spi.h
 F: include/hw/dma/bk7258_dma.h
+F: include/hw/misc/bk7258_clock.h
 F: include/hw/misc/bk7258_aon.h
 F: include/hw/misc/bk7258_ckmn.h
 F: include/hw/misc/bk7258_mailbox.h
@@ -4799,6 +4800,7 @@ F: include/hw/watchdog/bk7258_wdt.h
 F: include/hw/timer/bk7258_rtc.h
 F: include/hw/timer/bk7258_timer.h
 F: include/hw/timer/bk7258_pwm.h
+F: tests/unit/test-bk7258-clock.c
 F: tests/qtest/bk7258-test.*
 F: tests/functional/arm/test_bk7258.py
 F: tests/functional/arm/guest-src/bk7258/

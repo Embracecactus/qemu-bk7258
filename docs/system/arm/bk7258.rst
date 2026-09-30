@@ -429,6 +429,32 @@ read QEMU's existing read-only clock-period property to verify source loss,
 recovery, all three independent gates and reset cancellation. External-source
 presence/frequency is a board input, not a firmware-specific success setting.
 
+Pending-operation clock accounting
+----------------------------------
+
+UART RX-idle, SPI words, I2C operations, DMA beats and watchdog countdowns
+recover their remaining whole source cycles from the original arm-time
+budget. They reconstruct the arm anchor using the saved budget/rate and
+rounded nanosecond deadline, then subtract elapsed whole source cycles.
+They do not convert the rounded deadline directly back into cycles: doing
+that would round twice and could add a cycle on every same-time gate toggle.
+Fractional progress is still discarded at a clock-source change under each
+model's documented policy; that does not permit creating whole cycles when
+no virtual time elapsed.
+
+The shared helper handles overdue timers as zero remaining work and covers
+bounded 32-bit cycle budgets without overflowing intermediate arithmetic.
+Watchdog scheduling also checks the representable virtual-time horizon,
+matching the other finite-operation timers; an unrepresentable deadline
+must not wrap around into an immediate reset.
+Its registered unit tests run without a machine or socket. They check known
+26-MHz rounding edges, zero-time rearming, the representable time horizon,
+and 100,000 exact-rational reference inputs. Native hardware qtests separately
+verify UART/SPI/I2C completion at the correct deadline after repeated gate
+toggles and after nonzero elapsed time. DMA's fixed HCLK currently makes its
+pause correction defensive; a mathematical test is not a claim that a
+silicon DMA clock gate or its missing clock-tree wiring was implemented.
+
 PWM counter/compare boundaries
 ------------------------------
 
@@ -1051,7 +1077,8 @@ image. From a clean QEMU checkout::
   ../configure --target-list=arm-softmmu --without-default-features \
     --disable-docs --disable-user --disable-tools --disable-rust \
     --enable-tcg --enable-werror --enable-tests
-  ninja qemu-system-arm tests/qtest/bk7258-test
+  ninja qemu-system-arm tests/qtest/bk7258-test tests/unit/test-bk7258-clock
+  ./pyvenv/bin/meson test --no-rebuild --print-errorlogs test-bk7258-clock
   ./pyvenv/bin/meson test --no-rebuild --print-errorlogs qtest-arm/bk7258-test
 
 The registered libqtest cases include physical NOR with and without a host

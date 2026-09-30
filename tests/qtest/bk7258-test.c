@@ -2274,6 +2274,117 @@ static void test_pwm_mixed_preload_atomic(const void *board)
     qtest_quit(qts);
 }
 
+static void test_watchdog_deadline_horizon(const void *board)
+{
+    QTestState *qts = start(board);
+
+    int64_t now = qtest_clock_step(qts, 0);
+
+    qtest_clock_step(qts, INT64_MAX - now - 1000000);
+    qtest_writel(qts, SYS + 0x80, 0x20);
+    aon_wdt(qts, 2); /* Future expiry is beyond representable virtual time. */
+    qtest_clock_step(qts, 999999);
+    expect(qts, SYS + 0x80, 0x20); /* An overflow must not cause early reset. */
+    expect(qts, 0x44000600, 2);
+    aon_wdt(qts, 0);
+    qtest_quit(qts);
+}
+
+static void test_uart_clock_budget(const void *board)
+{
+    int fd;
+    g_autofree char *args = g_strdup_printf("-machine %s", (const char *)board);
+    QTestState *qts = qtest_init_with_serial(args, &fd);
+
+    uart_rx_setup(qts);
+    qtest_writel(qts, 0x44820010, (225U << 8) | 3);
+    for (unsigned partial = 0; partial < 2; partial++) {
+        unsigned elapsed = partial ? 77 : 0;
+
+        g_assert_cmpint(send(fd, "A", 1, 0), ==, 1);
+        uart_wait_rx(qts);
+        qtest_clock_step(qts, elapsed);
+        for (unsigned n = 0; n < (partial ? 1 : 64); n++) {
+            qtest_writel(qts, SYS + 0x30, 0);
+            qtest_writel(qts, SYS + 0x30, 1U << 2);
+        }
+        /* 7232 cycles at 26 MHz; neither pause case may add a source cycle. */
+        qtest_clock_step(qts, 278154 - elapsed - 1);
+        expect(qts, 0x44820024, 0);
+        qtest_clock_step(qts, 1);
+        expect(qts, 0x44820024, 64);
+        expect(qts, 0x4482001c, 'A' << 8);
+        qtest_writel(qts, 0x44820024, 64);
+    }
+    close(fd);
+    qtest_quit(qts);
+}
+
+static void test_spi_clock_budget(const void *board)
+{
+    QTestState *qts = start_spi(board);
+    const uint8_t status[] = { 0x05, 0 };
+    uint8_t received[2];
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = spi_base[unit];
+
+        spi_setup(qts, unit);
+        /* Divider1, interval0: 16 source cycles per byte, rounded to 616 ns. */
+        qtest_writel(qts, b + 0x10, 0x40c00100);
+        for (unsigned partial = 0; partial < 2; partial++) {
+            unsigned elapsed = partial ? 385 : 0;
+
+            qtest_writel(qts, b + 0x14, 0);
+            qtest_writel(qts, b + 0x18, 0x37f00);
+            qtest_writel(qts, b + 0x1c, partial ? 0x04 : 0x06);
+            qtest_writel(qts, b + 0x14, 0x105);
+            qtest_clock_step(qts, elapsed);
+            for (unsigned n = 0; n < (partial ? 1 : 64); n++) {
+                qtest_writel(qts, SYS + 0x30, 0);
+                qtest_writel(qts, SYS + 0x30, (1U << 1) | (1U << 9));
+            }
+            qtest_clock_step(qts, 616 - elapsed - 1);
+            g_assert_cmphex(qtest_readl(qts, b + 0x18) & 0x2000, ==, 0);
+            qtest_clock_step(qts, 1);
+            g_assert_cmphex(qtest_readl(qts, b + 0x18) & 0x7800, ==, 0x2000);
+            spi_xfer(qts, unit, status, sizeof(status), received);
+            g_assert_cmphex(received[1] & 2, ==, partial ? 0 : 2);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_i2c_clock_budget(const void *board)
+{
+    QTestState *qts = start_i2c(board);
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = i2c_base[unit];
+
+        for (unsigned partial = 0; partial < 2; partial++) {
+            unsigned elapsed = partial ? 39 : 0;
+
+            i2c_setup(qts, unit);
+            qtest_writel(qts, b + 0x10, 0xcc000000 | (21U << 6));
+            qtest_writel(qts, b + 0x18, 0xa0);
+            qtest_writel(qts, b + 0x14, 0x400);
+            qtest_clock_step(qts, elapsed);
+            for (unsigned n = 0; n < (partial ? 1 : 64); n++) {
+                qtest_writel(qts, SYS + 0x30, 0);
+                qtest_writel(qts, SYS + 0x30, (1U << 0) | (1U << 8));
+            }
+            /* 648 source cycles for this address operation at 26 MHz. */
+            qtest_clock_step(qts, 24924 - elapsed - 1);
+            g_assert_cmphex(qtest_readl(qts, b + 0x14) & 1, ==, 0);
+            qtest_clock_step(qts, 1);
+            g_assert_cmphex(qtest_readl(qts, b + 0x14) & 0x101, ==, 0x101);
+            i2c_stop(qts, unit);
+        }
+    }
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     static const char *boards[] = {"t5_board", "t5ai_core", "aidk_ai_toy"};
@@ -2281,6 +2392,10 @@ int main(int argc, char **argv)
         const char *name;
         GTestDataFunc test;
     } tests[] = {
+        {"watchdog-deadline-time-horizon", test_watchdog_deadline_horizon},
+        {"uart-clock-budget-rounding", test_uart_clock_budget},
+        {"spi-clock-budget-rounding", test_spi_clock_budget},
+        {"i2c-clock-budget-rounding", test_i2c_clock_budget},
         {"pwm-mixed-preload-enable-atomic", test_pwm_mixed_preload_atomic},
         {"pwm-counters-compares-routes", test_pwm_counters_compares_routes},
         {"pwm-prescalers-gates", test_pwm_dividers_gates},
