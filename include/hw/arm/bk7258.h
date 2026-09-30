@@ -29,6 +29,8 @@ struct BK7258State {
     uint64_t private_irqs[3];
     Clock *xtalclk;
     Clock *roscclk;
+    Clock *div32kclk;
+    Clock *lpoclk;
     MemoryRegion ckmn_ns;
     MemoryRegion aon_ns[2];
     MemoryRegion wdt_ns[2];

@@ -9,7 +9,22 @@
 #include "qemu/module.h"
 #include "hw/misc/bk7258_aon.h"
 #include "hw/core/irq.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
+
+static void bk7258_lpo_update(BK7258AONState *s)
+{
+    unsigned source = s->wake_config & 3;
+
+    /* R41: DIVD=0, external 32k=1, ROSC=2. No source is defined for 3. */
+    clock_update(s->lpo, source < ARRAY_SIZE(s->lpo_source) ?
+                 clock_get(s->lpo_source[source]) : 0);
+}
+
+static void bk7258_lpo_source_update(void *opaque, ClockEvent event)
+{
+    bk7258_lpo_update(BK7258_AON(opaque));
+}
 
 static bool bk7258_gpio_level(BK7258AONState *s, unsigned pin)
 {
@@ -137,6 +152,10 @@ static MemTxResult bk7258_pmu_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case 0x104:
         s->wake_config = value;
+        if ((value & 3) == 3) {
+            qemu_log_mask(LOG_UNIMP, "bk7258-aon: undefined LPO source 3\n");
+        }
+        bk7258_lpo_update(s);
         break;
     case 0x94:
         if (value == 0xbdb4aa55 && s->commit_key) {
@@ -229,6 +248,7 @@ static void bk7258_aon_reset(DeviceState *dev)
     /* Retained GPIO/boot state survives a warm system reset in this model. */
     s->r0 = s->retained;
     s->r1 = s->r2 = s->sleep_config = s->wake_config = 0;
+    bk7258_lpo_update(s);
     s->commit_key = false;
     s->gpio_locked = !!(s->retained & (1U << 31));
     s->irq_status = 0;
@@ -242,6 +262,13 @@ static void bk7258_aon_init(Object *obj)
 {
     BK7258AONState *s = BK7258_AON(obj);
     SysBusDevice *bus = SYS_BUS_DEVICE(obj);
+    static const char *const source[] = { "div32k", "x32k", "rosc" };
+
+    for (unsigned i = 0; i < ARRAY_SIZE(source); i++) {
+        s->lpo_source[i] = qdev_init_clock_in(DEVICE(obj), source[i],
+                          bk7258_lpo_source_update, s, ClockUpdate);
+    }
+    s->lpo = qdev_init_clock_out(DEVICE(obj), "lpo");
 
     memory_region_init_io(&s->pmu, obj, &bk7258_pmu_ops, s,
                           "bk7258-aon-pmu", 0x200);
@@ -260,10 +287,16 @@ static const Property bk7258_aon_properties[] = {
     DEFINE_PROP_UINT32("chip-id", BK7258AONState, chip_id, 0x24940610),
 };
 
+static void bk7258_aon_realize(DeviceState *dev, Error **errp)
+{
+    bk7258_lpo_update(BK7258_AON(dev));
+}
+
 static void bk7258_aon_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->realize = bk7258_aon_realize;
     device_class_set_legacy_reset(dc, bk7258_aon_reset);
     device_class_set_props(dc, bk7258_aon_properties);
     dc->user_creatable = false;

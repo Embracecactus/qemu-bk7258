@@ -35,9 +35,14 @@ static void bk7258_update_tick_clocks(BK7258State *s)
     static const unsigned bit[] = { 29, 30, 27 };
 
     for (unsigned i = 0; i < 3; i++) {
-        clock_update_hz(s->refclk[i],
-                        s->power_sleep & (1U << bit[i]) ? 32000 : 0);
+        clock_update(s->refclk[i], s->power_sleep & (1U << bit[i]) ?
+                     clock_get(s->lpoclk) : 0);
     }
+}
+
+static void bk7258_lpo_changed(void *opaque, ClockEvent event)
+{
+    bk7258_update_tick_clocks(BK7258_SOC(opaque));
 }
 
 static void bk7258_analog_complete(void *opaque)
@@ -303,6 +308,19 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     s->cpuclk = clock_new(obj, "cpuclk");
     /* Fixed diagnostic clock; PLL/DVFS and clock-gating are not modeled. */
     clock_set_hz(s->cpuclk, 26000000);
+    s->xtalclk = clock_new(obj, "xtalclk");
+    s->roscclk = clock_new(obj, "roscclk");
+    s->div32kclk = clock_new(obj, "div32kclk");
+    clock_set_hz(s->xtalclk, 26000000);
+    clock_set_hz(s->roscclk, 32000);
+    /* SDK nominal timebase; not a model of the physical divider/jitter. */
+    clock_set_hz(s->div32kclk, 32000);
+    qdev_connect_clock_in(DEVICE(&s->aon), "div32k", s->div32kclk);
+    qdev_connect_clock_in(DEVICE(&s->aon), "rosc", s->roscclk);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->aon), errp)) {
+        return;
+    }
+    qdev_connect_clock_in(dev, "lpo", s->aon.lpo);
     for (i = 0; i < 3; i++) {
         DeviceState *cpu = DEVICE(&s->cpu[i]);
         g_autofree char *name = g_strdup_printf("bk7258.cpu%u", i);
@@ -333,7 +351,7 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         qdev_prop_set_bit(cpu, "start-powered-off", i != 0);
         qdev_connect_clock_in(cpu, "cpuclk", s->cpuclk);
         s->refclk[i] = clock_new(obj, name);
-        clock_set_hz(s->refclk[i], 32000);
+        clock_set(s->refclk[i], clock_get(s->lpoclk));
         qdev_connect_clock_in(cpu, "refclk", s->refclk[i]);
         object_property_set_link(OBJECT(cpu), "memory",
                                  OBJECT(&s->cpu_memory[i]), &error_abort);
@@ -379,10 +397,6 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in_named(dev, "mailbox", i));
     }
 
-    s->xtalclk = clock_new(obj, "xtalclk");
-    s->roscclk = clock_new(obj, "roscclk");
-    clock_set_hz(s->xtalclk, 26000000);
-    clock_set_hz(s->roscclk, 32000);
     qdev_connect_clock_in(DEVICE(&s->ckmn), "reference", s->xtalclk);
     qdev_connect_clock_in(DEVICE(&s->ckmn), "measured", s->roscclk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ckmn), errp)) {
@@ -393,9 +407,6 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     bk7258_alias(&s->ckmn_ns, obj, "bk7258.ckmn-ns", &s->ckmn.iomem,
                  memory, 0x548a0000, 0x1000);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->aon), errp)) {
-        return;
-    }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->aon), 0, 0x44000000);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->aon), 1, 0x44000400);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->aon), 0, qdev_get_gpio_in(dev, 55));
@@ -459,6 +470,9 @@ static void bk7258_init(Object *obj)
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);
+    s->lpoclk = qdev_init_clock_in(DEVICE(obj), "lpo", bk7258_lpo_changed,
+                                  s, ClockUpdate);
+    qdev_alias_clock(DEVICE(&s->aon), "x32k", DEVICE(obj), "lpo-external");
     object_initialize_child(obj, "ckmn", &s->ckmn, TYPE_BK7258_CKMN);
     object_initialize_child(obj, "mailbox", &s->mailbox, TYPE_BK7258_MAILBOX);
     object_initialize_child(obj, "flashctrl", &s->flashctrl, TYPE_BK7258_FLASH);

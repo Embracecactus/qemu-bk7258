@@ -32,6 +32,79 @@ static void aon_wdt(QTestState *qts, unsigned count)
     qtest_writel(qts, 0x44000600, 0xa50000 | count);
 }
 
+static void expect_clock(QTestState *qts, const char *path, unsigned hz)
+{
+    QDict *response = qtest_qmp(qts, "{'execute':'qom-get', 'arguments':"
+                               "{'path':%s, 'property':'qtest-clock-period'}}",
+                               path);
+    uint64_t period = hz ? (UINT64_C(1000000000) << 32) / hz : 0;
+
+    g_assert_true(qdict_haskey(response, "return"));
+    g_assert_cmpuint(qdict_get_int(response, "return"), ==, period);
+    qobject_unref(response);
+}
+
+static void expect_lpo(QTestState *qts, unsigned hz, unsigned gated)
+{
+    expect_clock(qts, "/machine/soc/lpo", hz);
+    for (unsigned i = 0; i < 3; i++) {
+        g_autofree char *path = g_strdup_printf("/machine/soc/cpu[%u]/refclk",
+                                                i);
+
+        expect_clock(qts, path, gated & (1U << i) ? 0 : hz);
+    }
+    /* LPO selection must not change the independent CPU clock. */
+    expect_clock(qts, "/machine/soc/cpuclk", 26000000);
+}
+
+static void test_lpo_mux(const void *board)
+{
+    QTestState *qts = start(board);
+    const uint32_t r41 = 0x44000104;
+    const uint32_t ana5 = SYS + 0x114;
+    const uint32_t routes = (1U << 29) | (1U << 30) | (1U << 27);
+    static const unsigned gate[] = { 29, 30, 27 };
+
+    expect(qts, r41, 0);
+    expect_lpo(qts, 32000, 0);
+    qtest_writel(qts, 0x54000104, 0x12); /* ROSC via the NS alias. */
+    expect(qts, r41, 0x12);
+    expect_lpo(qts, 32000, 0);
+    qtest_writel(qts, ana5, 1U << 14);
+    qtest_clock_step(qts, 999);
+    expect_lpo(qts, 32000, 0);
+    qtest_clock_step(qts, 1);
+    expect_lpo(qts, 0, 0);
+    qtest_writel(qts, r41, 0); /* DIVD remains available with ROSC off. */
+    expect_lpo(qts, 32000, 0);
+    for (unsigned i = 0; i < 3; i++) {
+        qtest_writel(qts, SYS + 0x40, routes & ~(1U << gate[i]));
+        expect_lpo(qts, 32000, 1U << i);
+    }
+    qtest_writel(qts, r41, 2);
+    expect_lpo(qts, 0, 4);
+    qtest_writel(qts, ana5, 0);
+    qtest_clock_step(qts, 1000);
+    expect_lpo(qts, 32000, 4); /* Source recovery does not undo core gates. */
+    qtest_writel(qts, SYS + 0x40, routes);
+    expect_lpo(qts, 32000, 0);
+    /* No external source is wired on these models. */
+    qtest_writel(qts, r41, 1);
+    expect_lpo(qts, 0, 0);
+    qtest_writel(qts, r41, 3); /* Undefined source is not a fake oscillator. */
+    expect(qts, r41, 3);
+    expect_lpo(qts, 0, 0);
+    qtest_writel(qts, r41, 2);
+    expect_lpo(qts, 32000, 0);
+    qtest_writel(qts, ana5, 1U << 14);
+    qtest_system_reset(qts); /* Reset cancels the pending clock-loss write. */
+    qtest_clock_step(qts, 1000);
+    expect(qts, r41, 0);
+    expect(qts, ana5, 0);
+    expect_lpo(qts, 32000, 0);
+    qtest_quit(qts);
+}
+
 static void test_memory_uart(const void *board)
 {
     QTestState *qts = start(board);
@@ -590,6 +663,7 @@ int main(int argc, char **argv)
         {"analog-busy-cancel", test_analog},
         {"clock-ratio-routes", test_clock_monitor},
         {"clock-source-loss-reset", test_clock_cancel},
+        {"lpo-mux-source-loss-gates-reset", test_lpo_mux},
         {"mailbox-order-full", test_mailbox},
         {"mailbox-protection-reset", test_mailbox_protection},
         {"nor-persistence-protection-cancel-readonly", test_nor},

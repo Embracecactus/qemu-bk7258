@@ -3,6 +3,7 @@
 #define HW_MISC_BK7258_AON_H
 
 #include "hw/core/sysbus.h"
+#include "hw/core/clock.h"
 
 #define TYPE_BK7258_AON "bk7258-aon"
 #define BK7258_GPIO_COUNT 56
@@ -21,6 +22,8 @@ struct BK7258AONState {
     uint32_t wake_config;
     uint32_t retained;
     uint32_t chip_id;
+    Clock *lpo_source[3];
+    Clock *lpo;
     uint32_t pin[BK7258_GPIO_COUNT];
     uint32_t latched_pin[BK7258_GPIO_COUNT];
     uint64_t inputs;

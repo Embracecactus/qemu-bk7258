@@ -19,6 +19,80 @@ on-chip devices. ``hw/arm/bk7258_boards.c`` owns the machine registrations
 and explicit diagnostic image/drive loading. The loader is still an explicit diagnostic handoff, not a hardware reset-ROM
 implementation. Firmware partition/role policy is not part of the SoC.
 
+Chip-first validation status
+----------------------------
+
+Development order is the reusable chip/SoC contract first, sourced board
+connections second, and complete external firmware acceptance last. Passing a
+small diagnostic is evidence for its named hardware path, not completion of
+BK7258 as a whole. The independent QEMU tests are the chip/board gate; no
+OpenVela source or profile changes are required for that gate.
+
+.. list-table:: Current chip capability and remaining boundaries
+   :header-rows: 1
+   :widths: 20 42 38
+
+   * - Block
+     - Implemented/tested functional subset
+     - Not established
+   * - CPUs/NVIC/SysTick
+     - Three generic Cortex-M33 instances; exceptions, NMI under PRIMASK,
+       both SysTick clocks, core release/halt/reset and private TCM execution
+     - Full vendor STAR identity/ISA/cache/debug behavior, physical cache
+       coherence, dynamic CPU frequency and TrustZone attribution
+   * - Memory/interconnect
+     - 640-KiB shared SRAM aliases; per-core 16-KiB ITCM/DTCM; shared physical
+       Flash/CRC XIP or explicitly selected diagnostic logical XIP
+     - ROM contents/reset-ROM execution, PSRAM, bank power-loss behavior,
+       MPC/PPC/PRRO and security attribution
+   * - SYS/interrupt routing
+     - Per-core masks, source status, private mailbox IRQs, ordered core
+       control; asynchronous analog-register transfer and cancellation
+     - Full SYS register inventory, PLL/DVFS/rail dynamics and reset-domain
+       conformance beyond the documented diagnostic contract
+   * - UART0/1/2
+     - TX, bounded RX, threshold/idle IRQ, masks/W1C and chip IRQ routing
+     - DMA, real TX/FIFO timing, framing errors and physical flow control
+  * - AON PMU/GPIO
+     - Keyed retention, digital pad configuration, edge/level IRQ and
+       external drive/release; LPO mux, source loss and per-core tick gates
+     - R7A reset-cause lifecycle, analog rails, brownouts and pin contention
+   * - Watchdogs
+     - AON timed system reset; APB divider/gate/key and real CPU0 NMI
+     - Oscillator tolerance and undocumented reset escalation
+   * - CKMN
+     - Timed reference/measured clock ratio, mask/W1C, source-loss and cancel
+     - Physical oscillator tuning/lock and automatic source switching
+   * - MBOX0
+     - Eight shared slots, three physical channels, private IRQ63, ordering,
+       overflow/ownership protection and guest three-core exchange
+     - Legacy MBOX1, DMA-master attribution and physical interconnect timing
+   * - Flash controller/NOR
+     - GD25WQ64E functional part choice, protection/AND program/erase,
+       CRC aliases, reset cancel and process/file persistence/error handling
+     - Per-board part identification, raw SPI/SFDP/OTP/security modes,
+       encryption/remap, power-cut atomicity and migration
+   * - AON RTC/general timers/PWM
+     - Register sources identified; not yet modeled
+     - Counter/compare/clock-domain/reset behavior and real IRQ delivery
+   * - Other chip interfaces
+     - Not modeled
+     - DMA, I2C/SPI/QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
+       audio/video, Wi-Fi/BT and other absent register blocks
+
+For each added chip block, require source-backed access/reset/clock/IRQ
+semantics and native positive/negative tests: mask then unmask, W1C, disabled
+or lost clocks, invalid access, reset during pending work, wrap/overflow and
+error propagation where applicable. Keep unsupported cases explicit; do not
+return fabricated completion to move firmware past them. Timing abstractions
+and unmeasured edge behavior must be named separately from hardware facts.
+
+The board gate adds only evidenced external wiring and tests correct/incorrect
+pins, polarity, release/bias and reset behavior. Its current LED/key subset is
+listed below; the remaining fitted devices do not become supported merely
+because the machine has the board's name. Complete OS/product boot, update
+flows and performance remain a later external-consumer acceptance stage.
+
 Board GPIO wiring
 -----------------
 
@@ -114,7 +188,7 @@ Implemented slice
   the vector address; changing vector bits while running does not reset a CPU.
   Halt/power gates preserve CPU state. Changes run in target-CPU order.
 * Native Cortex-M33 SysTick exception delivery. CPU clock remains 26 MHz.
-  SYS+0x40 bits 29/30/27 gate each core's 32,000-Hz external reference.
+  SYS+0x40 bits 29/30/27 gate each core's selected LPO reference.
   Gating preserves timer count; changing an unselected source is inert.
 * AON watchdog key/reload/stop and timed system reset. APB watchdog clock
   gate/divider, key/reload/stop and real CP (physical CPU0) NMI delivery;
@@ -123,6 +197,17 @@ Implemented slice
   and a selectable chip ID. Default 0x24940610 is the SDK MP-I revision choice,
   not a claim that every physical board has this revision. Override with
   ``-global bk7258-aon.chip-id=...`` when using another documented revision.
+* AON R41 bits 0:1 select the LPO clock: 0 is the nominal 26-MHz-derived
+  32-kHz source, 1 is the external 32-kHz input, and 2 is ROSC. Each input is
+  a QEMU clock; source loss propagates through the mux and the independent
+  per-core SysTick gates. ANA5 bit14 disables ROSC after the modeled analog
+  transfer completes. The SoC exposes ``lpo-external`` as a clock input for
+  future board wiring. These three board models currently leave it unconnected,
+  so selecting it stops the reference instead of inventing a fitted oscillator.
+  The AIDK schematic explicitly marks its external 32.768-kHz parts NC; the
+  absence of a connection on the other models is not a hardware inventory claim.
+  Selecting encoding 3 logs an unsupported case and supplies no clock. This is
+  a conservative model policy, not a measured reserved-encoding response.
 * 56 digital GPIOs: active-low output enable, input/pull state, retention lock,
   edge/level IRQ55, per-pin IRQ masking and W1C. Named GPIO inputs/outputs can
   connect board devices. SYS GPIO mux registers retain configuration; alternate
@@ -171,6 +256,16 @@ configuration has masked readback, but enabling physical RTS/CTS or sleep-wake
 signaling emits an unsupported warning. DMA, error framing and TX timing are
 not modeled. SYS clock-mode and PMU power fields retain configuration only;
 no PLL lock, calibration completion, rail transition or DVFS success is faked.
+
+The LPO mux resets to encoding 0 as part of the existing diagnostic R41 reset
+contract, not a measured cold/warm silicon reset value. DIVD and ROSC both use
+the SDK's nominal 32,000-Hz timebase; the physical divider ratio, jitter,
+switching latency, oscillator startup and sleep-entry ``halt_lpo`` sequencing
+are not modeled. The watchdogs retain their separately documented timebases;
+LPO fan-out beyond the SysTick references is not yet established. Native qtests
+read QEMU's existing read-only clock-period property to verify source loss,
+recovery, all three independent gates and reset cancellation. External-source
+presence/frequency is a board input, not a firmware-specific success setting.
 
 MBOX0 diagnostic policies for undocumented edge cases are explicit: channel
 outputs combine the individual RX/error enables; disabling a channel masks
@@ -431,6 +526,10 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   headers: measured/reference clocks, window count, IRQ21 and W1C status
 * ``cp/middleware/soc/bk7258/soc/{aon_pmu,gpio,wdt}_struct.h`` and matching
   ``hal/*_ll.h``: PMU keys/retention, GPIO fields and watchdog key registers
+* ``cp/include/driver/sys_pm_types.h``, ``cp/include/modules/pm.h`` and
+  ``cp/middleware/soc/bk7258/hal/aon_pmu_hal.c``: modern LPO source enum and
+  direct R41 selection; ANA5 ROSC power control. The unrelated legacy
+  ``sys_ctrl.h`` source enum has a different ordering and is not used here.
 * ``cp/middleware/driver/{wdt,wdt_nmi,gpio}`` and
   ``cp/middleware/soc/common/hal/wdt_hal.c``: watchdog timebase/stop and GPIO IRQ
 * CP and AP ``components/cmsis/CMSIS_5/Device/Beken/bk7236xx/Source/smp/startup_cpu0.c``:
