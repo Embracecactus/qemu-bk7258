@@ -65,8 +65,17 @@ static void bk7258_gpio_input(void *opaque, int pin, int level)
     uint64_t bit = UINT64_C(1) << pin;
     bool old = bk7258_gpio_level(s, pin);
 
-    s->connected |= bit;
-    s->inputs = (s->inputs & ~bit) | (level ? bit : 0);
+    if (level < BK7258_GPIO_FLOAT || level > 1) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "bk7258-gpio: invalid external level %d\n", level);
+        return;
+    }
+    if (level == BK7258_GPIO_FLOAT) {
+        s->connected &= ~bit;
+    } else {
+        s->connected |= bit;
+        s->inputs = (s->inputs & ~bit) | (level ? bit : 0);
+    }
     bk7258_gpio_update(s, pin, old);
 }
 

@@ -119,6 +119,96 @@ static void test_gpio(const void *board)
     qtest_quit(qts);
 }
 
+static bool board_property(QTestState *qts, const char *name)
+{
+    QDict *response = qtest_qmp(qts, "{'execute':'qom-get', 'arguments':"
+                               "{'path':'/machine', 'property':%s}}", name);
+    bool value;
+
+    g_assert_true(qdict_haskey(response, "return"));
+    value = qdict_get_bool(response, "return");
+    qobject_unref(response);
+    return value;
+}
+
+static void set_key(QTestState *qts, bool pressed)
+{
+    qtest_qmp_assert_success(qts, "{'execute':'qom-set', 'arguments':"
+                            "{'path':'/machine', 'property':'user-key-pressed',"
+                            "'value':%i}}", pressed);
+}
+
+static void test_board_wiring(const void *board)
+{
+    QTestState *qts = start(board);
+    bool aidk = !strcmp(board, "aidk_ai_toy");
+    unsigned led = aidk ? 40 : !strcmp(board, "t5_board") ? 1 : 9;
+    unsigned key = aidk ? 8 : !strcmp(board, "t5_board") ? 12 : 29;
+    unsigned wrong_led = led == 1 ? 9 : 1;
+    uint32_t pin = 0x44000400 + key * 4;
+    QDict *error;
+
+    g_assert_false(board_property(qts, "user-led-on"));
+    g_assert_false(board_property(qts, "user-key-pressed"));
+    /* The AIDK open contact has no external pull-up in its schematic. */
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, aidk ? 0 : 1);
+    qtest_writel(qts, 0x44000400 + wrong_led * 4, 0x86);
+    g_assert_false(board_property(qts, "user-led-on"));
+    qtest_writel(qts, 0x44000400 + led * 4, 0x86);
+    g_assert_true(board_property(qts, "user-led-on"));
+    qtest_writel(qts, 0x44000400 + led * 4, 0x8e); /* Output disabled. */
+    g_assert_false(board_property(qts, "user-led-on"));
+    qtest_writel(qts, 0x44000400 + led * 4, 0x86);
+    error = qtest_qmp_assert_failure_ref(qts,
+        "{'execute':'qom-set', 'arguments':{'path':'/machine',"
+        "'property':'user-led-on', 'value':false}}");
+    qobject_unref(error);
+    g_assert_true(board_property(qts, "user-led-on"));
+
+    qtest_writel(qts, pin, 0x1c3c); /* Input, pull-up, falling-edge IRQ. */
+    qtest_writel(qts, SYS + 0x84, 0x800000);
+    set_key(qts, true);
+    g_assert_true(board_property(qts, "user-key-pressed"));
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 0);
+    expect(qts, 0x44000500, 1U << key);
+    expect(qts, SYS + 0xa4, 0x800000);
+    qtest_writel(qts, 0x44000500, 1U << key);
+    expect(qts, SYS + 0xa4, 0);
+    qtest_system_reset(qts);
+    g_assert_true(board_property(qts, "user-key-pressed"));
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 0);
+    g_assert_false(board_property(qts, "user-led-on"));
+    expect(qts, SYS + 0xa4, 0);
+    set_key(qts, false);
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, aidk ? 0 : 1);
+    qtest_writel(qts, pin, 0x3c);
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 1);
+    qtest_quit(qts);
+}
+
+static void test_gpio_external_release(const void *board)
+{
+    QTestState *qts = start(board);
+    const uint32_t pin = 0x44000408;
+
+    qtest_writel(qts, pin, 0x2c); /* Input with pull-down. */
+    qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", 2, 1);
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 1);
+    qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", 2, -1);
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 0);
+    /* Released contact follows internal pull-up. */
+    qtest_writel(qts, pin, 0x3c);
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 1);
+    qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", 2, 0);
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 0);
+    qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", 2, -1);
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 1);
+    qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", 2, 2);
+    qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", 2, -2);
+    g_assert_cmpuint(qtest_readl(qts, pin) & 1, ==, 1);
+    qtest_quit(qts);
+}
+
 static void test_analog(const void *board)
 {
     QTestState *qts = start(board);
@@ -416,6 +506,8 @@ int main(int argc, char **argv)
         {"memory-uart-reset", test_memory_uart},
         {"watchdog-keys-expiry", test_watchdog},
         {"gpio-mask-w1c", test_gpio},
+        {"board-led-key-wiring", test_board_wiring},
+        {"gpio-external-release", test_gpio_external_release},
         {"analog-busy-cancel", test_analog},
         {"clock-ratio-routes", test_clock_monitor},
         {"clock-source-loss-reset", test_clock_cancel},

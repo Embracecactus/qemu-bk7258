@@ -736,3 +736,4 @@ config BK7258
     default y
     depends on TCG && ARM
     select ARM_V7M
+    select LED

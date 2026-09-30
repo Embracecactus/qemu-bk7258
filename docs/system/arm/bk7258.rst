@@ -10,14 +10,83 @@ code-provenance policy. Its base is the existing fork commit
 was rewritten and no stable-release compatibility is claimed.
 
 The three machine names identify the project's physical boards. They currently
-instantiate the same shared diagnostic SoC: board-specific peripherals are not
-implemented. Listing all three names does not establish complete board support.
+instantiate the same shared diagnostic SoC, with distinct user LED/key wiring
+for the revisions below. Other board peripherals are not yet implemented.
+Listing all three names does not establish complete board support.
 
 ``hw/arm/bk7258.c`` owns the shared SoC, register map, physical cores and
 on-chip devices. ``hw/arm/bk7258_boards.c`` owns the machine registrations
-and explicit diagnostic image/drive loading. The initial separation preserves
-behavior; it does not yet claim distinct board wiring or a hardware reset-ROM
+and explicit diagnostic image/drive loading. The loader is still an explicit diagnostic handoff, not a hardware reset-ROM
 implementation. Firmware partition/role policy is not part of the SoC.
+
+Board GPIO wiring
+-----------------
+
+The three thin board classes share the SoC but connect distinct external
+endpoints. These are partial board models, not complete peripheral inventories:
+
+.. list-table:: Modeled user endpoints
+   :header-rows: 1
+
+   * - Machine
+     - User LED
+     - User key
+     - Released contact
+   * - ``t5_board``
+     - P1 active-high
+     - P12 active-low
+     - external 10-kOhm pull-up
+   * - ``t5ai_core``
+     - P9 active-high
+     - P29 active-low
+     - external 10-kOhm pull-up
+   * - ``aidk_ai_toy``
+     - P40 active-high
+     - P8/KEY3 active-low
+     - open; firmware selects bias
+
+The LED uses QEMU's existing ``led`` device. Green for T5/Core is a visualization
+choice, not a verified component color; AIDK LED1 is labeled red in the source
+schematic. AIDK P9 is the motor control, not this board's LED. Other keys,
+reset-button circuits, motor, LCD, camera, audio, storage connectors and native
+USB remain unconnected. T5 P1's shared UART alternative function is not wired
+to the LED yet; GPIO-mode checks must not be presented as UART waveform tests.
+
+The machine property ``user-key-pressed`` controls the ideal contact. For
+example, ``-M t5ai_core,user-key-pressed=on`` starts with it held. At runtime,
+QMP can set the boolean property on ``/machine``; ``user-led-on`` is read-only
+and observes the connected LED device. Holding a key across a system reset
+preserves the external contact while the SoC resets its GPIO configuration.
+There is no key debounce, RC charging, ADC conversion, supply or contention
+model. The T5 ADC_KEY input is covered only as a digital contact endpoint.
+
+The SoC's named ``gpio-in`` lines accept 0/1 for an external level and -1 to
+release the external source. A released AIDK key therefore follows the GPIO's
+configured pull, rather than always reading high. Values outside -1/0/1 are
+rejected without changing the pin. An un-driven, unbiased digital input reads
+zero in this functional model; that is not a physical floating-voltage claim.
+
+Sources checked as electrical references, not firmware behavior to emulate:
+
+* T5-Board: Tuya's `development board overview
+  <https://developer.tuya.com/en/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj>`_
+  and its linked `schematic
+  <https://images.tuyacn.com/content-platform/hestia/175012417808e1543c7d9.pdf>`_,
+  page 2 (P1 transistor/LED and P12 ADC_KEY/SW5). PDF SHA-256:
+  ``f2d4fddeb28408af5522fda1b69b3eb2ab8f0485155f76c1cdbf53de69e6733e``.
+  The project's board reference names this PCB V1.0.2.
+* T5AI-Core V1.0.1: `official board documentation
+  <https://docs.tuyaopen.ai/zh/docs/hardware/tuya-t5/t5-ai-core/overview-t5-ai-core>`_
+  and ``T5AI-Core_V101-SCH-a69f7b5a91b4bf21a39bdb7c17812373.pdf``, pages 3/5.
+  The archived original's SHA-256 is
+  ``091b7a9302ec51cbb71f12b339cddbf34cf5d5a28b529f64613e498759eef086``.
+  P9 LED polarity and the User_key pull-up/contact were visually checked.
+* AIDK: Beken-authored `BK7258 AI Demo V1.0 schematic
+  <https://docs.riselink.ai/HW/BK7258/AIDK_AI%E7%8E%A9%E5%85%B7%E5%BC%80%E5%8F%91%E6%9D%BF_%E5%8E%9F%E7%90%86%E5%9B%BE.pdf>`_,
+  pages 2/4, SHA-256
+  ``b10cf08785a1c8767d9b4c51d05e6c8685a4cb60a720b51022734d742149bb2d``.
+  KEY3 is P8 through 1 kOhm to the grounded switch; no external pull-up is
+  shown there. LED1 is P40 and active high through 1 kOhm to the red LED.
 
 Implemented slice
 -----------------
@@ -268,8 +337,10 @@ whole-system reset, watchdog keys/feed/stop/expiry, GPIO edge/level masking,
 asynchronous analog cancellation, clock ratio/IRQ routing/source loss,
 mailbox routing/order/full/protection/reset, and persistent NOR AND-program,
 protection, erase, reset cancellation, CRC/XIP and read-only error handling.
-Each hardware case runs on all three machine names. This currently checks
-the shared SoC, not three distinct sets of board wiring or CPU execution.
+Each hardware case runs on all three machine names. Board cases additionally
+check the actual LED/key binding, wrong-pin isolation, output disable, active-low
+key IRQ/W1C, held contact across reset, released contact/internal pulls and
+read-only LED observation. These qtests do not execute guest CPU instructions.
 
 These cases were adapted from the Apache-2.0 contest hardware tests at
 ``ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43``,
