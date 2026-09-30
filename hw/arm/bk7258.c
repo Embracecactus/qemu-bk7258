@@ -435,6 +435,15 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     bk7258_alias(&s->aon_ns[1], obj, "bk7258.gpio-ns", &s->aon.gpio,
                  memory, 0x54000400, 0x200);
 
+    qdev_connect_clock_in(DEVICE(&s->rtc), "lpo", s->aon.lpo);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->rtc), 0, 0x44000200);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->rtc), 0, qdev_get_gpio_in(dev, 54));
+    bk7258_alias(&s->rtc_ns, obj, "bk7258.rtc-ns", &s->rtc.iomem,
+                 memory, 0x54000200, 0x100);
+
     memory_region_init_io(&s->sysctrl, obj, &bk7258_sys_ops, s,
                           "bk7258.sysctrl", 0x1000);
     memory_region_add_subregion(memory, SYS_BASE, &s->sysctrl);
@@ -490,6 +499,7 @@ static void bk7258_init(Object *obj)
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);
+    object_initialize_child(obj, "rtc", &s->rtc, TYPE_BK7258_RTC);
     s->lpoclk = qdev_init_clock_in(DEVICE(obj), "lpo", bk7258_lpo_changed,
                                   s, ClockUpdate);
     qdev_alias_clock(DEVICE(&s->aon), "x32k", DEVICE(obj), "lpo-external");

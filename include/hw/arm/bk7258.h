@@ -4,6 +4,7 @@
 
 #include "hw/arm/armv7m.h"
 #include "hw/char/bk7258_uart.h"
+#include "hw/timer/bk7258_rtc.h"
 #include "hw/watchdog/bk7258_wdt.h"
 #include "hw/misc/bk7258_aon.h"
 #include "hw/misc/bk7258_ckmn.h"
@@ -19,6 +20,8 @@ struct BK7258State {
     SysBusDevice parent_obj;
     ARMv7MState cpu[3];
     BK7258UARTState uart[3];
+    BK7258RTCState rtc;
+    MemoryRegion rtc_ns;
     BK7258WDTState wdt[2];
     BK7258AONState aon;
     BK7258CKMNState ckmn;

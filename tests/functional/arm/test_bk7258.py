@@ -155,6 +155,39 @@ class BK7258Machine(QemuSystemTest):
             f"bk7258-sys: {operation} is not implemented\n",
         )
 
+    def run_rtc(self, board, missing_route):
+        elf = self.build_fixture(
+            board, "rtc.c", MISSING_ROUTE=int(missing_route)
+        )
+        mmio = self.launch_fixture(elf)
+        expected = (
+            "BK7258 RTC PROBE FAILED"
+            if missing_route
+            else ("BK7258 RTC IRQ CLOCK STOP OK")
+        )
+        wait_for_console_pattern(self, expected)
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), int(missing_route))
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_t5_board_rtc(self):
+        self.run_rtc("t5_board", False)
+
+    def test_t5_board_rtc_missing_route(self):
+        self.run_rtc("t5_board", True)
+
+    def test_t5ai_core_rtc(self):
+        self.run_rtc("t5ai_core", False)
+
+    def test_t5ai_core_rtc_missing_route(self):
+        self.run_rtc("t5ai_core", True)
+
+    def test_aidk_ai_toy_rtc(self):
+        self.run_rtc("aidk_ai_toy", False)
+
+    def test_aidk_ai_toy_rtc_missing_route(self):
+        self.run_rtc("aidk_ai_toy", True)
+
     @staticmethod
     def crc16(data):
         # Independent polynomial long division, rather than the C model loop.

@@ -14,6 +14,7 @@
 #define CKMN 0x448a0000
 #define MBOX 0x41000000
 #define FLASH 0x44030000
+#define RTC 0x44000200
 #define NOR_SIZE (8 * 1024 * 1024)
 
 static QTestState *start(const void *board)
@@ -200,6 +201,185 @@ static void test_watchdog(const void *board)
     qtest_clock_step(qts, 1);
     expect(qts, SYS + 0x80, 0);
     expect(qts, 0x44000600, 0);
+    qtest_quit(qts);
+}
+
+static void rtc_configure(QTestState *qts, uint64_t upper, uint64_t tick)
+{
+    /* Enabled synchronizer, counter held reset. */
+    qtest_writel(qts, RTC, 0x43);
+    qtest_writel(qts, RTC + 0x18, upper >> 32);
+    qtest_writel(qts, RTC + 4, upper);
+    qtest_writel(qts, RTC + 0x1c, tick >> 32);
+    qtest_writel(qts, RTC + 8, tick);
+    qtest_clock_step(qts, 3 * 31250);
+}
+
+static void test_rtc_counter_clock(const void *board)
+{
+    QTestState *qts = start(board);
+
+    expect(qts, RTC, 0);
+    qtest_writel(qts, RTC + 4, UINT32_MAX);
+    qtest_writel(qts, RTC + 0x18, UINT32_MAX);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, RTC + 0x10, 0); /* Core clock is not enabled. */
+    qtest_writel(qts, RTC, 0x43);
+    qtest_clock_step(qts, 2 * 31250);
+    qtest_writel(qts, RTC + 4, 15); /* Same-half rewrite while synchronizing. */
+    expect(qts, RTC + 4, UINT32_MAX);
+    expect(qts, RTC + 0x10, 0);
+    qtest_clock_step(qts, 31250);
+    expect(qts, RTC + 0x10, UINT32_MAX);
+    expect(qts, RTC + 0x20, UINT32_MAX);
+    qtest_writel(qts, RTC, 0x70);
+    qtest_clock_step(qts, 31249);
+    expect(qts, RTC + 0x0c, 0);
+    qtest_clock_step(qts, 1);
+    expect(qts, 0x5400020c, 1);
+    qtest_writel(qts, RTC, 0x42);
+    qtest_clock_step(qts, 10 * 31250);
+    expect(qts, RTC + 0x0c, 1);
+    qtest_writel(qts, RTC, 0x40);
+    qtest_clock_step(qts, 3 * 31250);
+    expect(qts, RTC + 0x0c, 4);
+    qtest_writel(qts, 0x44000104, 1);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, RTC + 0x0c, 4);
+    qtest_writel(qts, 0x44000104, 2);
+    qtest_clock_step(qts, 2 * 31250);
+    expect(qts, RTC + 0x0c, 6);
+    qtest_writel(qts, SYS + 0x114, 1U << 14);
+    qtest_clock_step(qts, 1000);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, RTC + 0x0c, 6);
+    qtest_writel(qts, 0x44000104, 0);
+    qtest_clock_step(qts, 31250);
+    expect(qts, RTC + 0x0c, 7);
+    qtest_writel(qts, RTC, 0);
+    qtest_writel(qts, RTC + 8, 0x12345678);
+    qtest_clock_step(qts, 10 * 31250);
+    expect(qts, RTC + 0x14, 0);
+    expect(qts, RTC + 0x0c, 7);
+    qtest_writel(qts, RTC, 0x42);
+    qtest_clock_step(qts, 2 * 31250);
+    qtest_writel(qts, 0x44000104, 1);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, RTC + 0x14, 0); /* No fake transfer across a missing source. */
+    qtest_writel(qts, 0x44000104, 0);
+    qtest_clock_step(qts, 31250);
+    expect(qts, RTC + 0x14, 0x12345678);
+    expect(qts, RTC + 0x0c, 7);
+    qtest_writel(qts, RTC, 0x41);
+    qtest_clock_step(qts, 5 * 31250);
+    expect(qts, RTC + 0x0c, 0);
+    qtest_writel(qts, RTC, 0x40);
+    qtest_clock_step(qts, (UINT64_C(1) << 32) * 31250);
+    expect(qts, RTC + 0x0c, 0);
+    expect(qts, RTC + 0x28, 1);
+    qtest_writel(qts, RTC + 8, 5);
+    qtest_system_reset(qts);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, RTC, 0);
+    expect(qts, RTC + 0x14, 0);
+    expect(qts, RTC + 0x28, 0);
+    qtest_writel(qts, RTC + 0x0c, 0x99); /* Counter is read-only. */
+    expect(qts, RTC + 0x0c, 0);
+    qtest_quit(qts);
+}
+
+static void test_rtc_irq_w1c(const void *board)
+{
+    QTestState *qts = start(board);
+
+    rtc_configure(qts, 5, 3);
+    qtest_writel(qts, SYS + 0x84, 1U << 22);
+    qtest_writel(qts, SYS + 0x8c, 1U << 22);
+    qtest_writel(qts, RTC, 0x40);
+    qtest_clock_step(qts, 3 * 31250);
+    expect(qts, RTC, 0x60);
+    expect(qts, SYS + 0xa4, 0);
+    qtest_writel(qts, RTC, 0x48);
+    expect(qts, SYS + 0xa4, 1U << 22);
+    expect(qts, SYS + 0xac, 1U << 22);
+    expect(qts, SYS + 0xb4, 0);
+    qtest_writel(qts, RTC, 0x40);
+    expect(qts, RTC, 0x60);
+    expect(qts, SYS + 0xa4, 0);
+    qtest_writel(qts, RTC, 0x68);
+    expect(qts, RTC, 0x48);
+    qtest_clock_step(qts, 2 * 31250);
+    expect(qts, RTC + 0x0c, 5);
+    expect(qts, RTC, 0x58);
+    qtest_writel(qts, RTC, 0x44);
+    expect(qts, SYS + 0xa4, 1U << 22);
+    qtest_writel(qts, RTC, 0x54);
+    expect(qts, SYS + 0xa4, 0);
+    qtest_clock_step(qts, 31250);
+    expect(qts, RTC + 0x0c, 0);
+    qtest_clock_step(qts, 3 * 31250);
+    expect(qts, RTC, 0x64);
+    qtest_writel(qts, RTC, 0x6c);
+    qtest_writel(qts, RTC + 8, 0);
+    qtest_clock_step(qts, 3 * 31250);
+    expect(qts, RTC + 0x14, 0);
+    expect(qts, RTC, 0x5c); /* New equality does not synthesize an edge. */
+    qtest_writel(qts, RTC, 0x5c);
+    qtest_clock_step(qts, 6 * 31250);
+    expect(qts, RTC, 0x7c);
+    qtest_writel(qts, SYS + 0x94, 1U << 22);
+    expect(qts, SYS + 0xb4, 1U << 22);
+    qtest_writel(qts, RTC, 0x5c); /* Clear only upper; tick must remain. */
+    expect(qts, RTC, 0x6c);
+    expect(qts, SYS + 0xb4, 1U << 22);
+    qtest_writel(qts, RTC, 0x6c);
+    expect(qts, RTC, 0x4c);
+    expect(qts, SYS + 0xb4, 0);
+    qtest_clock_step(qts, 5 * 31250);
+    expect(qts, SYS + 0xb4, 1U << 22);
+    qtest_system_reset(qts);
+    qtest_writel(qts, SYS + 0x94, 1U << 22);
+    expect(qts, RTC, 0);
+    expect(qts, SYS + 0xb4, 0);
+    qtest_quit(qts);
+}
+
+static void test_rtc_upper64(const void *board)
+{
+    QTestState *qts = start(board);
+
+    rtc_configure(qts, (UINT64_C(1) << 32) + 3, (UINT64_C(1) << 32) + 1);
+    qtest_writel(qts, RTC, 0x40);
+    qtest_clock_step(qts, ((UINT64_C(1) << 32) + 1) * 31250);
+    expect(qts, RTC + 0x0c, 1);
+    expect(qts, RTC + 0x28, 1);
+    expect(qts, RTC, 0x60);
+    qtest_clock_step(qts, 2 * 31250);
+    expect(qts, RTC + 0x0c, 3);
+    expect(qts, RTC + 0x28, 1);
+    expect(qts, RTC, 0x70);
+    qtest_clock_step(qts, 31250);
+    expect(qts, RTC + 0x0c, 0);
+    expect(qts, RTC + 0x28, 0);
+    qtest_writel(qts, RTC, 0x70);
+    qtest_clock_step(qts, 20 * 31250);
+    qtest_writel(qts, RTC + 0x18, 0);
+    qtest_writel(qts, RTC + 4, 5);
+    qtest_clock_step(qts, 3 * 31250);
+    expect(qts, RTC + 0x0c, 23); /* Lowered upper does not clamp the count. */
+    qtest_clock_step(qts, 2 * 31250);
+    expect(qts, RTC + 0x0c, 25);
+    expect(qts, RTC, 0x40);
+    qtest_system_reset(qts);
+    qtest_writel(qts, RTC, 0x4c); /* Explicit inclusive-upper-zero policy. */
+    qtest_clock_step(qts, 1000000);
+    expect(qts, RTC + 0x0c, 0);
+    expect(qts, RTC, 0x7c);
+    qtest_writel(qts, RTC, 0x7c);
+    qtest_clock_step(qts, 31249);
+    expect(qts, RTC, 0x4c);
+    qtest_clock_step(qts, 1);
+    expect(qts, RTC, 0x7c);
     qtest_quit(qts);
 }
 
@@ -700,6 +880,9 @@ int main(int argc, char **argv)
         {"memory-uart-reset", test_memory_uart},
         {"watchdog-keys-expiry", test_watchdog},
         {"watchdog-sources-pause-recovery", test_watchdog_sources},
+        {"rtc-counter-clock-sync-reset", test_rtc_counter_clock},
+        {"rtc-compare-routes-w1c", test_rtc_irq_w1c},
+        {"rtc-64bit-upper-wrap", test_rtc_upper64},
         {"gpio-mask-w1c", test_gpio},
         {"board-led-key-wiring", test_board_wiring},
         {"gpio-external-release", test_gpio_external_release},

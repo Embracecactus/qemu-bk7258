@@ -11,10 +11,13 @@ on:
       - 'hw/misc/bk7258_*.c'
       - 'hw/watchdog/bk7258_wdt.c'
       - 'hw/timer/armv7m_systick.c'
+      - 'hw/timer/bk7258_*.c'
+      - 'hw/timer/meson.build'
       - 'accel/tcg/translator.c'
       - 'include/hw/block/bk7258_*.h'
       - 'include/hw/misc/bk7258_*.h'
       - 'include/hw/watchdog/bk7258_wdt.h'
+      - 'include/hw/timer/bk7258_*.h'
       - 'include/hw/arm/bk7258.h'
       - 'include/hw/char/bk7258_uart.h'
       - 'hw/arm/Kconfig'
@@ -26,6 +29,7 @@ on:
       - 'tests/functional/arm/guest-src/bk7258/**'
       - 'tests/functional/arm/meson.build'
       - '.github/workflows/bk7258-build.yml'
+      - 'docs/system/arm/bk7258.rst'
   workflow_dispatch:
 permissions:
   contents: read
