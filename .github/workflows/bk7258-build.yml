@@ -22,6 +22,9 @@ on:
       - 'hw/char/meson.build'
       - 'tests/qtest/bk7258-test.*'
       - 'tests/qtest/meson.build'
+      - 'tests/functional/arm/test_bk7258.py'
+      - 'tests/functional/arm/guest-src/bk7258/**'
+      - 'tests/functional/arm/meson.build'
       - '.github/workflows/bk7258-build.yml'
   workflow_dispatch:
 permissions:
@@ -36,7 +39,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y gcc g++ make \
-            libglib2.0-dev ninja-build pkg-config python3-venv python3-pip
+            libglib2.0-dev ninja-build pkg-config python3-venv python3-pip \
+            gcc-arm-none-eabi binutils-arm-none-eabi
       - name: Build native arm emulator
         run: |
           mkdir build-bk7258
@@ -55,8 +59,17 @@ jobs:
         run: |
           cd build-bk7258
           ./pyvenv/bin/meson test --no-rebuild --print-errorlogs qtest-arm/bk7258-test
+      - name: Execute source-built three-core fixtures
+        env:
+          QEMU_TEST_KEEP_SCRATCH: '1'
+        run: |
+          cd build-bk7258
+          command -v arm-none-eabi-gcc
+          ./pyvenv/bin/meson test --setup thorough --print-errorlogs func-arm-bk7258
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bk7258-qtest-${{ github.sha }}
-          path: build-bk7258/meson-logs/testlog.*
+          name: bk7258-tests-${{ github.sha }}
+          path: |
+            build-bk7258/meson-logs/testlog*
+            build-bk7258/tests/functional/arm/test_bk7258.*

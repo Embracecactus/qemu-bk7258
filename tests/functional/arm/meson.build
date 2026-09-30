@@ -52,6 +52,7 @@ tests_arm_system_thorough = [
   'aspeed_catalina',
   'aspeed_gb200nvl_bmc',
   'aspeed_rainier',
+  'bk7258',
   'bpim2u',
   'canona1100',
   'collie',

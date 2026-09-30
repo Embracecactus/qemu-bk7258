@@ -216,7 +216,7 @@ UART2              0x45840000                     0x55840000
 
 Aliases alone do not implement the BK7258 TrustZone attribution/security
 controller. ROM, PSRAM, external timers, legacy MBOX1, DMA, physical caches,
-flash remap/encryption, MCUboot/OTA and physical-board devices are absent.
+flash remap/encryption, MCUboot/OTA and other physical-board devices are absent.
 Wi-Fi/BT, camera, audio, codec, power and performance behavior are not modeled.
 
 Building and running
@@ -234,23 +234,26 @@ On a Linux host with GCC, GLib development headers, Python, Meson and Ninja::
 
 The diagnostic entry bypasses ROM and bootloaders: CPU0's vector table is at
 ``0x02010000``. Use an ELF linked with a valid vector there. For the trusted
-bare-metal fixture maintained by the contest repository::
+bare-metal fixture maintained in this QEMU repository::
 
   printf Z | ./qemu-system-arm -M t5_board -display none -monitor none \
     -serial stdio -kernel diagnostic.elf \
     -semihosting-config enable=on,target=native -d guest_errors,unimp
 
 Semihosting is used solely to report fixture exit status. It can expose host
-files to guests: do not enable it for untrusted images. The maintained host
-entry is the contest repository's ``tools/bk7258/bk7258.py qemu`` command.
-Tests and fixtures remain canonical under that repository's
-``tests/host/bk7258/``; firmware C is never compiled into a QEMU device.
+files to guests: do not enable it for untrusted images. Build the fixture
+using the independent functional test below. The model uses standard QEMU
+command-line and test interfaces; an OpenVela-specific CLI is not required.
+Guest fixture C is never compiled into a host QEMU device.
 
 A passing diagnostic proves CPU instruction execution, SRAM aliases,
 SysTick exceptions, core release/stop/reset, private TCM, UART receive IRQ and
 system reset within this slice, including a real watchdog NMI under PRIMASK.
 
-A separate real NuttX ``aidk_ai_toy/native_nsh`` CP ELF now reaches NSH through
+Earlier external firmware validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A separate real NuttX ``aidk_ai_toy/native_nsh`` CP ELF reaches NSH through
 unchanged NuttX/SDK startup, UART, NVIC and SysTick paths. Its existing-Kconfig
 profile excludes optional product peripherals; it does not patch startup to
 detect QEMU. The contest CLI ``qemu native-nsh --build-manifest ...`` checks
@@ -362,10 +365,46 @@ rather than relabeling it to make the lint result green.
 
 OpenVela is an optional external firmware consumer and evidence source.
 Earlier integration/firmware checks in that independent project do not serve
-as this repository's core test runner. The initial qtest slice does not replace
-all earlier guest-execution, sanitizer or firmware checks. Future boot tests
+as this repository's core test runner. The qtest and bare-metal functional slices do not replace
+earlier sanitizer or external firmware checks. Future boot tests
 must identify their external firmware assets and hashes without changing the
 consumer's product code or requiring its build workflow.
+
+Independent CPU execution regression
+------------------------------------
+
+Install ``arm-none-eabi-gcc`` (or set ``BK7258_TEST_CC`` to a trusted compiler)
+in addition to the host build dependencies, configure with ``--enable-tests``,
+and run QEMU's registered functional test from the build directory::
+
+  QEMU_TEST_KEEP_SCRATCH=1 ./pyvenv/bin/meson test --setup thorough \
+    --print-errorlogs func-arm-bk7258
+
+``--setup thorough`` is required: QEMU's default quick setup excludes these
+cross-compiler-dependent tests. The standard runner installs its own declared
+Python test dependencies. Without a compiler the test explicitly skips; this
+repository's CI installs the compiler and requires all six cases to execute.
+No OS checkout or firmware download is required.
+
+``tests/functional/arm/test_bk7258.py`` compiles the adjacent
+``guest-src/bk7258/diagnostic.c`` and linker script, then executes positive and
+negative inputs on all three boards using TCG. It checks guest UART markers
+for SRAM aliases, a real NMI under PRIMASK, both SysTick sources, independent
+TCM, secondary release/halt/reset, three-core mailbox IRQ/protection, UART RX
+IRQ and whole-system reset. Every positive case repeats the hardware sequence
+after reset; every bad-input case must reach the guest fault marker and exit
+with status 1. Unknown MMIO logs, missing markers, unexpected exit status or
+bounded wait expiry fail the test. This is trusted bare-metal code, not NuttX,
+AP SMP scheduling or product boot acceptance.
+
+The runner retains console/MMIO logs and compiler/source/ELF/emulator hashes.
+``QEMU_TEST_KEEP_SCRATCH=1`` also keeps the generated ELF. These sources are
+adapted from the Apache-2.0 contest fixture at
+``ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43``,
+``tests/host/bk7258/qemu/diagnostic.{c,ld}``. Their original license is retained
+beside them. Formatting/comments and declaration placement were adapted to
+this tree; local GCC 14.2 produced a byte-identical ELF before and after that
+adaptation. The Python runner is a new GPL-2.0-or-later downstream test.
 
 Register provenance
 -------------------
