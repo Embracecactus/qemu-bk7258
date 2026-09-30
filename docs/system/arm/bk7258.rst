@@ -199,6 +199,88 @@ incorrect devices and reset/contact behavior. External OS/product firmware
 acceptance follows those gates as a separate consumer test; its boot success
 cannot replace a missing chip or board contract.
 
+Remaining P0 evidence collection
+--------------------------------
+
+The current independent model is a partially implemented chip, not a closed
+P0 baseline. A review of the pinned SDK and manufacturer documents found no
+sufficiently specified new CPU-variant, reset-reason or security-enforcement
+slice. The following evidence would resolve concrete decisions; adding
+identity constants, R7A snapshots or permissive security stubs would not.
+Prefer existing captures and public revision-specific vendor documentation.
+This checklist does not authorize or require device programming, reset,
+core halt/release, selector writes or changes to debug/security access.
+
+**Per-core identity.** The manufacturer identifies STAR-MC1, double-precision
+FPU, DSP, TrustZone and 16-KiB ITCM/DTCM. Generic CMSIS presence flags do not
+specify each core's implementation. QEMU's current Cortex-M33 supplies its own
+MIDR 0x410fd213, 16 MPU regions, 8 SAU regions, MVFR0 0x10110021 and no cache
+in CLIDR. Renaming it cannot establish STAR or AP cache conformance.
+
+Where a physical core is already accessible through an authorized read-only
+capture path, record silicon/package revision, physical core number, privilege,
+security state and boot stage with these aligned 32-bit metadata reads. The
+pinned ``core_star.h`` defines the feature/identification fields as read-only;
+the optional selector below is R/W. These definitions do not promise access
+from every state:
+
+* CPUID at 0xE000ED00; feature IDs at 0xE000ED40 through 0xE000ED70.
+* CLIDR/CTR at 0xE000ED78/0xE000ED7C.
+* MVFR0/1/2 at 0xE000EF40/0xE000EF44/0xE000EF48.
+* MPU.TYPE at 0xE000ED90 and SAU.TYPE at 0xE000EDD4, the latter with the
+  corresponding Secure access context.
+* Optionally, the existing R/W CSSELR selector and read-only CCSIDR pair at 0xE000ED84/0xE000ED80.
+  Do not change CSSELR; this pair describes only the currently selected cache.
+
+The vendor still needs to specify per-core revision, FPU precision, MPU/SAU
+counts, cache geometry/maintenance, TCM enable/reset and debug configuration.
+These fields should be collected independently for all three physical cores;
+a CPU0 observation is not evidence of CPU1/2 geometry.
+
+**Reset lifecycle.** The SDK's Secure map places AON R0 at 0x44000000, R2
+at 0x44000008 and R7A at 0x440001e8. R0 carries software reason tags and uses
+a keyed commit; startup reads R7A then updates R0's reason-tag fields to
+POWERON. R7A's
+generated struct calls its bits reserved. Request a vendor definition of
+R0-to-R7A capture trigger/order, defaults, read/clear/write effects and retained
+domains. Read side effects are not established, so repeated R7A probing is
+not a prescribed read-only experiment. Likewise, address aliases do not prove
+access permission. Obtain the reset-domain matrix for POR, brownout, AWDT,
+DWDT configurations, system/core reset, shutdown and deep-sleep wake,
+including retention of RTC, SRAM/TCM, core controls and security state.
+Existing startup traces must identify their capture stage; post-init tags are
+not an untouched reset snapshot.
+
+**Security attribution.** Verified base addresses are PRRO 0x41040000 and
+MPC PSRAM/Flash at 0x41100000/0x41200000, with SRAM0..5 at
+0x41210000..0x41260000. A base address is not a verified readable-register
+inventory. The SDK's PRRO/MPC/PPC CSV files describe boot configuration, not
+silicon reset policy. ``ppc.py`` demonstrates how PPC policy and PRRO
+maps/defaults generate configuration data; it is not the MPC generator.
+Request IDAU alias/attribution rules, PRRO/PPC polarity/access/lock/reset
+semantics, MPC granularity/limits/window behavior, CPU/DMA attribution and
+denied-access responses/IRQs. Banked-window captures would need their existing
+selector and security/master context, with read side effects confirmed first.
+Do not probe unidentified windows or change selectors. OTP, keys, ROM contents
+and production memory dumps are not needed for these decisions.
+
+**Other blocked contracts.** Obtain the actual package/board revision and BOM
+for fitted NOR/PSRAM; existing startup logs may help but fallback success is
+not identification. Resolve the PSRAM/DPLL boundaries below, PWM counter
+inventory/polarity and the actual TIMG/PWM CLK32 nets. UART DMA needs data-lane,
+packing/flush and request-handshake definitions; SPI16 needs capacity/count and
+subword timing definitions. Register configuration alone does not measure a
+clock or waveform. Do not silently add pinmux writes, frequency-output setup
+or resets to a passive collection request.
+
+Relevant pinned sources are the CP/AP ``armstar.h`` and ``core_star.h``,
+``reset_reason.c``, ``aon_pmu_ll.h``, ``aon_pmu_struct.h``, ``aon_pmu_hal.c``,
+``reg_base.h``, ``boards/bk7258/{regs,csv}`` and
+``tools/env_tools/beken_utils/scripts/ppc.py``. Manufacturer datasheet sections
+4.3/4.4 and the CPU description constrain these questions but do not answer
+all of them. Complete board and external-firmware acceptance remain later
+gates; the existing green native tests do not remove these evidence blockers.
+
 Board GPIO wiring
 -----------------
 
@@ -672,6 +754,87 @@ request assertion/acknowledgement, partial destination byte strobes, remaining
 count commit points, and cancel/clock-loss treatment of buffered data are not.
 IRQ thresholds cannot be assumed to define DMA request eligibility. These are
 open hardware contracts, not missing always-ready stubs to be filled in.
+
+PSRAM and DPLL evidence boundary
+-------------------------------
+
+PSRAM remains absent. The SDK maps its controller at secure 0x46080000 and
+nonsecure 0x56080000. The 0x60000000/0x70000000 views each describe a 64-MiB
+address aperture, not the fitted memory capacity. The manufacturer lists
+package options with 4, 8 and 16 MB SiP PSRAM. QSPI0 and QSPI1 use separate
+apertures; an ordinary RAM mapping does not implement this controller.
+
+The pinned CP HAL writes command 1/2/4 for mode-register write/read/reset at
+controller +0x20, supplies address/data at +0x24/+0x28, and reads data at +0x2c.
+Polling request bits until clear establishes a programming sequence, not a
+command duration, a reset default or success for an absent part. Controller
+mode/timing fields, complete data packing and write-through/cache behavior
+are still missing contracts. AP-side initialization returns failure; the CP
+path owns setup. Some CP fallback paths report success without checking the
+returned part value, so an SDK success return cannot be our acceptance test.
+
+The SDK's initial AP Memory values 0x8d09/0x8d08 are not immutable JEDEC IDs.
+The first read contains writable configuration alongside vendor information.
+For an explicitly selected APS6408L-OBMx, the current official
+`AP Memory revision 3.9 datasheet
+<https://www.apmemory.com/cn/downloadFiles/0324112221jz592656>`_
+(2023-06-27), pages 15--17, defines stateful mode registers. Figure 12 pairs
+addresses 0/1/2/3/4/8 with MR0+MR1, MR1+MR2, MR2+MR3, MR3+MR4,
+MR4+MR8 and MR8+MR0 respectively, repeating the two returned bytes. Figure 13
+writes one selected mode-register byte. MR0/4/8 are writable, MR1/2/3 are
+read-only, and density is separately encoded in MR2. Power-up requires at
+least 150 microseconds followed by the specified reset sequence; reset does
+not guarantee array retention. These part facts do not establish the Beken
+controller's upper response bits or serialization. A future fixture must
+select a coherent part/revision and capacity, not independent arbitrary
+identity and size values. It must remain possible to attach no part.
+
+The inspected AP Memory PDF has SHA-256
+``bfaf2b56bc13aead917fac0a21adf6796bf9911cb043099bbdf1ee26569ec1e4``.
+The current register diagrams were visually checked; the PDF itself is not
+redistributed in this source tree.
+
+DPLL is a prerequisite to integrated PSRAM clocks. BK7258 datasheet section
+4.3 identifies nominal CLK_320M and CLK_480M outputs; SYS ANA5 (+0x114) bit5
+controls DPLL enable. This supports an explicitly ideal nominal-source
+abstraction, but no DPLL source is currently implemented. AON R7D (+0x1f4)
+bit22 is raw DPLL_UNLOCK, while the separate bit21 refers to 26MPLL_UNLOCK.
+SYS high-bank bit19 routes DPLL unlock as global IRQ51. Their placement does
+not establish their reset values, settling, loss-of-lock or clearing behavior.
+Do not synthesize lock or calibration success from an enable write.
+
+The BK7258 calibration function toggles ANA0 SPITRIG/SPIDETEN and waits in
+software; it returns success without polling lock. Its general DPLL-reset
+function is a no-op. Shared HAL comments are not a reliable replacement for
+this chip's register map: generic ANA11 DPLL descriptions name an actual
+BK7258 buck register, and generic ANA0 N-divider-reset text conflicts with
+this chip's open-loop field. Analog-register transfer completion is distinct
+from PLL locking. No hardware POR values or arbitrary frequency-coefficient
+equation have been established.
+
+SYS+0x24 bits5/4 select the PSRAM source/divider and SYS+0x30 bit19 gates it.
+The CP HAL programs four operating points: 480/0 for 240 MHz, 320/0 for
+160 MHz, 480/1 for 120 MHz, and 320/1 for 80 MHz. These labels imply
+``F / (2 * (1 + N))``, but the shared header and inline comments give
+conflicting formulas. No inspected source proves an internal-versus-pin
+clock explanation. A selected nominal rate must not silently become a
+verified PSRAM timing contract or a three-board default.
+
+The next bounded component can be an explicitly selected, stateful AP Memory
+part and a separately clock-fed controller fixture. Integrated command and
+array access still require evidenced source availability, divider stages,
+MMIO-to-device packing and cancellation behavior. Required negative tests
+include no part, no clock, read-only/reserved mode registers, interrupted
+commands and fitted-capacity boundaries. Write-through/cache, x16 conversion,
+Winbond mode, DMA, security and low-power retention stay separate gaps.
+
+These observations use the already pinned SDK's
+``cp/include/soc/bk7258/reg_base.h``,
+``cp/middleware/soc/bk7258/hal/psram_ll_macro_def.h``,
+``cp/middleware/soc/common/hal/psram_hal.c``,
+``cp/middleware/driver/psram/psram_driver.c``,
+BK7258 ``sys_reg.h``, ``aon_pmu_reg.h``, ``icu_map.h`` and ``hal/sys_hal.c``.
+They do not add PSRAM support or establish a board BOM.
 
 SPI master functional boundaries
 -------------------------------
