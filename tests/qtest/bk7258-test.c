@@ -881,6 +881,48 @@ static void test_spi_fifo_errors(const void *board)
     qtest_quit(qts);
 }
 
+static void test_spi_completed_config_rejection(const void *board)
+{
+    QTestState *qts = start_spi(board);
+    static const uint32_t invalid[] = {
+        1, 0x100002, 0x200103, 0x103,
+    };
+    const uint8_t status[] = {0x05, 0};
+    uint8_t rx[2];
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = spi_base[g], before;
+
+        spi_setup(qts, g);
+        qtest_writel(qts, b + 0x1c, 4); /* WRDI completes with CFG enabled. */
+        qtest_writel(qts, b + 0x14, 0x101);
+        spi_wait(qts, g);
+        before = qtest_readl(qts, b + 0x18);
+        qtest_writel(qts, b + 0x1c, 6); /* Queue WREN without a new frame. */
+        for (unsigned i = 0; i < G_N_ELEMENTS(invalid); i++) {
+            qtest_writel(qts, b + 0x10000014, invalid[i]);
+            expect(qts, b + 0x14, 0x101);
+            expect(qts, b + 0x18, before);
+            qtest_clock_step(qts, 9000);
+            expect(qts, b + 0x14, 0x101);
+            expect(qts, b + 0x18, before);
+        }
+        /* Mask changes after completion are valid and must not rearm. */
+        qtest_writel(qts, b + 0x14, 0x105);
+        expect(qts, b + 0x14, 0x105);
+        qtest_clock_step(qts, 9000);
+        expect(qts, b + 0x18, before);
+        /* Only disable then enable starts the queued next frame. */
+        qtest_writel(qts, b + 0x14, 0);
+        qtest_writel(qts, b + 0x18, 0x2000);
+        qtest_writel(qts, b + 0x14, 0x101);
+        spi_wait(qts, g);
+        spi_xfer(qts, g, status, sizeof(status), rx);
+        g_assert_cmphex(rx[1] & 2, ==, 2);
+    }
+    qtest_quit(qts);
+}
+
 static void test_spi_fifo_thresholds(const void *board)
 {
     QTestState *qts = start_spi(board);
@@ -1176,6 +1218,38 @@ static void test_i2c_clock_reset_cancel(const void *board)
         qtest_system_reset(qts);
         expect(qts, base + 8, 0);
         expect(qts, base + 0x14, 0x10);
+    }
+    qtest_quit(qts);
+}
+
+static void test_i2c_unchanged_deadline(const void *board)
+{
+    QTestState *qts = start_i2c(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = i2c_base[g];
+
+        for (unsigned mode = 0; mode < 3; mode++) {
+            i2c_setup(qts, g);
+            qtest_writel(qts, b + 0x10, 0x8c000000);
+            qtest_writel(qts, b + 0x18, 0xa0);
+            qtest_writel(qts, b + 0x14, 0x400);
+            for (unsigned i = 0; i < 100; i++) {
+                qtest_clock_step(qts, 1);
+                if (!mode) {
+                    qtest_writel(qts, b + 0x10, 0x8c000000);
+                } else {
+                    qtest_writel(qts, b + 8,
+                                 mode == 1 ? 3 : 1 | ((i & 1) << 1));
+                }
+            }
+            /* 81 cycles at 26 MHz: an unchanged clock completes at 3116 ns. */
+            qtest_clock_step(qts, 3015);
+            g_assert_cmphex(qtest_readl(qts, b + 0x14) & 0x501, ==, 0x400);
+            qtest_clock_step(qts, 1);
+            g_assert_cmphex(qtest_readl(qts, b + 0x14) & 0x501, ==, 0x501);
+            i2c_stop(qts, g);
+        }
     }
     qtest_quit(qts);
 }
@@ -2792,12 +2866,15 @@ int main(int argc, char **argv)
         {"spi-lsb-byte-order-cancel-routes", test_spi_lsb_byte_adapter},
         {"spi-native-frames-irq-routes", test_spi_native_frames_routes},
         {"spi-fifo-overflow-starvation", test_spi_fifo_errors},
+        {"spi-completed-config-atomic-rejection",
+         test_spi_completed_config_rejection},
         {"spi-fifo-threshold-boundaries", test_spi_fifo_thresholds},
         {"spi-clock-loss-reset-cancel", test_spi_clock_cancel},
         {"spi-invalid-cs-wiring", test_spi_bus_wiring_rejection},
         {"i2c-fifo-native-bus-transactions", test_i2c_fifo_transactions},
         {"i2c-w0c-nak-irq-routes", test_i2c_w0c_nak_routes},
         {"i2c-clock-reset-cancel", test_i2c_clock_reset_cancel},
+        {"i2c-register-write-deadline", test_i2c_unchanged_deadline},
         {"timer-groups-channels-routes-w1c", test_timg_channels},
         {"timer-clock-snapshot-cancel", test_timg_clock_snapshot},
         {"timer-prescaler-boundaries", test_timg_prescaler},

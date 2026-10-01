@@ -303,26 +303,36 @@ static MemTxResult bk7258_i2c_write(void *opaque, hwaddr offset,
                                    MemTxAttrs attrs)
 {
     BK7258I2CState *s = opaque;
+    uint32_t old;
 
     switch (offset) {
     case 0x08:
         if (value & ~3U) {
             goto unsupported;
         }
-        bk7258_i2c_pause(s);
+        /* Readback-only changes must not discard a live fractional cycle. */
+        old = s->global;
+        if ((old ^ value) & 1) {
+            bk7258_i2c_pause(s);
+        }
         s->global = value;
         if (!(value & 1)) {
             bk7258_i2c_abort(s);
             s->config = s->extra = 0;
         }
-        bk7258_i2c_clock_update(s);
+        if (((old ^ value) & 1) || !(value & 1)) {
+            bk7258_i2c_clock_update(s);
+        }
         break;
     case 0x10:
         if (s->operation && (value & CFG_ENABLE) &&
             ((s->config ^ value) & 0x0c00ffc0)) {
             goto unsupported;
         }
-        bk7258_i2c_pause(s);
+        old = s->config;
+        if ((old ^ value) & (CFG_ENABLE | 0x0c000000U)) {
+            bk7258_i2c_pause(s);
+        }
         s->config = value;
         if (!(value & CFG_ENABLE)) {
             bk7258_i2c_abort(s);
@@ -330,7 +340,9 @@ static MemTxResult bk7258_i2c_write(void *opaque, hwaddr offset,
             qemu_log_mask(LOG_UNIMP,
                           "bk7258-i2c: selected clock source is not modeled\n");
         }
-        bk7258_i2c_clock_update(s);
+        if ((old ^ value) & (CFG_ENABLE | 0x0c000000U)) {
+            bk7258_i2c_clock_update(s);
+        }
         break;
     case 0x14:
         if (!bk7258_i2c_status_write(s, value)) {

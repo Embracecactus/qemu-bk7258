@@ -405,15 +405,24 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_i2c1_empty_read_fault(self):
         self.run_i2c_empty_fault("aidk_ai_toy", 1)
 
-    def run_i2c(self, board, missing_route):
+    def run_i2c(self, board, missing_route, noop=False):
         elf = self.build_fixture(
-            board, "i2c.c", MISSING_ROUTE=int(missing_route)
+            board, "i2c.c", MISSING_ROUTE=int(missing_route),
+            NOOP_PROBE=int(noop),
         )
+        if noop:
+            self.vm.add_args("-icount", "shift=0,align=off,sleep=off")
         for bus in ("i2c0", "i2c1"):
             self.vm.add_args(
                 "-device", f"at24c-eeprom,bus={bus},address=0x50,rom-size=256"
             )
         mmio = self.launch_fixture(elf)
+        if noop:
+            wait_for_console_pattern(
+                self,
+                "BK7258 I2C UNCHANGED CLOCK PROGRESS OK",
+                "BK7258 I2C PROBE FAILED",
+            )
         if missing_route:
             wait_for_console_pattern(
                 self,
@@ -434,6 +443,15 @@ class BK7258Machine(QemuSystemTest):
 
     def test_t5_board_i2c(self):
         self.run_i2c("t5_board", False)
+
+    def test_t5_board_i2c_unchanged_clock(self):
+        self.run_i2c("t5_board", False, noop=True)
+
+    def test_t5ai_core_i2c_unchanged_clock(self):
+        self.run_i2c("t5ai_core", False, noop=True)
+
+    def test_aidk_ai_toy_i2c_unchanged_clock(self):
+        self.run_i2c("aidk_ai_toy", False, noop=True)
 
     def test_t5_board_i2c_missing_route(self):
         self.run_i2c("t5_board", True)
@@ -734,7 +752,8 @@ class BK7258Machine(QemuSystemTest):
         self.run_dma_security_fault("aidk_ai_toy", 1)
 
     def run_spi(
-        self, board, missing_route=False, missing_endpoint=False, lsb=False
+        self, board, missing_route=False, missing_endpoint=False, lsb=False,
+        reject_index=None,
     ):
         elf = self.build_fixture(
             board,
@@ -742,6 +761,8 @@ class BK7258Machine(QemuSystemTest):
             MISSING_ROUTE=int(missing_route),
             MISSING_ENDPOINT=int(missing_endpoint),
             LSB_FIRST=int(lsb),
+            REJECT_CFG=int(reject_index is not None),
+            REJECT_INDEX=reject_index or 0,
         )
         if not missing_endpoint:
             for bus in ("spi0", "spi1"):
@@ -757,9 +778,10 @@ class BK7258Machine(QemuSystemTest):
                 ),
                 "BK7258 SPI PROBE FAILED",
             )
-        wait_for_console_pattern(
-            self,
-            (
+        expected = (
+            "BK7258 SPI COMPLETED CFG PRECISE FAULT OK"
+            if reject_index is not None
+            else (
                 "BK7258 SPI PROBE FAILED"
                 if missing_route or missing_endpoint
                 else (
@@ -767,13 +789,40 @@ class BK7258Machine(QemuSystemTest):
                     if lsb
                     else "BK7258 SPI SSI ID IRQ OK"
                 )
-            ),
+            )
         )
+        failure = (
+            None if missing_route or missing_endpoint
+            else "BK7258 SPI PROBE FAILED"
+        )
+        wait_for_console_pattern(self, expected, failure)
         self.vm.wait(timeout=5)
         self.assertEqual(
             self.vm.exitcode(), int(missing_route or missing_endpoint)
         )
-        self.assertEqual(mmio.read_bytes(), b"")
+        self.assertEqual(
+            mmio.read_text(),
+            "bk7258-spi: unsupported write 0x1 at 0x14\n"
+            if reject_index is not None else "",
+        )
+
+    def test_t5_board_spi0_completed_config_fault(self):
+        self.run_spi("t5_board", reject_index=0)
+
+    def test_t5_board_spi1_completed_config_fault(self):
+        self.run_spi("t5_board", reject_index=1)
+
+    def test_t5ai_core_spi0_completed_config_fault(self):
+        self.run_spi("t5ai_core", reject_index=0)
+
+    def test_t5ai_core_spi1_completed_config_fault(self):
+        self.run_spi("t5ai_core", reject_index=1)
+
+    def test_aidk_ai_toy_spi0_completed_config_fault(self):
+        self.run_spi("aidk_ai_toy", reject_index=0)
+
+    def test_aidk_ai_toy_spi1_completed_config_fault(self):
+        self.run_spi("aidk_ai_toy", reject_index=1)
 
     def test_t5_board_spi(self):
         self.run_spi("t5_board")

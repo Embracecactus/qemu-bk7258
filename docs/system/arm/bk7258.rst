@@ -933,6 +933,10 @@ Clock/timing and error boundaries are deliberately explicit:
   this slice. Unsupported configurations, unknown registers, full TX writes
   and empty RX reads return transaction errors. As with UART/I2C, these are
   strict-model diagnostics, not claims about silicon BusFault responses.
+  Validation also applies after a completed frame retains its enable bits:
+  invalid writes leave configuration, queued bytes and slave state intact.
+  A valid interrupt-mask update does not start another frame; software must
+  still disable and re-enable the channel to transmit the queued next frame.
 
 Native qtests cover both buses, real peripheral ID/write-enable state,
 CS-separated command frames, all threshold encodings, FIFO integrity,
@@ -942,6 +946,9 @@ and invalid chip-select wiring. Source-built probes execute IRQ7/17 and
 must distinguish a missing SPI1 route from an absent endpoint; an unrelated
 early failure cannot satisfy either negative. Separate precise-fault probes
 cover the model's empty-read error policy.
+Post-completion probes also require a precise fault at the nonsecure CFG alias
+after a verified real-slave ID transaction, with the previous configuration
+and completion state preserved. An unrelated early fault cannot pass them.
 
 I2C master functional boundaries
 -------------------------------
@@ -984,6 +991,11 @@ to host virtual nanoseconds. This is functional latency, not measured wire
 or setup/hold timing. Clock gating preserves remaining source cycles rounded
 upward; fractional phase is not modeled. Changing the divider/source during
 an active byte is rejected rather than guessing its physical behavior.
+Rewriting unchanged configuration or changing the GLOBAL bypass/readback bit
+does not gate a clock and must preserve the pending absolute deadline. Native
+qtests check the exact boundary after repeated subcycle writes; an additional
+source-built probe uses deterministic instruction timing to detect starvation
+from such writes, then runs the ordinary bus/IRQ/repeated-START sequence.
 
 The following boundaries remain explicit:
 
@@ -1549,6 +1561,25 @@ Apache-2.0 sources in ``Embracecactus/bk_avdk_smp`` at
   watchdog NMI belongs to physical CPU0; AP treats an NMI as an illegal-jump fault
 * ``cp/middleware/soc/bk7258/hal/sys_ll.h`` and CP/AP BK7258 defconfigs:
   selected analog transfer busy view
+
+The SDK branch audit on 2026-10-01 distinguished that ``openvela/v3.1.1.9``
+reference from the repository's default ``release/v3.0.1`` at
+``4ca389311a7ef641f10b94d298dc07ee16b0f79c`` and ``release/v3.1.1`` at
+``d2ded037798530175e5dc5cde6fa1878f5d5ef35``. Their relevant STAR CMSIS
+headers, AON R7A definitions, CP PSRAM HAL/LL/driver, CP DPLL SYS HAL and
+BK7258 MPC/PPC configuration/generator blobs match. Added reset-reason display
+text and AP WFI software handshakes do not specify new reset-domain or
+retention behavior. R7A remains reserved in the generated structure, and
+``mpc.py`` only parses Device/Offset/Size/Secure CSV records. These branches
+do not close the P0 identity, reset, security or integrated-PSRAM gaps.
+
+The newer ``release/v4.0.1`` at
+``d24a9fa4597129b9b7b2d972de3a84e3368de03e`` has BK7259/BK7259_AP SoC and
+board trees. Its newer implementation is not BK7258 evidence without an
+explicit compatibility source. No SDK source or firmware is part of the
+independent QEMU test dependencies. The BK7258 I2C LL and driver document
+the combined SM_INT/ACK/START/STOP write; separate NAK and later STOP commands
+must not be inferred from generic I2C behavior.
 
 The Apache-2.0 contest repository at
 ``28894814cb7967054847ac147e83b8b8e68fed5c`` supplies integration evidence:

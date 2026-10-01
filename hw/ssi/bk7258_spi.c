@@ -281,6 +281,11 @@ static MemTxResult bk7258_spi_write(void *opaque, hwaddr offset,
         }
         tx_len = (value >> 8) & 0xfff;
         rx_len = value >> 20;
+        /* A completed frame retains enables; it must not bypass validation. */
+        if ((value & 3) && (!(value & 1) || !tx_len ||
+            ((value & 2) && (!rx_len || rx_len != tx_len)))) {
+            goto unsupported;
+        }
         if (!(value & 3)) {
             bk7258_spi_abort(s);
         } else if (s->active) {
@@ -289,9 +294,7 @@ static MemTxResult bk7258_spi_write(void *opaque, hwaddr offset,
                 goto unsupported;
             }
         } else if (!(s->config & 3)) {
-            if (!(s->global & 1) || !(s->control & ENABLE) ||
-                !(value & 1) || !tx_len ||
-                ((value & 2) && (!rx_len || rx_len != tx_len))) {
+            if (!(s->global & 1) || !(s->control & ENABLE)) {
                 goto unsupported;
             }
             if (!bk7258_spi_cs(s, false)) {

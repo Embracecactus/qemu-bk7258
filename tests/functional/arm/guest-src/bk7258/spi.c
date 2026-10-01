@@ -13,10 +13,18 @@
 #ifndef LSB_FIRST
 #define LSB_FIRST 0
 #endif
+#ifndef REJECT_CFG
+#define REJECT_CFG 0
+#endif
+#ifndef REJECT_INDEX
+#define REJECT_INDEX 0
+#endif
 /* Independent CPU-clock deadline published by SysTick. */
 static volatile uint32_t ticks;
 /* Completion observations from real IRQ7/17 handlers. */
 static volatile uint32_t seen[2];
+/* Only the intended post-completion write may satisfy the fault probe. */
+static volatile uint32_t fault_armed;
 static void start(void);
 static void fault(void);
 static void systick(void);
@@ -52,8 +60,9 @@ static __attribute__((noreturn)) void finish(uint32_t status)
     uint32_t args[2] = {0x20026, status};
 
     print(status ? "BK7258 SPI PROBE FAILED\n" :
-                   (LSB_FIRST ? "BK7258 SPI LSB SSI ID IRQ OK\n" :
-                                "BK7258 SPI SSI ID IRQ OK\n"));
+          (REJECT_CFG ? "BK7258 SPI COMPLETED CFG PRECISE FAULT OK\n" :
+           (LSB_FIRST ? "BK7258 SPI LSB SSI ID IRQ OK\n" :
+                        "BK7258 SPI SSI ID IRQ OK\n")));
 
     /* Bind caller-clobbered arguments only after console calls return. */
     register uint32_t r0 __asm__("r0") = 0x20;
@@ -65,7 +74,18 @@ static __attribute__((noreturn)) void finish(uint32_t status)
 
 static void fault(void)
 {
-    finish(1);
+    uint32_t exception;
+
+    __asm__ volatile("mrs %0, ipsr" : "=r"(exception));
+    if (!REJECT_CFG || !fault_armed || exception != 3 ||
+        !(REG(0xe000ed2c) & (1u << 30)) ||
+        (REG(0xe000ed28) & 0xff00) != 0x8200 ||
+        REG(0xe000ed38) != base(REJECT_INDEX) + 0x10000014 ||
+        REG(base(REJECT_INDEX) + 0x14) != 0x0040040f ||
+        (REG(base(REJECT_INDEX) + 0x18) & 0x7804)) {
+        finish(1);
+    }
+    finish(0);
 }
 
 static void systick(void)
@@ -100,7 +120,7 @@ static void irq1(void)
 
 static void start(void)
 {
-    ticks = seen[0] = seen[1] = 0;
+    ticks = seen[0] = seen[1] = fault_armed = 0;
     REG(SYS + 0x30) = (1u << 2) | (1u << 1) | (1u << 9);
     REG(UART + 8) = 1;
     REG(UART + 0x10) = 0xe11b;
@@ -153,6 +173,11 @@ static void start(void)
             received[3] != (LSB_FIRST ? 0x68 : 0x16) ||
             (REG(base(g) + 0x18) & (4 | 0x6000))) {
             finish(1);
+        }
+        if (REJECT_CFG && g == REJECT_INDEX) {
+            fault_armed = 1;
+            REG(base(g) + 0x10000014) = REJECT_CFG;
+            finish(1); /* Silent acceptance after completion must fail. */
         }
         REG(base(g) + 0x14) = 0;
     }

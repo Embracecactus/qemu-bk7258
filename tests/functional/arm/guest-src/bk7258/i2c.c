@@ -13,6 +13,9 @@
 #define ACK 0x100u
 #define START 0x400u
 #define STOP 0x200u
+#ifndef NOOP_PROBE
+#define NOOP_PROBE 0
+#endif
 /* CPU-clock deadline published by the SysTick handler. */
 static volatile uint32_t ticks;
 /* Completion observations published by actual IRQ6/14 exception handlers. */
@@ -139,6 +142,35 @@ static void stop(unsigned g)
     }
 }
 
+static void unchanged_clock_probe(void)
+{
+    for (unsigned g = 0; g < 2; g++) {
+        for (unsigned mode = 0; mode < 3; mode++) {
+            uint32_t begin = ticks, writes = 0;
+
+            REG(base(g) + 8) = 3;
+            REG(base(g) + 0x10) = 0x8c000000;
+            REG(base(g) + 0x18) = 0xa0;
+            REG(base(g) + 0x14) = START;
+            /* Under icount=0 each no-op write arrives within a source cycle. */
+            while (!(REG(base(g) + 0x14) & 1) && ticks == begin) {
+                if (!mode) {
+                    REG(base(g) + 0x10) = 0x8c000000;
+                } else {
+                    REG(base(g) + 8) = mode == 1 ? 3 : 1 | ((writes & 1) << 1);
+                }
+                writes++;
+            }
+            if (writes < 2 || (REG(base(g) + 0x14) & 0x501) != 0x501) {
+                finish(1);
+            }
+            stop(g);
+        }
+        REG(base(g) + 8) = 0;
+    }
+    bk7258_test_console_puts("BK7258 I2C UNCHANGED CLOCK PROGRESS OK\n");
+}
+
 static void start(void)
 {
     ticks = seen[0] = seen[1] = 0;
@@ -148,6 +180,9 @@ static void start(void)
     REG(0xe000e014) = 25999;
     REG(0xe000e018) = 0;
     REG(0xe000e010) = 7;
+    if (NOOP_PROBE) {
+        unchanged_clock_probe();
+    }
     REG(SYS + 0x80) = (1u << 6) | (MISSING_ROUTE ? 0 : (1u << 14));
     for (unsigned g = 0; g < 2; g++) {
         REG(base(g) + 8) = 3;
