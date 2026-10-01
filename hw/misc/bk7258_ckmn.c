@@ -43,7 +43,8 @@ static void bk7258_ckmn_start(BK7258CKMNState *s)
 {
     uint64_t reference = clock_get_hz(s->reference);
     uint64_t measured = clock_get_hz(s->measured);
-    uint64_t count;
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t count, delay;
 
     if (!s->window || !reference || !measured) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -59,9 +60,12 @@ static void bk7258_ckmn_start(BK7258CKMNState *s)
     }
     s->pending_result = count;
     s->active = true;
-    timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-              DIV_ROUND_UP((uint64_t)s->window * NANOSECONDS_PER_SECOND,
-                           measured));
+    delay = DIV_ROUND_UP((uint64_t)s->window * NANOSECONDS_PER_SECOND,
+                         measured);
+    /* An unrepresentable deadline must not wrap or complete early. */
+    if (delay <= INT64_MAX - now) {
+        timer_mod(s->timer, now + delay);
+    }
 }
 
 static void bk7258_ckmn_clock_changed(void *opaque, ClockEvent event)

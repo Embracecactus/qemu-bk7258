@@ -1293,6 +1293,61 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_timer_invalid_channel(self):
         self.run_timer("aidk_ai_toy", fault=True)
 
+    def run_ckmn(self, board, missing_route=False):
+        elf = self.build_fixture(
+            board, "ckmn.c", MISSING_ROUTE=int(missing_route)
+        )
+        # Genuine M33 execution: RTC and TIMG measure the 2 ms window while
+        # the native CKMN handler checks IRQ21/IPSR37 and W1C deassertion.
+        self.vm.add_args("-icount", "shift=0,align=off,sleep=off")
+        mmio = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        output = wait_for_console_pattern(self, " DONE")
+        self.vm.wait(timeout=5)
+        self.assertEqual(
+            self.vm.exitcode(), int(missing_route), output.decode()
+        )
+        sample = re.search(
+            rb"BK7258 CKMN SAMPLE ([0-9a-f]{8}) ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) END", output
+        )
+        self.assertIsNotNone(sample, output.decode())
+        rtc, timer, exception, count, result, status = (
+            int(value, 16) for value in sample.groups()
+        )
+        self.assertEqual(result, 52000)
+        if missing_route:
+            self.assertIn(b"BK7258 CKMN EXPECTED SYS ROUTE FAILURE", output)
+            self.assertEqual((exception, count, status), (0, 0, 1))
+            self.assertGreaterEqual(rtc, 288)
+            self.assertGreaterEqual(timer, 234000)
+        else:
+            self.assertIn(b"BK7258 CKMN 2MS IRQ21 W1C OK", output)
+            self.assertEqual((exception, count, status), (37, 1, 0))
+            self.assertGreaterEqual(rtc, 63)
+            self.assertLessEqual(rtc, 65)
+            self.assertGreaterEqual(timer, 51990)
+            self.assertLessEqual(timer, 52260)
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_t5_board_ckmn(self):
+        self.run_ckmn("t5_board")
+
+    def test_t5_board_ckmn_missing_route(self):
+        self.run_ckmn("t5_board", missing_route=True)
+
+    def test_t5ai_core_ckmn(self):
+        self.run_ckmn("t5ai_core")
+
+    def test_t5ai_core_ckmn_missing_route(self):
+        self.run_ckmn("t5ai_core", missing_route=True)
+
+    def test_aidk_ai_toy_ckmn(self):
+        self.run_ckmn("aidk_ai_toy")
+
+    def test_aidk_ai_toy_ckmn_missing_route(self):
+        self.run_ckmn("aidk_ai_toy", missing_route=True)
+
     def run_rtc(self, board, missing_route):
         elf = self.build_fixture(
             board, "rtc.c", MISSING_ROUTE=int(missing_route)

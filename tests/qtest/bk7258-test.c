@@ -3246,6 +3246,65 @@ static void test_clock_cancel(const void *board)
     qtest_quit(qts);
 }
 
+static void test_clock_deadline_horizon(const void *board)
+{
+    QTestState *qts = start(board);
+    int64_t now;
+
+    qtest_writel(qts, CKMN + 8, 1);
+    qtest_writel(qts, SYS + 0x80, 1U << 21);
+    qtest_writel(qts, CKMN + 0x10, 32);
+    qtest_writel(qts, CKMN + 0x14, 3);
+    now = qtest_clock_step(qts, 1000000);
+    expect(qts, CKMN + 0x18, 26000);
+    expect(qts, CKMN + 0x20, 1);
+    qtest_writel(qts, CKMN + 0x14, 0);
+    qtest_writel(qts, CKMN + 0x20, 1);
+
+    qtest_clock_step(qts, INT64_MAX - now - 1000000);
+    qtest_writel(qts, CKMN + 0x10, 64);
+    qtest_writel(qts, CKMN + 0x14, 3); /* 2 ms cannot fit in the last 1 ms. */
+    qtest_clock_step(qts, 1);
+    expect(qts, CKMN + 0x18, 26000);
+    expect(qts, CKMN + 0x20, 0);
+    expect(qts, SYS + 0xa0, 0);
+    qtest_clock_step(qts, 999998);
+    expect(qts, CKMN + 0x18, 26000);
+    expect(qts, CKMN + 0x20, 0);
+    expect(qts, SYS + 0xa0, 0);
+    /* Saturating to INT64_MAX must not finish early. */
+    qtest_clock_step(qts, 1);
+    expect(qts, CKMN + 0x18, 26000);
+    expect(qts, CKMN + 0x20, 0);
+    expect(qts, SYS + 0xa0, 0);
+    qtest_writel(qts, CKMN + 0x14, 0);
+    qtest_quit(qts);
+}
+
+static void test_clock_deadline_exact_fit(const void *board)
+{
+    QTestState *qts = start(board);
+    int64_t now = qtest_clock_step(qts, 1);
+
+    qtest_clock_step(qts, INT64_MAX - now - 2000000);
+    qtest_writel(qts, CKMN + 8, 1);
+    qtest_writel(qts, SYS + 0x80, 1U << 21);
+    qtest_writel(qts, CKMN + 0x10, 64);
+    qtest_writel(qts, CKMN + 0x14, 3);
+    qtest_clock_step(qts, 1999999);
+    expect(qts, CKMN + 0x18, 0);
+    expect(qts, CKMN + 0x20, 0);
+    expect(qts, SYS + 0xa0, 0);
+    qtest_clock_step(qts, 1);
+    expect(qts, CKMN + 0x18, 52000);
+    expect(qts, CKMN + 0x20, 1);
+    expect(qts, SYS + 0xa0, 1U << 21);
+    qtest_writel(qts, CKMN + 0x20, 1);
+    expect(qts, CKMN + 0x20, 0);
+    expect(qts, SYS + 0xa0, 0);
+    qtest_quit(qts);
+}
+
 static void mailbox_setup(QTestState *qts)
 {
     static const unsigned starts[] = {0, 2, 5};
@@ -4320,6 +4379,8 @@ int main(int argc, char **argv)
         {"analog-busy-cancel", test_analog},
         {"clock-ratio-routes", test_clock_monitor},
         {"clock-source-loss-reset", test_clock_cancel},
+        {"clock-deadline-time-horizon", test_clock_deadline_horizon},
+        {"clock-deadline-exact-fit", test_clock_deadline_exact_fit},
         {"lpo-mux-source-loss-gates-reset", test_lpo_mux},
         {"mailbox-order-full", test_mailbox},
         {"mailbox-protection-reset", test_mailbox_protection},

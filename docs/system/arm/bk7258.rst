@@ -533,6 +533,17 @@ Implemented slice
   edge/rounding choices are explicit functional abstractions, not measured
   synchronizer timing. Clock correction/loss-detection/autoswitch dynamics,
   physical ROSC tuning, and device ID/version probes remain unsupported.
+  A measurement whose deadline exceeds QEMU's signed 64-bit nanosecond
+  horizon stays incomplete; it does not wrap, saturate into early completion,
+  or acquire a new hardware error/status bit. Disable/reset can still cancel
+  it. This is an extreme host virtual-time limit, not a usual firmware
+  timing problem or a silicon error condition.
+  Native tests distinguish a deadline exactly at that limit from one beyond
+  it, including preservation of a prior result and W1C. Source-built M33
+  guests check the ordinary 2-ms window with independent RTC and XTAL timer
+  observations, IRQ21 exception entry, and a missing-SYS-route negative case.
+  Their standard deterministic ``icount`` setting is a test scheduling aid,
+  not a processor instruction-rate or hardware performance claim.
 
 * Native MBOX0 v2 at 0x41000000 / 0x51000000: three channels partition eight
   shared slots. TID writes enqueue two opaque words and source channel; SID
@@ -677,9 +688,9 @@ no virtual time elapsed.
 
 The shared helper handles overdue timers as zero remaining work and covers
 bounded 32-bit cycle budgets without overflowing intermediate arithmetic.
-Watchdog scheduling also checks the representable virtual-time horizon,
-matching the other finite-operation timers; an unrepresentable deadline
-must not wrap around into an immediate reset.
+Watchdog, RTC and CKMN scheduling also check the representable virtual-time
+horizon; an unrepresentable deadline must not wrap around into an immediate
+reset or measurement completion.
 Its registered unit tests run without a machine or socket. They check known
 26-MHz rounding edges, zero-time rearming, the representable time horizon,
 and 100,000 exact-rational reference inputs. Native hardware qtests separately
