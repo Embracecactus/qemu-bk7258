@@ -253,8 +253,11 @@ static void bk7258_aon_reset(DeviceState *dev)
     s->gpio_locked = !!(s->retained & (1U << 31));
     s->irq_status = 0;
     for (unsigned i = 0; i < BK7258_GPIO_COUNT; i++) {
+        bool old = bk7258_gpio_level(s, i);
+
         s->pin[i] = 0x28; /* diagnostic initial pad: output off, pull-down */
-        bk7258_gpio_update(s, i, false);
+        /* Retaining a high pad across reset must not create a rising edge. */
+        bk7258_gpio_update(s, i, old);
     }
 }
 

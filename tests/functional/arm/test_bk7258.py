@@ -209,6 +209,36 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_gpio_missing_sys_route(self):
         self.run_aidk_gpio(missing_route=True)
 
+    def run_gpio_reset(self, board):
+        elf = self.build_fixture(board, "gpio_reset.c")
+        mmio = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        output = wait_for_console_pattern(self, " END")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0, output.decode())
+        self.assertEqual(
+            re.findall(rb"BK7258 GPIO RESET [^\r\n]+", output),
+            [
+                b"BK7258 GPIO RESET HIGH EDGE ARMED",
+                b"BK7258 GPIO RESET RETAINED RISE OK",
+                b"BK7258 GPIO RESET REAL IRQ55 OK",
+                b"BK7258 GPIO RESET RETAINED FALL OK",
+                b"BK7258 GPIO RESET RETAINED HIGH LEVEL OK",
+                b"BK7258 GPIO RESET RETAINED LOW LEVEL OK",
+                b"BK7258 GPIO RESET UNLOCKED DEFAULT OK",
+                b"BK7258 GPIO RESET RESULT 00000000 END",
+            ],
+        )
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_t5_board_gpio_retained_reset(self):
+        self.run_gpio_reset("t5_board")
+
+    def test_t5ai_core_gpio_retained_reset(self):
+        self.run_gpio_reset("t5ai_core")
+
+    def test_aidk_ai_toy_gpio_retained_reset(self):
+        self.run_gpio_reset("aidk_ai_toy")
+
     def run_core_clock(self, board, enabled=True, omit_dpll=False):
         elf = self.build_fixture(
             board, "core_clock.c", OMIT_DPLL=int(omit_dpll)

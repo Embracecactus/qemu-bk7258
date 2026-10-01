@@ -553,7 +553,13 @@ reset defaults are an emulator boot contract, not measured power-on defaults.
 External SysTick routes start enabled, UART functional clocks start gated,
 watchdogs start disarmed, and GPIO pads
 start output-disabled with pull-down. AON retained state survives warm reset;
-this is not a power-loss persistence model. AON watchdog periods use ROSC/32
+this is not a power-loss persistence model. With GPIO retention locked, reset
+clears the interrupt latch and re-evaluates the retained digital pad level.
+An unchanged high input does not become a new rising edge; a configured active
+level interrupt can reassert. Register shadows still receive their diagnostic
+reset values while the locked pad configuration is retained. This describes
+the existing warm-reset model, not unverified silicon reset-domain behavior.
+AON watchdog periods use ROSC/32
 (nominal 1 kHz), APB uses LPO / {2,4,8,16}. Clock interruption preserves the
 remaining count rounded up to a whole watchdog tick; sub-tick phase is not
 retained. Oscillator tolerances, undocumented invalid-key behavior, PMU R2's

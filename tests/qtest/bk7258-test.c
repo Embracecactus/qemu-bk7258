@@ -2763,6 +2763,96 @@ static void test_board_wiring(const void *board)
 #define GPIO_STATUS (GPIO + 0x100)
 #define GPIO_IRQ55 (1U << 23)
 
+static void gpio_commit_lock(QTestState *qts, bool locked)
+{
+    uint32_t value = locked ? 1U << 31 : 0;
+
+    qtest_writel(qts, 0x44000000, value);
+    qtest_writel(qts, 0x44000094, 0x424b55aa);
+    qtest_writel(qts, 0x44000094, 0xbdb4aa55);
+    expect(qts, 0x440001ec, value);
+}
+
+static void test_gpio_retained_reset(const void *board)
+{
+    static const struct {
+        uint32_t config;
+        bool high, level_irq;
+    } modes[] = {
+        { 0x180c, true, false },  /* Stable high, rising edge. */
+        { 0x1c0c, false, false }, /* Stable low, falling edge. */
+        { 0x140c, true, true },   /* Active high level. */
+        { 0x100c, false, true },  /* Active low level. */
+    };
+    const unsigned pins[] = { 2, 34 }; /* One pin in each status bank. */
+    QTestState *qts = start(board);
+
+    /* This checks the existing warm-reset model, not silicon reset domains. */
+    for (unsigned m = 0; m < G_N_ELEMENTS(modes); m++) {
+        gpio_commit_lock(qts, false);
+        for (unsigned bank = 0; bank < G_N_ELEMENTS(pins); bank++) {
+            uint32_t pin = GPIO + 4 * pins[bank];
+
+            qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", pins[bank],
+                            !modes[m].high);
+            qtest_writel(qts, pin, modes[m].config);
+            qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", pins[bank],
+                            modes[m].high);
+            expect(qts, pin, modes[m].config | modes[m].high);
+            expect(qts, GPIO_STATUS + 4 * bank, 4);
+        }
+        /* Bank zero's edge was acknowledged; bank one's stale latch was not. */
+        qtest_writel(qts, GPIO_STATUS, 4);
+        expect(qts, GPIO_STATUS, modes[m].level_irq ? 4 : 0);
+        expect(qts, GPIO_STATUS + 4, 4);
+        gpio_commit_lock(qts, true);
+        qtest_system_reset(qts);
+        expect(qts, 0x440001ec, 1U << 31);
+        expect(qts, SYS + 0x84, 0);
+        expect(qts, SYS + 0xa4, 0);
+        for (unsigned bank = 0; bank < G_N_ELEMENTS(pins); bank++) {
+            /* Reset shadow is 0x28; retained effective pad supplies bit 0. */
+            expect(qts, GPIO + 4 * pins[bank], 0x28 | modes[m].high);
+            expect(qts, GPIO_STATUS + 4 * bank, modes[m].level_irq ? 4 : 0);
+            qtest_writel(qts, GPIO_STATUS + 4 * bank, 4);
+            expect(qts, GPIO_STATUS + 4 * bank, modes[m].level_irq ? 4 : 0);
+        }
+        qtest_writel(qts, SYS + 0x84, GPIO_IRQ55);
+        expect(qts, SYS + 0xa4, modes[m].level_irq ? GPIO_IRQ55 : 0);
+        /* Unlock applies reset shadows and disables retained IRQ sources. */
+        gpio_commit_lock(qts, false);
+        expect(qts, SYS + 0xa4, 0);
+        for (unsigned bank = 0; bank < G_N_ELEMENTS(pins); bank++) {
+            expect(qts, GPIO + 4 * pins[bank], 0x28);
+            qtest_writel(qts, GPIO_STATUS + 4 * bank, 4);
+            expect(qts, GPIO_STATUS + 4 * bank, 0);
+        }
+    }
+
+    /* A real post-unlock rising edge still latches and routes IRQ55. */
+    for (unsigned bank = 0; bank < G_N_ELEMENTS(pins); bank++) {
+        uint32_t pin = GPIO + 4 * pins[bank];
+
+        qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", pins[bank], 0);
+        qtest_writel(qts, pin, 0x180c);
+        expect(qts, GPIO_STATUS + 4 * bank, 0);
+        qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", pins[bank], 1);
+        expect(qts, pin, 0x180d);
+        expect(qts, GPIO_STATUS + 4 * bank, 4);
+        expect(qts, SYS + 0xa4, GPIO_IRQ55);
+        qtest_writel(qts, GPIO_STATUS + 4 * bank, 4);
+        expect(qts, SYS + 0xa4, 0);
+    }
+    qtest_system_reset(qts); /* Unlocked configuration returns to defaults. */
+    expect(qts, 0x440001ec, 0);
+    for (unsigned bank = 0; bank < G_N_ELEMENTS(pins); bank++) {
+        expect(qts, GPIO + 4 * pins[bank], 0x28);
+        expect(qts, GPIO_STATUS + 4 * bank, 0);
+    }
+    expect(qts, SYS + 0xa4, 0);
+    qtest_quit(qts);
+}
+
 /* AIDK V1.0 schematic: KEY1=P13, KEY2=P12, KEY3=P8. */
 static const struct {
     unsigned pin;
@@ -4224,6 +4314,7 @@ int main(int argc, char **argv)
         {"rtc-compare-routes-w1c", test_rtc_irq_w1c},
         {"rtc-64bit-upper-wrap", test_rtc_upper64},
         {"gpio-mask-w1c", test_gpio},
+        {"gpio-retained-warm-reset-edges-levels", test_gpio_retained_reset},
         {"board-led-key-wiring", test_board_wiring},
         {"gpio-external-release", test_gpio_external_release},
         {"analog-busy-cancel", test_analog},
