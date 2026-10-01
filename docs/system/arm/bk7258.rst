@@ -281,6 +281,64 @@ Relevant pinned sources are the CP/AP ``armstar.h`` and ``core_star.h``,
 all of them. Complete board and external-firmware acceptance remain later
 gates; the existing green native tests do not remove these evidence blockers.
 
+T5 specification and board-document cross-check
+-----------------------------------------------
+
+The `Tuya T5 chip specification v1.0
+<https://images.tuyacn.com/content-platform/hestia/173154909519dd2f61d59.pdf>`_
+(2024-06-25, 71 PDF pages including a blank final page, SHA-256
+``3204b7367d1b1fc22d6d80599c68b780736fa582c39a78cf992b0a5db2b7b572``)
+is linked by Tuya's `official chip page
+<https://developer.tuya.com/cn/docs/iot/wifibt-dual-mode-chip?id=Ke3voh7uu0htz>`_.
+The following page references use physical PDF pages. The source was visually
+checked, including the ordering table; it is a functional specification,
+not a register-level technical reference manual.
+
+* Pages 6/69 identify ordering code ``T5QN88616`` as 8-MB SiP Flash and
+  16-MB SiP PSRAM. This establishes the named package's advertised capacities,
+  not the memory die vendors, JEDEC/mode-register identities, controller data
+  packing or the fitted ordering code inside an arbitrary T5-E1 module.
+* Page 5 identifies STAR-MC1, double-precision FPU and 16-KiB ITCM/DTCM.
+  It does not give separate physical-core identities, cache geometries,
+  MPU/SAU counts or the implementation's feature-register values.
+* Pages 30/31 corroborate nominal clock sources and reset classes. Page 31
+  distinguishes the AON 64-bit timer and 32-bit retained register from AWDT
+  reset, and states that POR/BOD reset those retained elements. This is
+  useful domain-level evidence; it does not define R7A capture/clear behavior
+  or retention of every RTC control, threshold, interrupt or clock register.
+  The current diagnostic system-reset path does not implement those complete
+  hardware reset-domain classes.
+* Pages 39/40 describe DMA security/privilege capabilities, without their
+  register attribution, request-handshake or denied-access behavior. Pages
+  44--46 describe four PWM counters and coupled outputs, without resolving
+  the SDK's legacy three-pair and extension-register mapping. These high-level
+  capabilities do not justify changing the bounded DMA/PWM contracts.
+
+The three board PDFs referenced below were checked page by page, and their
+freshly downloaded public originals matched the recorded SHA-256 digests.
+They establish wiring, not an as-built inventory or hidden module BOM:
+
+* T5-Board V102, page 2: ``T5-E1-IPEX`` module U6; page 4's separate Flash U3
+  is explicitly ``NC`` and has no part identity. It is not evidence for a
+  fitted boot NOR. T5AI-Core V101, page 3: ``T5-E1`` module U5, without an
+  internal memory BOM. Neither drawing shows the modules' internal crystals.
+* Both T5 drawings connect their reset network to module EN pad 3. That
+  establishes an external connection, not the SoC's reset-domain semantics,
+  voltage thresholds or a delay calculated from the drawn RC components.
+* AIDK pages 2/4 additionally connect KEY1/P13 and KEY2/P12 through 1-kOhm
+  resistors to grounded contacts, without drawn external pull-ups. Net LED2
+  connects P41 through 330 ohms to green LED4. These are future board endpoint
+  candidates, not currently modeled inputs/outputs.
+* AIDK pages 2/4 show SC7A20HTR on P20/P21 with INT1 on P48. Its register,
+  address and interrupt contract must come from that component's source.
+  Schematic net names IIC1/IIC2 do not establish software controller numbers.
+  The drawing's generic BK7258 package and SD NAND labels do not identify
+  boot NOR or PSRAM parts.
+
+No original PDF is redistributed here. These facts refine the evidence gates;
+they do not enable guessed memory parts, oscillator defaults, peripheral
+responses or complete firmware acceptance.
+
 Board GPIO wiring
 -----------------
 
@@ -308,10 +366,10 @@ endpoints. These are partial board models, not complete peripheral inventories:
      - open; firmware selects bias
 
 The LED uses QEMU's existing ``led`` device. Green for T5/Core is a visualization
-choice, not a verified component color; AIDK LED1 is labeled red in the source
-schematic. AIDK P9 is the motor control, not this board's LED. Other keys,
-reset-button circuits, motor, LCD, camera, audio, storage connectors and native
-USB remain unconnected. T5 P1's shared UART alternative function is not wired
+choice, not a verified component color; the AIDK LED1 net drives red LED3 in
+the source schematic. AIDK P9 is the motor control, not this board's LED.
+Other keys, reset-button circuits, motor, LCD, camera, audio, storage connectors
+and native USB remain unconnected. T5 P1's shared UART alternative function is not wired
 to the LED yet; GPIO-mode checks must not be presented as UART waveform tests.
 
 The machine property ``user-key-pressed`` controls the ideal contact. For
@@ -340,6 +398,9 @@ Sources checked as electrical references, not firmware behavior to emulate:
 * T5AI-Core V1.0.1: `official board documentation
   <https://docs.tuyaopen.ai/zh/docs/hardware/tuya-t5/t5-ai-core/overview-t5-ai-core>`_
   and ``T5AI-Core_V101-SCH-a69f7b5a91b4bf21a39bdb7c17812373.pdf``, pages 3/5.
+  The `original schematic
+  <https://docs.tuyaopen.ai/zh/assets/files/T5AI-Core_V101-SCH-a69f7b5a91b4bf21a39bdb7c17812373.pdf>`_
+  is linked in that documentation's download section.
   The archived original's SHA-256 is
   ``091b7a9302ec51cbb71f12b339cddbf34cf5d5a28b529f64613e498759eef086``.
   P9 LED polarity and the User_key pull-up/contact were visually checked.
@@ -348,7 +409,7 @@ Sources checked as electrical references, not firmware behavior to emulate:
   pages 2/4, SHA-256
   ``b10cf08785a1c8767d9b4c51d05e6c8685a4cb60a720b51022734d742149bb2d``.
   KEY3 is P8 through 1 kOhm to the grounded switch; no external pull-up is
-  shown there. LED1 is P40 and active high through 1 kOhm to the red LED.
+  shown there. Net LED1 is P40 and active high through 1 kOhm to red LED3.
 
 Implemented slice
 -----------------
@@ -406,8 +467,10 @@ Implemented slice
   transfer completes. The SoC exposes ``lpo-external`` as a clock input for
   future board wiring. These three board models currently leave it unconnected,
   so selecting it stops the reference instead of inventing a fitted oscillator.
-  The AIDK schematic explicitly marks its external 32.768-kHz parts NC; the
-  absence of a connection on the other models is not a hardware inventory claim.
+  The AIDK schematic shows X2/C16/C17 greyed out, without an explicit ``NC``
+  label beside them. That drawing alone does not verify whether a physical
+  assembly fits the 32.768-kHz source. Leaving this input unconnected on all
+  three models is a conservative diagnostic choice, not an inventory claim.
   Selecting encoding 3 logs an unsupported case and supplies no clock. This is
   a conservative model policy, not a measured reserved-encoding response.
 * 56 digital GPIOs: active-low output enable, input/pull state, retention lock,
