@@ -172,7 +172,9 @@ static MemTxResult bk7258_flash_start(BK7258FlashState *s)
         s->tx_words = 0;
     }
     if (bk7258_flash_mutating(operation)) {
-        /* Public SDK write-enable wrappers are no-ops: controller owns WREN. */
+        /*
+         * SDK program/erase paths omit WREN; controller ownership is inferred.
+         */
         ret = bk7258_nor_write_enable(s->nor);
         if (ret) {
             return MEMTX_ERROR;

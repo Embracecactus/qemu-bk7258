@@ -84,7 +84,8 @@ run unchanged.
      - `Flash read/write`_ and `Flash LL`_: aligned 32-byte command blocks,
        eight FIFO words, busy polling, and erase commands.
      - Explicit GD25WQ64E experiment part, AND programming, protection,
-       cancellation, file persistence and CRC XIP/fault execution. This does
+       cancellation, file persistence and CRC XIP/fault execution; the guest
+       buffer matrix below checks unaligned multi-block operations. This does
        not identify any board's integrated memory die or prove boot/OTA.
 
 I2C sequence matrix
@@ -119,21 +120,49 @@ START/threshold read-modify-write sequence independent of host preemption.
 This is a deterministic test scheduling aid, not an asserted chip execution
 rate. This audit found no new model defect in the supported I2C sequence.
 
+Flash buffer matrix
+-------------------
+
+``guest-src/bk7258/flash_sdk.c`` adapts the ordinary driver buffer algorithm:
+each 32-byte staging buffer starts at 0xff, only requested bytes are overlaid,
+then eight FIFO words are programmed at the aligned address. It does not
+read-modify-write the old array. Reads fetch aligned 32-byte blocks and copy
+only the requested range. Zero-length reads/writes issue no commands.
+
+One guest covers offsets 0, 1, 3, 4, 15 and 31, each with lengths 1, 4, 5,
+31, 32, 33, 63, 64 and 65: 54 cases. Every case erases one test sector, seeds
+128 bytes with non-erased data, then programs the requested subrange. It checks
+the requested readback and the whole seeded area, including unchanged neighbors
+and NOR AND semantics. The area starts at physical 0x2001e0, so transfers also
+cross a 256-byte page boundary without issuing an unaligned controller command.
+
+The selected experimental GD25WQ64E part's lower-4-MiB protection is then set.
+Three program commands and one erase complete without changing the array.
+Their four exact permission-denied diagnostics are expected; other model
+errors fail. Protection is cleared and status is checked. A normal run must
+exit 0 after exactly 926 completed commands: 323 program, 544 read, 55 erase
+and four ID/status operations. A negative variant then supplies only seven TX
+words. It must reach the real HardFault handler with CFSR=0x8200 and
+BFAR=0x44030010, exit 1, and log only the one additional expected FIFO error.
+An ignored command, changed counters, other exception or timeout cannot pass.
+The fault is the model's strict incomplete-command policy, not asserted silicon
+behavior for an invalid FIFO sequence.
+
+The runner independently constructs and CRC-encodes a physical NOR image.
+No ``-kernel`` or host loader is used: vectors and instructions are fetched
+through physical CRC XIP. After guest exit it checks the raw file against an
+independent final-data oracle and hashes both regions outside the one allowed
+test sector. Thus protected writes and the rejected incomplete command must
+leave persistent data unchanged, including all executable bytes. These are
+chip controller/part tests on all three machines, not measured flash latency,
+reset-ROM execution, physical board part identification or full firmware boot.
+
 Further work supported by existing sources
 ------------------------------------------
 
 The source evidence supports additional sequence-level validation without
-inventing registers, timing or board devices. A useful next increment is the
-ordinary Flash buffer algorithm: the SDK fills each 32-byte staging buffer
-with 0xff, overlays only the requested bytes, writes eight FIFO words, and
-programs the aligned block. It does not read-modify-write the old array.
-Existing tests exercise the controller's fixed-size operations and NOR AND
-semantics; a guest adapting this full algorithm could cover non-word-aligned
-requests, multiple blocks and preservation of previously programmed neighbors.
-Payload, untouched neighbors, completion and a rejected/error path must all
-be checked. No new flash identity or physical program latency is needed.
-
-The reviewed SPI source also permits longer TX-only/equal-length duplex FIFO
+inventing registers, timing or board devices. For example, the reviewed SPI
+source permits longer TX-only/equal-length duplex FIFO
 service tests with existing native SSI devices. These are potential coverage
 improvements, not evidence of a model failure. DMA maximum length, widths,
 address modes, partial faults and rearming already have targeted tests; adding

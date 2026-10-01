@@ -1427,6 +1427,113 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_i2c_sdk_bad_address(self):
         self.run_i2c_sdk("aidk_ai_toy", bad_address=True)
 
+    def run_flash_sdk(self, board, bad_fifo=False):
+        elf = self.build_fixture(board, "flash_sdk.c", BAD_FIFO=int(bad_fifo))
+        raw = Path(self.scratch_file("flash_sdk.bin"))
+        objcopy = Path(self.fixture_compiler).with_name("arm-none-eabi-objcopy")
+        subprocess.run(
+            [str(objcopy), "-O", "binary", str(elf), str(raw)],
+            check=True, capture_output=True, timeout=10
+        )
+        payload = raw.read_bytes()
+        payload += b"\xff" * (-len(payload) % 32)
+        encoded = bytearray()
+        for offset in range(0, len(payload), 32):
+            frame = payload[offset:offset + 32]
+            encoded.extend(frame)
+            encoded.extend(self.crc16(frame).to_bytes(2, "big"))
+        image = bytearray(b"\xff" * (8 * 1024 * 1024))
+        self.assertLess(0x11000 + len(encoded), 0x200000)
+        image[0x11000:0x11000 + len(encoded)] = encoded
+        nor = Path(self.scratch_file("nor.bin"))
+        nor.write_bytes(image)
+        metadata_file = Path(self.log_file("fixture-inputs.json"))
+        metadata = json.loads(metadata_file.read_text())
+        metadata["expected_exit"] = int(bad_fifo)
+        metadata["sha256"].update({
+            "raw_payload": hashlib.sha256(raw.read_bytes()).hexdigest(),
+            "initial_nor": hashlib.sha256(image).hexdigest(),
+        })
+        metadata_file.write_text(json.dumps(metadata, indent=2) + "\n")
+        mmio = Path(self.log_file("mmio.log"))
+        self.vm.set_qmp_monitor(False)
+        self.vm.set_console()
+        self.vm.add_args(
+            "-accel", "tcg,thread=single",
+            "-semihosting-config", "enable=on,target=native",
+            "-drive", f"if=pflash,unit=0,format=raw,file={nor}",
+            "-d", "guest_errors,unimp", "-D", str(mmio)
+        )
+        # No -kernel or host loader: vectors and instructions use CRC NOR XIP.
+        self.vm.launch()
+        self.vm.console_socket.settimeout(10)
+        output = wait_for_console_pattern(self, " DONE")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), int(bad_fifo), output.decode())
+        self.assertIn(
+            b"BK7258 FLASH SDK COUNTS 00000036 0000039e 00000143 "
+            b"00000220 00000037 END", output
+        )
+        expected_log = "".join(
+            f"bk7258-flash: operation {op} at 0x{addr:x} failed: "
+            "Permission denied\n"
+            for op, addr in ((12, 0x2001e0), (12, 0x200200),
+                             (12, 0x200220), (13, 0x200000))
+        )
+        if bad_fifo:
+            self.assertIn(b"BK7258 FLASH SDK EXPECTED FIFO FAULT", output)
+            self.assertIn(
+                b"BK7258 FLASH SDK RESULT 00000001 00008200 44030010 DONE",
+                output
+            )
+            expected_log += (
+                "bk7258-flash: page program requires eight TX words\n"
+            )
+        else:
+            self.assertIn(b"BK7258 FLASH SDK 54 CASES OK", output)
+            self.assertIn(
+                b"BK7258 FLASH SDK RESULT 00000000 00000000 00000000 DONE",
+                output
+            )
+        self.assertEqual(mmio.read_text(), expected_log)
+        # Independent file-level oracle for the last matrix case. Everything
+        # outside this one test sector, including executable XIP, is immutable.
+        expected = bytearray(b"\xff" * 4096)
+        seed = bytearray(((i * 29 + 53 * 7) ^ 0xd3) & 0xff for i in range(128))
+        for i in range(65):
+            seed[31 + i] &= ((i * 17 + 53 * 11) ^ 0x6b) & 0xff
+        expected[0x1e0:0x260] = seed
+        committed = nor.read_bytes()
+        self.assertEqual(len(committed), len(image))
+        for span in (slice(None, 0x200000), slice(0x201000, None)):
+            self.assertEqual(
+                hashlib.sha256(committed[span]).digest(),
+                hashlib.sha256(image[span]).digest()
+            )
+        self.assertEqual(committed[0x200000:0x201000], expected)
+        metadata["sha256"]["committed_nor"] = hashlib.sha256(
+            committed
+        ).hexdigest()
+        metadata_file.write_text(json.dumps(metadata, indent=2) + "\n")
+
+    def test_t5_board_flash_sdk_matrix(self):
+        self.run_flash_sdk("t5_board")
+
+    def test_t5_board_flash_sdk_bad_fifo(self):
+        self.run_flash_sdk("t5_board", bad_fifo=True)
+
+    def test_t5ai_core_flash_sdk_matrix(self):
+        self.run_flash_sdk("t5ai_core")
+
+    def test_t5ai_core_flash_sdk_bad_fifo(self):
+        self.run_flash_sdk("t5ai_core", bad_fifo=True)
+
+    def test_aidk_ai_toy_flash_sdk_matrix(self):
+        self.run_flash_sdk("aidk_ai_toy")
+
+    def test_aidk_ai_toy_flash_sdk_bad_fifo(self):
+        self.run_flash_sdk("aidk_ai_toy", bad_fifo=True)
+
     def run_rtc(self, board, missing_route):
         elf = self.build_fixture(
             board, "rtc.c", MISSING_ROUTE=int(missing_route)
