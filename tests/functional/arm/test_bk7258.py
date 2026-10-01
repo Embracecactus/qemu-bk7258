@@ -1348,6 +1348,85 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_ckmn_missing_route(self):
         self.run_ckmn("aidk_ai_toy", missing_route=True)
 
+    def run_i2c_sdk(self, board, missing_route=False, bad_address=False):
+        elf = self.build_fixture(
+            board, "i2c_sdk.c", MISSING_ROUTE=int(missing_route),
+            BAD_ADDRESS=int(bad_address)
+        )
+        for bus in range(2):
+            for address, size in ((0x50, 256), (0x51, 512)):
+                self.vm.add_args(
+                    "-device", f"at24c-eeprom,bus=i2c{bus},"
+                    f"address={address},rom-size={size}"
+                )
+        # Instruction-count scheduling keeps the SDK's START/threshold RMW
+        # sequence independent of host preemption. This is not a CPU speed.
+        self.vm.add_args("-icount", "shift=0,align=off,sleep=off")
+        mmio = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        output = wait_for_console_pattern(self, " DONE")
+        self.vm.wait(timeout=5)
+        code = 1 if missing_route else 2 if bad_address else 0
+        self.assertEqual(self.vm.exitcode(), code, output.decode())
+        counts = re.search(
+            rb"BK7258 I2C SDK COUNTS ([0-9a-f]{8}) ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) END", output
+        )
+        result = re.search(
+            rb"BK7258 I2C SDK RESULT ([0-9a-f]{8}) ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) DONE", output
+        )
+        self.assertIsNotNone(counts, output.decode())
+        self.assertIsNotNone(result, output.decode())
+        values = tuple(int(v, 16) for v in counts.groups())
+        state = tuple(int(v, 16) for v in result.groups())
+        self.assertEqual(state[0], code)
+        self.assertEqual(state[-2:], (0, 0))  # No hidden BusFault.
+        self.assertGreater(values[4], 0)
+        if missing_route:
+            self.assertEqual(values[:4], (55, 54, 52, 2))
+            self.assertEqual(values[5], 0)
+            self.assertEqual(state[1:6], (1, 0, 1, 0, 1))
+            self.assertIn(b"BK7258 I2C SDK EXPECTED ROUTE FAILURE", output)
+        elif bad_address:
+            self.assertEqual(values[:4], (55, 55, 52, 3))
+            self.assertEqual(values[5], 1)
+            self.assertEqual(state[1:6], (1, 0, 1, 0, 1))
+            self.assertIn(b"BK7258 I2C SDK EXPECTED ADDRESS FAILURE", output)
+        else:
+            self.assertEqual(values[:4], (108, 108, 104, 4))
+            self.assertGreater(values[5], 0)
+            self.assertIn(b"BK7258 I2C SDK 108 TRANSACTIONS OK", output)
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_t5_board_i2c_sdk_matrix(self):
+        self.run_i2c_sdk("t5_board")
+
+    def test_t5_board_i2c_sdk_missing_route(self):
+        self.run_i2c_sdk("t5_board", missing_route=True)
+
+    def test_t5_board_i2c_sdk_bad_address(self):
+        self.run_i2c_sdk("t5_board", bad_address=True)
+
+    def test_t5ai_core_i2c_sdk_matrix(self):
+        self.run_i2c_sdk("t5ai_core")
+
+    def test_t5ai_core_i2c_sdk_missing_route(self):
+        self.run_i2c_sdk("t5ai_core", missing_route=True)
+
+    def test_t5ai_core_i2c_sdk_bad_address(self):
+        self.run_i2c_sdk("t5ai_core", bad_address=True)
+
+    def test_aidk_ai_toy_i2c_sdk_matrix(self):
+        self.run_i2c_sdk("aidk_ai_toy")
+
+    def test_aidk_ai_toy_i2c_sdk_missing_route(self):
+        self.run_i2c_sdk("aidk_ai_toy", missing_route=True)
+
+    def test_aidk_ai_toy_i2c_sdk_bad_address(self):
+        self.run_i2c_sdk("aidk_ai_toy", bad_address=True)
+
     def run_rtc(self, board, missing_route):
         elf = self.build_fixture(
             board, "rtc.c", MISSING_ROUTE=int(missing_route)

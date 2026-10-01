@@ -39,6 +39,11 @@ small diagnostic is evidence for its named hardware path, not completion of
 BK7258 as a whole. The independent QEMU tests are the chip/board gate; no
 OpenVela source or profile changes are required for that gate.
 
+.. toctree::
+   :maxdepth: 1
+
+   bk7258-driver-audit
+
 .. list-table:: Current chip capability and remaining boundaries
    :header-rows: 1
    :widths: 20 42 38
@@ -1626,9 +1631,12 @@ erased FF frames may be read when ALL_FF_OK is enabled. Failed-read counts
 saturate at 255; this counter policy is functional, not measured hardware.
 Quad XIP requires QE. The direct-entry configuration enables CRC/ALL_FF_OK;
 this is not a claim about silicon power-on state. Controller-managed WREN is
-inferred from the SDK's no-op write-enable wrappers. Its op7 16-bit status
-transaction is modeled as two separately enabled SR-byte writes; the exact
-physical controller waveform is not known.
+inferred from the SDK's ordinary program/erase paths, which do not issue a
+separate WREN. The no-op write-enable wrappers exist only under
+``CONFIG_FLASH_TEST``; the LL also exposes explicit WREN/WRDI commands. This
+inference is not a claim that all SDK write-enable APIs are no-ops. Its op7
+16-bit status transaction is modeled as two separately enabled SR-byte writes;
+the exact physical controller waveform is not known.
 
 Unsupported: raw SPI framing, SFDP/UID/security/OTP, SRP1 special modes,
 volatile-status enable, suspend/deep-powerdown, page-select modes, direct CPU

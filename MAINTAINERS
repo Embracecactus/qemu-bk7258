@@ -4805,4 +4805,5 @@ F: tests/qtest/bk7258-test.*
 F: tests/functional/arm/test_bk7258.py
 F: tests/functional/arm/guest-src/bk7258/
 F: docs/system/arm/bk7258.rst
+F: docs/system/arm/bk7258-driver-audit.rst
 F: .github/workflows/bk7258-build.yml
