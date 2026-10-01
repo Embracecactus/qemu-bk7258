@@ -63,6 +63,7 @@ struct BK7258State {
     uint32_t clock_select;
     uint32_t peripheral_clocks;
     uint32_t power_sleep;
+    uint32_t flash_bus_config;
     uint32_t clock_mode;
     uint32_t gpio_mux[7];
     uint32_t analog[28];

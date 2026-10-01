@@ -57,6 +57,11 @@ static void fault(void)
         REG(0xe000ed38) != PROBE_ADDRESS) {
         finish(1);
     }
+#ifdef PRESERVED_VALUE
+    if (REG(PROBE_ADDRESS) != PRESERVED_VALUE) {
+        finish(1);
+    }
+#endif
     finish(0);
 }
 
@@ -66,7 +71,10 @@ static void start(void)
     REG(UART + 8) = 1;
     REG(UART + 0x10) = 0xe11b;
 #if WRITE_PROBE
-    /* Status is not writable; select the nonsecure alias in write probes. */
+#ifdef PRESERVED_VALUE
+    REG(PROBE_ADDRESS) = PRESERVED_VALUE;
+#endif
+    /* The requested unsupported write must not silently change state. */
     REG(PROBE_ADDRESS) = 0x12345678;
 #else
     /* Device identity is absent from this model, not a fabricated zero ID. */

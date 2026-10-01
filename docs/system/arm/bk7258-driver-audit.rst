@@ -19,6 +19,12 @@ share these chip limitations; their different LED/key wiring does not change
 the conclusions. Detailed timing and unsupported-access policies remain in
 :doc:`bk7258`.
 
+Subsequent unchanged product-image probes exposed SYS+0x44 before the old
+permissive SYS model's historical RF stop point. The bounded bit7 readback
+implementation, exact artifact hashes and new stop points are recorded in
+:doc:`bk7258`; this does not establish physical two-wire Flash behavior or
+complete product boot.
+
 Implemented and exercised subsets
 --------------------------------
 

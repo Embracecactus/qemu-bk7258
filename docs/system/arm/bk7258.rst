@@ -64,7 +64,8 @@ OpenVela source or profile changes are required for that gate.
        MPC/PPC/PRRO and security attribution
    * - SYS/interrupt routing
      - Per-core masks, source status, private mailbox IRQs, ordered core
-       control; asynchronous analog-register transfer and cancellation
+       control; asynchronous analog-register transfer and cancellation;
+       bounded SYS2Flash bit7 configuration readback
      - Full SYS register inventory, PLL/DVFS/rail dynamics and reset-domain
        conformance beyond the documented diagnostic contract
    * - UART0/1/2
@@ -1560,8 +1561,8 @@ A passing diagnostic proves CPU instruction execution, SRAM aliases,
 SysTick exceptions, core release/stop/reset, private TCM, UART receive IRQ and
 system reset within this slice, including a real watchdog NMI under PRIMASK.
 
-Earlier external firmware validation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+External firmware validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A separate real NuttX ``aidk_ai_toy/native_nsh`` CP ELF reaches NSH through
 unchanged NuttX/SDK startup, UART, NVIC and SysTick paths. Its existing-Kconfig
@@ -1576,9 +1577,12 @@ NuttX ``arm_enable_dbgmonitor()`` probes them because ARCH_CORTEXM33 selects
 ARCH_HAVE_DEBUG. The NSH harness preserves and counts exactly those eight
 startup messages, rejecting every other unknown access, including DWT cycle
 counter reads. No debugger, breakpoint or performance-counter claim follows.
-The restricted native NSH also passes through physical NOR XIP without the
-ELF loader. The unchanged direct product CP passes Flash initialization and
-next faults at unimplemented RF register 0x4980c000 (SDK rc_drv_set_rf_en).
+The restricted native NSH also passed through physical NOR XIP without the
+ELF loader. An earlier product CP probe with QEMU ``14674d1`` reached RF
+register 0x4980c000, but that revision returned zero for unknown SYS reads and
+ignored unknown SYS writes after logging them. That historical boundary does
+not establish that intervening SYS operations were implemented. The current
+strict-access model exposes the earlier missing registers listed below.
 The MCUboot-configured CP reads unimplemented AON R7A reset-cause storage
 0x440001e8 before Flash. Its snapshot/POR/reset-domain semantics are not
 established by the pinned SDK, whose register definition is reserved. Its
@@ -1592,6 +1596,125 @@ retain exact configuration-specific missing-device boundaries; they do not
 assert successful product boot.
 Production CP/AP boot, AP SMP scheduling, RPMsg software traffic, firmware
 updates and hardware timing remain outside this acceptance.
+
+Unchanged product-image probes (2026-10-01)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These manual external-input probes use the public contest
+`cold-delivery run 36685459851
+<https://github.com/Embracecactus/contest2026_135_yongwangzhiqian/actions/runs/36685459851>`_
+at source ``ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43``. The declared SDK pin is
+``cb080de1655d579c7593ecf504c440997c4c137b`` and NuttX is
+``76354c637858ecb0aa4601629327acb6f44a26bb``. Inputs, configuration and payload
+bytes are unchanged. They are not dependencies of QEMU's native core tests.
+
+The direct-app input comes from artifact ``11084027687``
+(ZIP SHA256 ``a450ef23f999b30a3ce78e4f8429d9f64ee19665e8fd8edd50fc32488ac3a509``).
+Its existing 8-MiB simulation NOR image has SHA256
+``f1b019f7fc26e1b8364e75cdfb977e2a0d680c4a0a1feb4217b0a41b34da59a8``.
+The AIDK ``app`` CP image occupies physical 0x11000, size 1159536, SHA256
+``2a973ecbaa50a79f9d41cdcdc996d12435f5196027ceccb3ac69fd5b35c22ae3``;
+the AP image at 0x143000 is also checked against its build manifest.
+CRC unframing for analysis reproduces the manifest's original raw CP hash
+``3ab036e97bba126d86007af1bcc29aad895bf82c62a51d4a9a813e3da1ac8cde``.
+That analysis copy is not patched or substituted as the executed input.
+
+The separate MCUboot-configured product package is artifact ``11084869555``
+(ZIP SHA256 ``ddbec3211049385ae497a032bcbd4cf9f0862a1511d25bcd999c9cc393350ca2``),
+version 0.7.0+1, package SHA256
+``7deef0f7675bb52bff1e1612f488cbce9c7a0b4bfe770461406a43762c982528``.
+Its manifest's existing images are copied byte-for-byte to their declared
+physical offsets in a fresh simulation container. Unspecified identity and
+calibration areas remain erased; this is not a complete board-flashable image.
+Its initial array SHA256 is
+``13efc53dce4596d75c7e3a09a0e3391a25cb00b6ff09632d3734725f70922a72``.
+No keys are generated, no images are re-signed, and no device is programmed.
+
+.. list-table:: Observed first fatal data accesses
+   :header-rows: 1
+   :widths: 33 19 20 28
+
+   * - Input and model
+     - Entry vector
+     - Fault PC / address
+     - Meaning
+   * - Direct app, QEMU ``d2402e2``
+     - 0x02010000
+     - 0x02022d4a / 0x44010044
+     - SYS2Flash bit7 read-modify-write, before its configuration latch
+       was implemented
+   * - Same direct app, with the bounded SYS2Flash latch below
+     - 0x02010000
+     - 0x0202263a / 0x44010024
+     - Next unsupported Flash clock-selector read; crossing the preceding
+       access is not two-wire hardware or complete firmware acceptance
+   * - Existing MCUboot-configured CP image
+     - 0x02010200
+     - 0x020180fa / 0x440001e8
+     - AON R7A reset-cause read, entering the app directly without ROM/BL1/BL2
+   * - Existing BL1 image
+     - 0x02000000
+     - 0x02000bfa / 0x4b1002c8
+     - OTP-controller read; execution began in BL1 but did not complete
+       a bootloader chain or a hardware ROM boot
+
+The CP UART reports CFSR=0x8200, the matching BFAR and its stacked PC. BL1's
+trace reports PRECISERR and the matching BFAR; its fault PC is obtained
+from the instruction trace immediately before the data abort. Product CP
+also accesses unimplemented debug/DWT facilities, including cycle-counter
+reads; reaching the reported fatal access does not validate those facilities.
+The simulation NOR arrays retain their input hashes. The direct app updates
+the separate NOR status bytes from 00/00/20 to 38/02/20 after the latch fix;
+this state change is recorded separately from the firmware array.
+
+For a locally supplied, hash-verified simulation image, the probe uses standard
+QEMU interfaces, for example::
+
+  timeout 8s ./qemu-system-arm -M aidk_ai_toy -display none -monitor none \
+    -global bk7258-soc.boot-vector=0x02010000 \
+    -serial file:uart.log \
+    -drive if=pflash,unit=0,format=raw,file=simulation-nor.bin \
+    -drive if=pflash,unit=1,format=raw,file=simulation-nor.status \
+    -d int,guest_errors,unimp -D trace.log
+
+Use a fresh working copy of the array/status inputs. The timeout is a host
+bound, not a firmware pass criterion; the actual data abort and UART must be
+inspected. These probes do not enable semihosting, patch firmware, change its
+configuration, or claim ROM execution from a host-selected entry vector.
+
+SYS2Flash configuration readback
+-------------------------------
+
+SYS+0x44 supports only bit7, ``sys2flsh_2wire``, as readable/writable state.
+The firmware SDK's
+`structure
+<https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/soc/sys_struct.h#L379-L390>`_
+and `LL getter/setter
+<https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/hal/sys_ll.h#L2549-L2557>`_
+agree with the actual guest's load/BFI-bit7/store sequence. The generated
+``sys_reg.h`` instead labels bits 3..31 reserved; the active structure, LL and
+executed instruction provide the evidence for this narrow exception.
+
+Writes containing any other bit return the model's unsupported-transaction
+error before changing stored state. This includes cache/FPU sleep requests;
+it is a strict model boundary, not a claim about silicon's invalid-write
+response. Reset value zero is an explicit direct-load machine convention,
+not a verified POR/reset-domain value. Secure/nonsecure aliases share the
+same configuration state. Physical lane wiring, two-wire timing, Flash speed
+and sleep behavior are not implemented by this latch. It does not manufacture
+ready, lock or command-completion status, and does not change the existing
+byte-transaction Flash data path.
+
+Native tests cover read-modify-write, set/clear, both aliases, reset and atomic
+rejection of every other bit. Real CPU negative tests verify precise BusFault
+and preserved prior state. The existing Flash data matrix alternates the known
+bit while retaining all payload/protection/FIFO-error assertions. That source
+matrix uses explicit instruction-count scheduling so host speed cannot consume
+its two-second aggregate deadline; the 100-ms operation deadline is unchanged.
+This is test scheduling, not a CPU/Flash performance assertion. The previously
+published unchanged matrix also passes with this scheduling on the original
+``d2402e2`` model. External product-image probes use their separately recorded
+arguments and do not use this instruction-count option.
 
 Physical NOR contract
 ---------------------

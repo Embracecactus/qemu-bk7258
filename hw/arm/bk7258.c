@@ -324,6 +324,9 @@ static MemTxResult bk7258_sys_read(void *opaque, hwaddr offset,
     case 0x40:
         *value = s->power_sleep;
         break;
+    case 0x44:
+        *value = s->flash_bus_config;
+        break;
     case 0xc0 ... 0xd8:
         *value = s->gpio_mux[(offset - 0xc0) / 4];
         break;
@@ -427,6 +430,19 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
     case 0x40:
         s->power_sleep = value;
         bk7258_update_tick_clocks(s);
+        break;
+    case 0x44:
+        /*
+         * SDK sys2flsh_2wire is bit 7. This is configuration readback only:
+         * the byte-transaction Flash model has no wire or bus-lane timing.
+         * Cache/FPU sleep controls and other bits remain unsupported.
+         */
+        if (value & ~(1U << 7)) {
+            qemu_log_mask(LOG_UNIMP,
+                          "bk7258-sys: unsupported SYS2Flash configuration\n");
+            return MEMTX_ERROR;
+        }
+        s->flash_bus_config = value;
         break;
     case 0xc0 ... 0xd8:
         s->gpio_mux[(offset - 0xc0) / 4] = value;
@@ -797,6 +813,8 @@ static void bk7258_reset(DeviceState *dev)
     memset(s->private_irqs, 0, sizeof(s->private_irqs));
     s->clock_select = s->peripheral_clocks = s->clock_mode = 0;
     s->power_sleep = TICK_ROUTES;
+    /* Direct-load model convention, not a claim about the silicon POR value. */
+    s->flash_bus_config = 0;
     memset(s->gpio_mux, 0, sizeof(s->gpio_mux));
     memset(s->analog, 0, sizeof(s->analog));
     s->apll_hz = 0;

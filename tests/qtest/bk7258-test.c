@@ -3415,6 +3415,55 @@ static void flash_expect(QTestState *qts, unsigned address, uint32_t value)
     }
 }
 
+static void test_sys_flash_configuration(const void *board)
+{
+    QTestState *qts = start(board);
+    uint32_t control = qtest_readl(qts, FLASH + 0x28);
+
+    expect(qts, SYS + 0x44, 0);
+    qtest_writel(qts, FLASH + 8, 1);
+    for (unsigned i = 0; i < 4; i++) {
+        uint32_t value = i & 1 ? 0 : 0x80;
+        uint32_t address = SYS + 0x44 + (i & 1 ? 0x10000000 : 0);
+
+        /* Same bitfield read-modify-write shape as the SDK setter. */
+        qtest_writel(qts, address,
+                     (qtest_readl(qts, address) & ~0x80U) | value);
+        expect(qts, SYS + 0x44, value);
+        expect(qts, SYS + 0x10000044, value);
+        expect(qts, FLASH + 0x28, control);
+        flash_program(qts, 0x1000 + 32 * i, 0x11111111U * (i + 1));
+        flash_expect(qts, 0x1000 + 32 * i, 0x11111111U * (i + 1));
+    }
+    qtest_writel(qts, SYS + 0x44, 0x80);
+    qtest_system_reset(qts);
+    expect(qts, SYS + 0x44, 0);
+    expect(qts, SYS + 0x10000044, 0);
+    qtest_writel(qts, FLASH + 8, 1);
+    flash_expect(qts, 0x1000, 0x11111111);
+    qtest_quit(qts);
+}
+
+static void test_sys_flash_invalid_fields(const void *board)
+{
+    QTestState *qts = start(board);
+
+    for (unsigned old = 0; old <= 0x80; old += 0x80) {
+        qtest_writel(qts, SYS + 0x44, old);
+        for (unsigned bit = 0; bit < 32; bit++) {
+            if (bit == 7) {
+                continue;
+            }
+            for (unsigned alias = 0; alias < 2; alias++) {
+                qtest_writel(qts, SYS + 0x44 + alias * 0x10000000,
+                             (old ^ 0x80) | (1U << bit));
+                expect(qts, SYS + 0x44, old); /* No partial update. */
+            }
+        }
+    }
+    qtest_quit(qts);
+}
+
 static void test_volatile_nor(const void *board)
 {
     QTestState *qts = start(board);
@@ -4346,6 +4395,9 @@ int main(int argc, char **argv)
         {"dma-max-length-event-rearm", test_dma_max_length_rearm},
         {"dma-unsupported-modes-no-progress", test_dma_unsupported_modes},
         {"memory-uart-reset", test_memory_uart},
+        {"sys-flash-configuration-readback-reset",
+         test_sys_flash_configuration},
+        {"sys-flash-unsupported-fields-atomic", test_sys_flash_invalid_fields},
         {"uart-clocks-gates-divider", test_uart_clocks},
         {"uart-rx-clock-pause-reset", test_uart_rx_clock_pause},
         {"uart-rx-capacity-wrap-backpressure", test_uart_rx_capacity},

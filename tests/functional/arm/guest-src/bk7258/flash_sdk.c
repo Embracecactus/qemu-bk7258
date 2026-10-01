@@ -205,6 +205,7 @@ static void start(void)
     REG(0xe000e018) = 0;
     REG(0xe000e010) = 7;
     REG(FLASH + 8) = 1;
+    check(REG(0x44010044) == 0, 0x1a);
     operation(20, 0);
     check(REG(FLASH + 0x20) == 0xc86517, 0x14); /* Explicit test part. */
     read_bytes(actual, AREA + 1, 0);
@@ -213,7 +214,11 @@ static void start(void)
     for (unsigned a = 0; a < sizeof(offsets) / sizeof(*offsets); a++) {
         for (unsigned n = 0; n < sizeof(lengths) / sizeof(*lengths); n++) {
             unsigned offset = offsets[a], length = lengths[n];
+            unsigned bit = (cases & 1) << 7;
 
+            /* Known SYS bit readback; wire/line timing is not asserted. */
+            REG(0x44010044) = (REG(0x44010044) & ~0x80u) | bit;
+            check(REG(0x54010044) == bit, 0x1b);
             operation(13, SECTOR);
             for (unsigned i = 0; i < sizeof(expected); i++) {
                 expected[i] = (i * 29 + cases * 7) ^ 0xd3;

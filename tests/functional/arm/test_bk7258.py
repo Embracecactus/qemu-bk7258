@@ -356,8 +356,11 @@ class BK7258Machine(QemuSystemTest):
         self.assertEqual(self.vm.exitcode(), 0 if positive else 1)
         self.assertEqual(mmio.read_bytes(), b"")
 
-    def run_sys_fault(self, board, write):
-        elf = self.build_fixture(board, "sys_fault.c", WRITE_PROBE=int(write))
+    def run_sys_fault(self, board, write, flash_config=False):
+        fields = {"WRITE_PROBE": int(write)}
+        if flash_config:
+            fields.update(PROBE_ADDRESS="0x44010044u", PRESERVED_VALUE="0x80u")
+        elf = self.build_fixture(board, "sys_fault.c", **fields)
         mmio = self.launch_fixture(elf)
         wait_for_console_pattern(
             self,
@@ -367,10 +370,19 @@ class BK7258Machine(QemuSystemTest):
         self.vm.wait(timeout=5)
         self.assertEqual(self.vm.exitcode(), 0)
         operation = "write offset 0xa0" if write else "read offset 0x0"
-        self.assertEqual(
-            mmio.read_text(),
-            f"bk7258-sys: {operation} is not implemented\n",
-        )
+        expected = ("bk7258-sys: unsupported SYS2Flash configuration\n"
+                    if flash_config else
+                    f"bk7258-sys: {operation} is not implemented\n")
+        self.assertEqual(mmio.read_text(), expected)
+
+    def test_t5_board_sys_flash_unsupported_control(self):
+        self.run_sys_fault("t5_board", True, flash_config=True)
+
+    def test_t5ai_core_sys_flash_unsupported_control(self):
+        self.run_sys_fault("t5ai_core", True, flash_config=True)
+
+    def test_aidk_ai_toy_sys_flash_unsupported_control(self):
+        self.run_sys_fault("aidk_ai_toy", True, flash_config=True)
 
     def run_uart_tx(self, board, index, missing_route=False, full_fifo=False):
         elf = self.build_fixture(
@@ -1458,8 +1470,11 @@ class BK7258Machine(QemuSystemTest):
         mmio = Path(self.log_file("mmio.log"))
         self.vm.set_qmp_monitor(False)
         self.vm.set_console()
+        # Bound virtual progress by instruction count rather than host speed.
+        # This is test scheduling, not a model of flash or CPU performance.
         self.vm.add_args(
             "-accel", "tcg,thread=single",
+            "-icount", "shift=5,align=off,sleep=off",
             "-semihosting-config", "enable=on,target=native",
             "-drive", f"if=pflash,unit=0,format=raw,file={nor}",
             "-d", "guest_errors,unimp", "-D", str(mmio)
