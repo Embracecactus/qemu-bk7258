@@ -1534,6 +1534,89 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_flash_sdk_bad_fifo(self):
         self.run_flash_sdk("aidk_ai_toy", bad_fifo=True)
 
+    def run_spi_sdk(self, board):
+        elf = self.build_fixture(board, "spi_sdk.c")
+        stores = []
+        for bus in range(2):
+            backing = Path(self.scratch_file(f"spi{bus}.bin"))
+            backing.write_bytes(b"\xff" * (4 * 1024 * 1024))
+            stores.append(backing)
+            self.vm.add_args(
+                "-drive", f"if=none,id=spi{bus}flash,format=raw,file={backing}",
+                "-device", f"w25q32,bus=spi{bus},cs=0,drive=spi{bus}flash"
+            )
+        # Deterministic service scheduling, not physical instruction timing.
+        self.vm.add_args(
+            "-icount", "shift=0,align=off,sleep=off",
+            "-trace", "enable=m25p80_select",
+            "-trace", "enable=m25p80_transfer"
+        )
+        mmio = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        output = wait_for_console_pattern(self, " DONE")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0, output.decode())
+        self.assertIn(
+            b"BK7258 SPI SDK RESULT 00000000 00000008 00000003 "
+            b"00000003 00000002 00000000 00000000 DONE", output
+        )
+        # Native endpoint callbacks independently observe what left the FIFO.
+        # A reset cannot undo a prefix already accepted by the NOR endpoint.
+        active, frames = {}, {}
+        for line in mmio.read_text().splitlines():
+            event = re.search(
+                r"m25p80_(select|transfer) \[(0x[0-9a-f]+)\] (.*)", line
+            )
+            self.assertIsNotNone(event, line)  # Reject other MMIO/errors.
+            kind, device, detail = event.groups()
+            if kind == "select":
+                if detail == "select":
+                    self.assertFalse(active.get(device), line)
+                    active[device] = []
+                else:
+                    self.assertEqual(detail, "deselect", line)
+                    if active.get(device):
+                        frames.setdefault(device, []).append(active[device])
+                    active[device] = None
+            else:
+                self.assertIsNotNone(active.get(device), line)
+                tx = re.search(r" tx 0x([0-9a-f]+)$", detail)
+                self.assertIsNotNone(tx, line)
+                active[device].append(int(tx.group(1), 16))
+        self.assertTrue(all(not pending for pending in active.values()))
+        self.assertEqual(len(frames), 2)
+        metadata_file = Path(self.log_file("fixture-inputs.json"))
+        metadata = json.loads(metadata_file.read_text())
+        metadata["ssi_frame_lengths"] = []
+        for bus, transfers in enumerate(frames.values()):
+            pattern = bytes(((i * 37 + bus * 13) ^ 0xa5) & 0xff
+                            for i in range(4, 196))
+            self.assertEqual(
+                transfers,
+                [[6], list(b"\x02\x01\x00\x20" + pattern[:128]),
+                 [6], list(b"\x02\x02\x00\x20" + pattern[:64])]
+            )
+            expected = bytearray(b"\xff" * (4 * 1024 * 1024))
+            expected[0x10020:0x100a0] = pattern[:128]
+            expected[0x20020:0x20060] = pattern[:64]
+            committed = stores[bus].read_bytes()
+            self.assertEqual(len(committed), len(expected))
+            self.assertEqual(hashlib.sha256(committed).digest(),
+                             hashlib.sha256(expected).digest())
+            metadata["sha256"][stores[bus].name] = hashlib.sha256(
+                committed
+            ).hexdigest()
+            metadata["ssi_frame_lengths"].append([len(t) for t in transfers])
+        metadata_file.write_text(json.dumps(metadata, indent=2) + "\n")
+
+    def test_t5_board_spi_sdk_long_tx(self):
+        self.run_spi_sdk("t5_board")
+
+    def test_t5ai_core_spi_sdk_long_tx(self):
+        self.run_spi_sdk("t5ai_core")
+
+    def test_aidk_ai_toy_spi_sdk_long_tx(self):
+        self.run_spi_sdk("aidk_ai_toy")
+
     def run_rtc(self, board, missing_route):
         elf = self.build_fixture(
             board, "rtc.c", MISSING_ROUTE=int(missing_route)

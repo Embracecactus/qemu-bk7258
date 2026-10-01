@@ -58,11 +58,13 @@ run unchanged.
        address NAK, missing SYS route, clock pause and reset cancellation.
        The matrix described below exercises complete bounded sequences.
    * - SPI
-     - `SPI transmit path`_ and `SPI ISR`_: TX-only and equal-length 8-bit
-       full-duplex enable/service/finish/disable, status read then W1C.
+     - `SPI transmit path`_ and `SPI ISR`_: ordinary TX-only FIFO-ready
+       polling, finish IRQ, status read then W1C and disable. The SDK's
+       `equal-length duplex API`_ depends on DMA, which remains unsupported.
      - Two native SSI buses, test-part responses, FIFO/error/finish IRQ,
-       MSB/LSB adapter, clock pause and reset. The optional ideal APLL input
-       is explicitly separate from physical PLL conformance.
+       long TX service, MSB/LSB adapter, clock pause and reset. Equal-length
+       duplex is tested at the register level, not as an unchanged SDK DMA
+       path. Optional ideal APLL input is separate from physical PLL conformance.
    * - DMA
      - `DMA copy path`_ and `DMA HAL`_: single block, memory request, equal
        widths, incrementing addresses, length-minus-one, enable and completion.
@@ -157,16 +159,43 @@ leave persistent data unchanged, including all executable bytes. These are
 chip controller/part tests on all three machines, not measured flash latency,
 reset-ROM execution, physical board part identification or full firmware boot.
 
-Further work supported by existing sources
-------------------------------------------
+Long SPI FIFO-ready service
+--------------------------
 
-The source evidence supports additional sequence-level validation without
-inventing registers, timing or board devices. For example, the reviewed SPI
-source permits longer TX-only/equal-length duplex FIFO
-service tests with existing native SSI devices. These are potential coverage
-improvements, not evidence of a model failure. DMA maximum length, widths,
-address modes, partial faults and rearming already have targeted tests; adding
-more length-only entries would not establish its missing peripheral handshake.
+The `SPI Kconfig`_ defaults ``SPI_SUPPORT_TX_FIFO_WR_READY`` to enabled.
+In that branch the ordinary write path enables TX, polls write readiness while
+feeding every byte, then waits for TX_FINISH. The ISR captures and clears
+status before disabling TX FIFO interrupts and TX. This is distinct from the
+SDK's DMA-based equal-length duplex API; replacing its DMA with a PIO loop
+would not validate the original driver path.
+
+``guest-src/bk7258/spi_sdk.c`` runs one source-adapted guest per board. On each
+controller it sends WREN followed by a 132-byte page-program frame to an
+explicit native ``w25q32`` test endpoint. Host checks verify all 128 payload
+bytes. This crosses the 64-byte FIFO capacity through normal polling service,
+with actual IRQ7/17 exception entry and finish acknowledgement.
+
+A second program frame declares 196 bytes, supplies 132 and resets the
+controller. Under the test's deterministic instruction-count scheduling,
+68 bytes have reached SSI: four command/address bytes and 64 payload bytes.
+The other 64 queued bytes must be discarded. The guest waits five milliseconds
+and requires no additional finish IRQ or pending status. Native endpoint
+``m25p80_select``/``m25p80_transfer`` traces must contain exactly the expected
+four nonempty frames per controller, of lengths 1, 132, 1 and 68, with every
+byte checked. Both entire backing files are checked against independent
+expected images. The delivered 64-byte prefix is retained; reset is not
+modeled as undoing data already received by the external part. No subsequent
+SSI bytes or fabricated completion may appear. These count and cancellation
+checks define a scheduled functional test, not silicon instruction timing or
+physical NOR power-cut atomicity.
+
+Existing qtests already cover 64-byte threshold boundaries, deliberate
+65-byte starvation/overflow, W1C/routing and clock/reset cancellation. Those
+cases are not duplicated as new length-only entries. DMA maximum length,
+widths, address modes, partial faults and rearming likewise already have
+targeted tests. This ordinary-path audit found no additional model defect in
+the supported sequences; unimplemented modes are tracked below rather than
+being silently accepted to make an entire SDK driver initialize.
 
 Evidence still needed before extending behavior
 -----------------------------------------------
@@ -246,6 +275,8 @@ Pinned source locations
 .. _I2C driver: https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/ap/middleware/driver/i2c/i2c_driver.c#L335-L462
 .. _I2C LL: https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/ap/middleware/soc/bk7258_ap/hal/i2c_ll.h#L229-L493
 .. _SPI transmit path: https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/ap/middleware/driver/spi/spi_driver.c#L743-L780
+.. _SPI Kconfig: https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/ap/middleware/driver/spi/Kconfig#L2-L12
+.. _equal-length duplex API: https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/ap/middleware/driver/spi/spi_driver.c#L919-L1025
 .. _SPI receive path: https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/ap/middleware/driver/spi/spi_driver.c#L783-L818
 .. _SPI ISR: https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/ap/middleware/driver/spi/spi_driver.c#L1128-L1194
 .. _DMA copy path: https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/ap/middleware/driver/general_dma/dma_driver.c#L1132-L1191
