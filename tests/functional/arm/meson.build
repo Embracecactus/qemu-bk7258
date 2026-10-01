@@ -17,6 +17,9 @@ test_arm_timeouts = {
   'aspeed_catalina' : 480,
   'aspeed_gb200nvl_bmc' : 480,
   'aspeed_rainier' : 480,
+  # More than 200 source-built guest cases run serially in this test script.
+  # This aggregate budget does not change individual guest deadlines.
+  'bk7258' : 180,
   'bpim2u' : 500,
   'collie' : 180,
   'cubieboard' : 360,
