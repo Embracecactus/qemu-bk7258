@@ -203,7 +203,8 @@ static void uart_rx_setup(QTestState *qts)
 {
     qtest_writel(qts, SYS + 0x30, 1U << 2);
     qtest_writel(qts, 0x44820008, 1);
-    qtest_writel(qts, 0x44820010, (259U << 8) | 3); /* 100 kbit/s at XTAL. */
+    /* 100 kbit/s at XTAL, eight data bits. */
+    qtest_writel(qts, 0x44820010, (259U << 8) | 0x1b);
     qtest_writel(qts, 0x44820014, 128U << 8);
     qtest_writel(qts, 0x44820020, 64);
     qtest_writel(qts, SYS + 0x80, 16);
@@ -315,6 +316,92 @@ static void test_uart_rx_capacity(const void *board)
     qtest_writel(qts, 0x44820008, 1);
     expect(qts, 0x44820024, 0);
     expect(qts, 0x44820018, (1U << 17) | (1U << 19) | (1U << 20));
+    close(fd);
+    qtest_quit(qts);
+}
+
+static void test_uart_rx_width_snapshot(const void *board)
+{
+    int fd;
+    const uint32_t b = 0x44820000;
+    const uint8_t data[] = {0xff, 0x80, 0xe5, 0x55};
+    g_autofree char *args = g_strdup_printf("-machine %s", (const char *)board);
+    QTestState *qts = qtest_init_with_serial(args, &fd);
+
+    uart_rx_setup(qts);
+    qtest_writel(qts, b + 0x14, sizeof(data) << 8);
+    for (unsigned received_bits = 5; received_bits <= 8; received_bits++) {
+        for (unsigned read_bits = 5; read_bits <= 8; read_bits++) {
+            qtest_writel(qts, b + 0x20, 0);
+            qtest_writel(qts, b + 0x10,
+                         (259U << 8) | ((received_bits - 5) << 3) | 3);
+            g_assert_cmpint(qemu_send_full(fd, data, sizeof(data)), ==,
+                            sizeof(data));
+            uart_wait_count(qts, sizeof(data));
+            expect(qts, b + 0x24, 2);
+            expect(qts, SYS + 0xa0, 0); /* Latch while delivery is masked. */
+            qtest_writel(qts, b + 0x10,
+                         (259U << 8) | ((read_bits - 5) << 3) | 3);
+            qtest_writel(qts, b + 0x20, 2);
+            expect(qts, SYS + 0xa0, 16);
+            qtest_writel(qts, b + 0x24, 2);
+            expect(qts, SYS + 0xa0, 16); /* Level reasserts at threshold. */
+            for (unsigned i = 0; i < sizeof(data); i++) {
+                /* FIFO characters retain their width through CONFIG edits. */
+                expect(qts, b + 0x1c + ((i & 1) ? 0x10000000 : 0),
+                       (data[i] & ((1U << received_bits) - 1)) << 8);
+            }
+            expect(qts, b + 0x18, 0x1a0000);
+            expect(qts, b + 0x24, 2); /* Draining is not an acknowledgement. */
+            qtest_writel(qts, b + 0x24, 2);
+            expect(qts, SYS + 0xa0, 0);
+        }
+    }
+
+    qtest_writel(qts, b + 0x10, (259U << 8) | 3);
+    g_assert_cmpint(qemu_send_full(fd, data, sizeof(data)), ==, sizeof(data));
+    uart_wait_count(qts, sizeof(data));
+    qtest_writel(qts, b + 0x10, (259U << 8) | 1); /* RX directional flush. */
+    expect(qts, b + 0x18, 0x1a0000);
+    expect(qts, b + 0x24, 2); /* Flush preserves the status latch. */
+    qtest_writel(qts, b + 0x24, 2);
+    expect(qts, SYS + 0xa0, 0);
+    /* Bytes held by the backend while disabled use the later enabled width. */
+    g_assert_cmpint(qemu_send_full(fd, data, sizeof(data)), ==, sizeof(data));
+    qtest_writel(qts, b + 0x10, (259U << 8) | 0x1b);
+    uart_wait_count(qts, sizeof(data));
+    for (unsigned i = 0; i < sizeof(data); i++) {
+        expect(qts, b + 0x1c, data[i] << 8);
+    }
+    close(fd);
+    qtest_quit(qts);
+}
+
+static void test_uart_rx_width_backpressure(const void *board)
+{
+    int fd;
+    const uint32_t b = 0x44820000;
+    uint8_t data[129];
+    g_autofree char *args = g_strdup_printf("-machine %s", (const char *)board);
+    QTestState *qts = qtest_init_with_serial(args, &fd);
+
+    for (unsigned i = 0; i < sizeof(data); i++) {
+        data[i] = 0x80 | i;
+    }
+    uart_rx_setup(qts);
+    qtest_writel(qts, b + 0x10, (259U << 8) | 3); /* Accept five-bit chars. */
+    g_assert_cmpint(qemu_send_full(fd, data, sizeof(data)), ==, sizeof(data));
+    uart_wait_count(qts, 128);
+    qtest_writel(qts, b + 0x10, (259U << 8) | 0x1b);
+    expect(qts, b + 0x1c, (data[0] & 0x1f) << 8);
+    /* Only now can the backend's 129th byte enter. */
+    uart_wait_count(qts, 128);
+    qtest_writel(qts, SYS + 0x30, 0);
+    for (unsigned i = 1; i < 128; i++) {
+        expect(qts, b + 0x1c, (data[i] & 0x1f) << 8);
+    }
+    expect(qts, b + 0x1c, data[128] << 8); /* Accepted at eight bits. */
+    expect(qts, b + 0x18, 0xa0000);
     close(fd);
     qtest_quit(qts);
 }
@@ -2737,7 +2824,7 @@ static void test_uart_clock_budget(const void *board)
     QTestState *qts = qtest_init_with_serial(args, &fd);
 
     uart_rx_setup(qts);
-    qtest_writel(qts, 0x44820010, (225U << 8) | 3);
+    qtest_writel(qts, 0x44820010, (225U << 8) | 0x1b);
     for (unsigned partial = 0; partial < 2; partial++) {
         unsigned elapsed = partial ? 77 : 0;
 
@@ -2861,6 +2948,8 @@ int main(int argc, char **argv)
         {"uart-clocks-gates-divider", test_uart_clocks},
         {"uart-rx-clock-pause-reset", test_uart_rx_clock_pause},
         {"uart-rx-capacity-wrap-backpressure", test_uart_rx_capacity},
+        {"uart-rx-width-snapshot-mask-flush", test_uart_rx_width_snapshot},
+        {"uart-rx-width-backpressure", test_uart_rx_width_backpressure},
         {"watchdog-keys-expiry", test_watchdog},
         {"watchdog-sources-pause-recovery", test_watchdog_sources},
         {"spi-lsb-byte-order-cancel-routes", test_spi_lsb_byte_adapter},

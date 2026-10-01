@@ -94,11 +94,11 @@ class BK7258Machine(QemuSystemTest):
 
         return elf
 
-    def launch_fixture(self, elf):
+    def launch_fixture(self, elf, console_index=0):
         mmio = Path(self.log_file("mmio.log"))
         # Semihosting exits the process directly; no monitor request is needed.
         self.vm.set_qmp_monitor(False)
-        self.vm.set_console()
+        self.vm.set_console(console_index=console_index)
         self.vm.add_args(
             "-accel",
             "tcg",
@@ -212,6 +212,53 @@ class BK7258Machine(QemuSystemTest):
 
     def test_t5_board_uart0_tx(self):
         self.run_uart_tx("t5_board", 0)
+
+    def run_uart_rx_width(self, board, index):
+        elf = self.build_fixture(board, "uart_rx_width.c", INDEX=index)
+        mmio = self.launch_fixture(elf, console_index=index)
+        for bits in range(5, 9):
+            # The guest configures RX before emitting the final newline.
+            wait_for_console_pattern(
+                self,
+                f"BK7258 UART RX WIDTH {bits}\n",
+                "BK7258 UART RX WIDTH FAILED",
+            )
+            self.vm.console_socket.sendall(bytes([0xff, 0x80, 0xe5, 0x55]))
+        wait_for_console_pattern(
+            self,
+            "BK7258 UART RX WIDTH AND SNAPSHOT OK",
+            "BK7258 UART RX WIDTH FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_t5_board_uart0_rx_width(self):
+        self.run_uart_rx_width("t5_board", 0)
+
+    def test_t5_board_uart1_rx_width(self):
+        self.run_uart_rx_width("t5_board", 1)
+
+    def test_t5_board_uart2_rx_width(self):
+        self.run_uart_rx_width("t5_board", 2)
+
+    def test_t5ai_core_uart0_rx_width(self):
+        self.run_uart_rx_width("t5ai_core", 0)
+
+    def test_t5ai_core_uart1_rx_width(self):
+        self.run_uart_rx_width("t5ai_core", 1)
+
+    def test_t5ai_core_uart2_rx_width(self):
+        self.run_uart_rx_width("t5ai_core", 2)
+
+    def test_aidk_ai_toy_uart0_rx_width(self):
+        self.run_uart_rx_width("aidk_ai_toy", 0)
+
+    def test_aidk_ai_toy_uart1_rx_width(self):
+        self.run_uart_rx_width("aidk_ai_toy", 1)
+
+    def test_aidk_ai_toy_uart2_rx_width(self):
+        self.run_uart_rx_width("aidk_ai_toy", 2)
 
     def test_t5_board_uart0_tx_missing_route(self):
         self.run_uart_tx("t5_board", 0, missing_route=True)

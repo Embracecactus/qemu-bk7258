@@ -201,6 +201,7 @@ static int bk7258_uart_can_receive(void *opaque)
 static void bk7258_uart_receive(void *opaque, const uint8_t *buf, int size)
 {
     BK7258UARTState *s = opaque;
+    unsigned data_bits = 5 + ((s->config >> 3) & 3);
     int i;
 
     if (!bk7258_uart_rx_enabled(s)) {
@@ -208,7 +209,9 @@ static void bk7258_uart_receive(void *opaque, const uint8_t *buf, int size)
     }
 
     for (i = 0; i < size && s->rx_count < sizeof(s->rx_fifo); i++) {
-        s->rx_fifo[(s->rx_head + s->rx_count) % sizeof(s->rx_fifo)] = buf[i];
+        /* Store the complete character at its acceptance-time data width. */
+        s->rx_fifo[(s->rx_head + s->rx_count) % sizeof(s->rx_fifo)] =
+            buf[i] & ((1U << data_bits) - 1);
         s->rx_count++;
     }
     if (i) {

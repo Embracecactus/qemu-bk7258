@@ -561,6 +561,14 @@ status reasserts while the modeled level remains high and stays latched
 until acknowledged after draining. Reset discards queued RX bytes and
 cancels their idle deadline.
 
+RX applies CONFIG bits4:3's 5..8-bit data width when the character frontend
+delivers a complete character. The FIFO stores that character zero-extended
+to a byte; subsequent format changes do not reinterpret already accepted
+entries. A host byte held outside a full or stopped receiver uses the width
+active when it is eventually accepted. This is the stream model's character
+representation, not a measured guarantee about silicon's unused FIFO bits.
+It does not simulate an external transmitter's mismatched framing or parity.
+
 TX has a bounded 128-byte queue and one separate active shift byte. The latter
 is a functional inference from the SDK's ``fifo_count + 1`` drain estimate,
 not a measured internal implementation. FIFO count/full/empty exclude that
@@ -830,9 +838,11 @@ apertures; an ordinary RAM mapping does not implement this controller.
 The pinned CP HAL writes command 1/2/4 for mode-register write/read/reset at
 controller +0x20, supplies address/data at +0x24/+0x28, and reads data at +0x2c.
 Polling request bits until clear establishes a programming sequence, not a
-command duration, a reset default or success for an absent part. Controller
-mode/timing fields, complete data packing and write-through/cache behavior
-are still missing contracts. AP-side initialization returns failure; the CP
+command duration, a reset default or success for an absent part. The LL also
+defines the software-reset bit, mode word, wrap field and write-through range
+registers. Their presence does not resolve the remaining mode/timing meaning,
+complete data packing or write-through/cache behavior. AP-side initialization
+returns failure; the CP
 path owns setup. Some CP fallback paths report success without checking the
 returned part value, so an SDK success return cannot be our acceptance test.
 
@@ -882,6 +892,30 @@ The CP HAL programs four operating points: 480/0 for 240 MHz, 320/0 for
 conflicting formulas. No inspected source proves an internal-versus-pin
 clock explanation. A selected nominal rate must not silently become a
 verified PSRAM timing contract or a three-board default.
+
+The SDK also establishes finite digital-clock configurations suitable for
+future model increments, without pretending that a PLL lock detector has
+been modeled. CP ``sys_hal_switch_cpu_bus_freq*`` programs SYS+0x20's core
+mux[5:4]/divider[3:0] and each core control word's speed bit4. Its non-DCO
+configurations give CPU0/1/2 respectively 240/480/480 MHz for a ``480M`` request,
+160/320/320 for ``320M``, and equal 240, 120, 80, 60 or 26 MHz for the other
+listed requests. The request enum is therefore not every core's frequency.
+See the `CP frequency table and executable configuration
+<https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/hal/sys_hal.c#L571-L636>`_.
+The optional DCO path is a separate configuration, and bus-divider behavior
+outside these exercised tuples is not established. These digital tuples
+remain unimplemented in the current fixed-CPU-clock model.
+
+For audio PLL, SYS ANA5 bit13 is active-high power-down; ANA25/+0x164 and
+ANA26/+0x168 carry control and coefficient fields. The
+`I2S driver
+<https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/driver/i2s/i2s_driver.c#L859-L942>`_
+associates two explicit configurations with 98.304 and 90.3168 MHz. This
+supports future bounded configuration matching, not arbitrary coefficient
+equations or lock/stabilization timing. SPI calls the first rate 98,000,000
+in its baud calculation, while UART's ``APLL``-named selection is calculated
+at 120,000,000. Those names must not be used to join all peripheral inputs
+onto a guessed common audio-clock net.
 
 The next bounded component can be an explicitly selected, stateful AP Memory
 part and a separately clock-fed controller fixture. Integrated command and
@@ -1525,6 +1559,114 @@ precise BusFault status and matching BFAR, rather than returning success.
 
 Register provenance
 -------------------
+
+SDK register inventory
+~~~~~~~~~~~~~~~~~~~~~~
+
+The SDK contains register-level definitions and executable programming
+sequences; a separate register manual is not a prerequisite for every model
+increment. At the user's SDK revision
+``4ca389311a7ef641f10b94d298dc07ee16b0f79c``, the CP BK7258 ``soc`` directory
+has 26 ``*_reg.h`` and 26 ``*_struct.h`` files, and its ``hal`` directory has
+27 ``*_ll.h``, eight ``*_ll_macro_def.h`` and 17 ``*_ll.c`` files. These counts
+describe that directory inventory, not complete hardware coverage. Common
+HALs and drivers supply the initialization, polling and acknowledgement
+sequences which must be checked against generated comments.
+
+The following source index uses byte offsets. A generated ``REG_0xNN`` word
+index is multiplied by four; it must not be used directly as a byte offset.
+
+* `Address map
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/include/soc/bk7258/reg_base.h#L16-L80>`_:
+  ``SOC_ADDR_OFFSET`` chooses the secure map or its +0x10000000 nonsecure
+  view. SYS is 0x44010000, AON PMU 0x44000000, GPIO 0x44000400, PSRAM
+  control 0x46080000 and UART0/1/2 0x44820000/0x45830000/0x45840000.
+  Alias arithmetic alone does not define security enforcement.
+* `UART fields
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/soc/uart_struct.h#L28-L136>`_:
+  +0x08 global control, +0x10 TX/RX enable and frame/divider configuration,
+  +0x14 FIFO thresholds, +0x18 counts/readiness, +0x1c TX[7:0]/RX[15:8],
+  +0x20 IRQ enable and +0x24 status. The
+  `LL acknowledgement code
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/hal/uart_ll.h#L363-L400>`_
+  explicitly requires W1C rather than read-modify-write. The
+  `HAL
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/common/hal/uart_hal.c#L24-L104>`_
+  programs frame format, thresholds and ``source / baud - 1``, and flushes
+  through directional enable toggles. These are sufficient for the existing
+  bounded FIFO, character-width and timing model. Parity polarity is
+  contradictory: ``uart_struct.h`` says 0=even/1=odd, while ``uart_reg.h``
+  lines 33--34 and the LL conversion implement 0=odd/1=even. No physical
+  parity waveform is implemented from either interpretation.
+* `GPIO fields
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/soc/gpio_struct.h#L23-L133>`_:
+  GPIO+4*n holds pin data, direction, pulls, alternate-function enable and
+  interrupt controls; SYS+0xc0..0xd8 holds four-bit mux slots for 56 pins.
+  The `mapping sequence
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/common/hal/gpio_hal.c#L183-L223>`_
+  disables ordinary GPIO output/input/pulls before enabling alternate
+  function. Therefore active-low ordinary GPIO output enable is not proof
+  that a UART alternate-function output is disabled. The per-pin mux map is
+  known; UART pad ownership under disable/reset/clock loss is still separate.
+* `AON R0 software fields
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/soc/aon_pmu_struct.h#L25-L38>`_
+  include CP reason[11:4], GPIO retention[19:12], reset count[23:20] and AP
+  reason[30:24], although the generated ``aon_pmu_reg.h`` labels [30:2]
+  reserved. The driver writes its two-key commit sequence to R25 (+0x94).
+  `R7A/R7B accessors
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/soc/aon_pmu_ll.h#L733-L740>`_
+  read +0x1e8/+0x1ec, and
+  `reset_reason_init
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/driver/reset_reason/reset_reason.c#L185-L253>`_
+  decodes R7A's CP/AP reason fields. The missing facts are capture, clearing
+  and reset-domain retention, not the register's existence.
+* `PSRAM LL
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/hal/psram_ll_macro_def.h#L43-L172>`_
+  defines +0x08 software reset bit0, +0x10 mode/wrap[30:28], +0x14
+  configuration, +0x20 command, +0x24 address, +0x28 write data, +0x2c read
+  data and four range pairs at +0x40..0x5c. The
+  `command HAL
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/common/hal/psram_hal.c#L28-L103>`_
+  supplies write/read/reset commands 1/2/4 and polls the corresponding
+  request bit. This establishes a real controller interface; the PSRAM/DPLL
+  section above identifies exactly which packing/timing/device facts remain
+  unresolved.
+* `SYS core control
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/soc/sys_reg.h#L53-L167>`_
+  includes status at +0x0c and per-core reset/power/mask/halt/speed/vector
+  fields at +0x10/+0x14/+0x18. The
+  `actual secondary start/stop path
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/components/bk_startup/system_main.c#L173-L225>`_
+  passes 1 to start and 0 to stop; the
+  `SYS power driver
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/driver/sys_ctrl/sys_ps_driver.c#L91-L119>`_
+  explicitly documents 1=reset release and 0=reset, despite the opposite
+  HAL comment. The model follows that driver contract and states its reset
+  boundary separately.
+* `PRRO configuration generator
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/tools/env_tools/beken_utils/scripts/ppc.py#L45-L103>`_
+  consumes 55 privilege and 70 security Reg/Bit mappings from BK7258
+  ``regs/ppro_{ap,sec}.csv``. It clears bits for TRUE and sets them for
+  FALSE, using CSV Reg-4 as the index into a 12-word big-endian configuration
+  payload, then padding the output to 1024 bytes with 0xff.
+  The inspected source does not show the consumer's MMIO write sequence;
+  neither that serialization nor ``ppro_default.csv`` proves hardware byte
+  offsets, POR values, locking or denied-access behavior. MPC bases and APIs
+  exist, but ``gen_mpc.py`` returns at its TODO before its proposed layout.
+* `STAR core header
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/components/cmsis/CMSIS_5/CMSIS/Core/Include/core_star.h#L2332-L2363>`_
+  defines TCM at 0xe001e010 and ITGU/DTGU at 0xe001e500/0xe001e600,
+  with control/configuration/lookup-table fields. It does not identify each
+  physical core's actual cache geometry. Cross-checks remain necessary:
+  ``EMSS_Type`` at lines 558--565 lacks padding matching its TCM offset
+  comments, and several CACR masks at lines 956--983 reuse another field's
+  position. A generic header is not a measured implementation identity.
+
+``ap/components/bk_peripheral`` was also inventoried: it holds external
+camera, display and touch-device drivers, not an alternative complete SoC
+register map. SDK register definitions support continued bounded chip work;
+unresolved semantics are tracked per operation rather than treating an entire
+module as undocumented or accepting every write as successful.
 
 The `manufacturer-hosted BK7258 datasheet DS-BK7258-E12 V2.1
 <https://docs.bekencorp.com/spec/BK7258/BK7258%C2%A0Datasheet.pdf>`_
