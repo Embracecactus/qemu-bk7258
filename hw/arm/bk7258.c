@@ -107,7 +107,7 @@ static void bk7258_update_uart_clocks(BK7258State *s)
         unsigned mode = (s->clock_mode >> shift[i]) & 7;
         unsigned hz = 0;
 
-        /* APLL is not modeled; selecting it must not invent a live source. */
+        /* UART's APLL-named source is unresolved, not the modeled SPI net. */
         if ((s->peripheral_clocks & (1U << gate[i])) && !(mode & 4)) {
             hz = clock_get_hz(s->xtalclk) >> (mode & 3);
         }
@@ -120,11 +120,67 @@ static void bk7258_update_spi_clocks(BK7258State *s)
     static const unsigned gate[] = { 1, 9 };
 
     for (unsigned i = 0; i < 2; i++) {
-        clock_update(s->spiclk[i],
-                     (s->peripheral_clocks & (1U << gate[i])) &&
-                     !(s->clock_select & (1U << (4 + i))) ?
-                     clock_get(s->xtalclk) : 0);
+        Clock *source = s->clock_select & (1U << (4 + i)) ?
+                        s->apllclk : s->xtalclk;
+
+        clock_update(s->spiclk[i], s->peripheral_clocks & (1U << gate[i]) ?
+                     clock_get(source) : 0);
     }
+}
+
+static void bk7258_audio_clock_commit(BK7258State *s, uint32_t written,
+                                     uint32_t old_power, uint32_t old_control,
+                                     uint32_t old_coefficient)
+{
+    const uint32_t trigger = 1U << 18;
+    const uint32_t control = 0xc2a0ae86;
+    uint32_t config = s->analog[25];
+    uint32_t coefficient = s->analog[26];
+    bool powered = !(s->analog[5] & (1U << 13));
+    bool valid_control = (config & ~trigger) == control;
+    unsigned profile_hz = coefficient == 0x8973ca6f ? 98304000 :
+                          coefficient == 0x88af2ec9 ? 90316800 : 0;
+
+    if (!s->experimental_spi_apll) {
+        return;
+    }
+    /*
+     * SDK-backed profiles and pulse sequence; activation at the committed
+     * falling edge is an explicit ideal digital policy, not PLL lock timing.
+     * Reconfiguration/powerdown invalidates the pulse rather than inventing
+     * analog retention or relock behavior. No hardware status bit is supplied.
+     */
+    if ((written & (1U << 26)) && !profile_hz) {
+        qemu_log_mask(LOG_UNIMP,
+                      "bk7258-sys: ideal SPI APLL coefficient 0x%08x "
+                      "unsupported\n", coefficient);
+    }
+    if ((written & (1U << 25)) && !valid_control) {
+        qemu_log_mask(LOG_UNIMP,
+                      "bk7258-sys: ideal SPI APLL control 0x%08x "
+                      "unsupported\n", config & ~trigger);
+    }
+    if (!powered || !valid_control || !profile_hz ||
+        ((old_power ^ s->analog[5]) & (1U << 13)) ||
+        ((old_control ^ config) & ~trigger) ||
+        old_coefficient != coefficient) {
+        s->apll_pulse_armed = false;
+        s->apll_hz = 0;
+    }
+    if (powered && valid_control && profile_hz &&
+        ((old_control ^ config) & trigger)) {
+        if (config & trigger) {
+            s->apll_pulse_armed = true;
+            s->apll_hz = 0;
+        } else {
+            if (s->apll_pulse_armed) {
+                s->apll_hz = profile_hz;
+            }
+            s->apll_pulse_armed = false;
+        }
+    }
+    clock_update_hz(s->apllclk, s->apll_hz);
+    bk7258_update_spi_clocks(s);
 }
 
 static void bk7258_update_i2c_clocks(BK7258State *s)
@@ -194,6 +250,10 @@ static void bk7258_lpo_changed(void *opaque, ClockEvent event)
 static void bk7258_analog_complete(void *opaque)
 {
     BK7258State *s = opaque;
+    uint32_t written = s->analog_busy;
+    uint32_t old_power = s->analog[5];
+    uint32_t old_control = s->analog[25];
+    uint32_t old_coefficient = s->analog[26];
 
     for (unsigned i = 0; i < ARRAY_SIZE(s->analog); i++) {
         if (s->analog_busy & (1U << i)) {
@@ -201,6 +261,8 @@ static void bk7258_analog_complete(void *opaque)
         }
     }
     s->analog_busy = 0;
+    bk7258_audio_clock_commit(s, written, old_power, old_control,
+                              old_coefficient);
     bk7258_update_core_clocks(s);
     clock_update_hz(s->roscclk, s->analog[5] & (1U << 14) ? 0 : 32000);
     bk7258_update_wdt_clock(s);
@@ -386,7 +448,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         break;
     case 0x28:
         s->clock_select = value;
-        if (value & 0x30) {
+        if ((value & 0x30) && !s->experimental_spi_apll) {
             qemu_log_mask(LOG_UNIMP,
                           "bk7258-sys: SPI APLL source is not implemented\n");
         }
@@ -497,6 +559,7 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     clock_set_hz(s->cpuclk, 26000000);
     s->busclk = clock_new(obj, "busclk");
     clock_set(s->busclk, clock_get(s->cpuclk));
+    s->apllclk = clock_new(obj, "apllclk");
     s->xtalclk = clock_new(obj, "xtalclk");
     s->roscclk = clock_new(obj, "roscclk");
     s->div32kclk = clock_new(obj, "div32kclk");
@@ -736,6 +799,9 @@ static void bk7258_reset(DeviceState *dev)
     s->power_sleep = TICK_ROUTES;
     memset(s->gpio_mux, 0, sizeof(s->gpio_mux));
     memset(s->analog, 0, sizeof(s->analog));
+    s->apll_hz = 0;
+    s->apll_pulse_armed = false;
+    clock_update_hz(s->apllclk, 0);
     s->core_clock_key = 0;
     s->core_clock_unimplemented = false;
     bk7258_update_core_clocks(s);
@@ -805,6 +871,8 @@ static void bk7258_finalize(Object *obj)
 static const Property bk7258_properties[] = {
     DEFINE_PROP_BOOL("experimental-core-clocks", BK7258State,
                      experimental_core_clocks, false),
+    DEFINE_PROP_BOOL("experimental-spi-apll", BK7258State,
+                     experimental_spi_apll, false),
     DEFINE_PROP_BOOL("diagnostic-xip", BK7258State, diagnostic_xip, false),
     DEFINE_PROP_UINT32("xip-size", BK7258State, flash_size,
                        (8 * MiB / 34) * 32),

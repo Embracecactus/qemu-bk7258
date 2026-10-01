@@ -104,9 +104,10 @@ OpenVela source or profile changes are required for that gate.
        different-address repeated START and measured edge/reset behavior
    * - SPI0/1
      - Native SSI 8-bit master with MSB/LSB adapter, logical CS0, finite TX/RX,
-       bounded FIFOs, clock pause, W1C/error/done IRQ7/17 and reset cancel
+       bounded FIFOs, clock pause, W1C/error/done IRQ7/17 and reset cancel;
+       optional ideal audio-PLL source with two supported profiles
      - 16-bit/3-wire/slave/RX-only modes, raw-divider0, wire-edge timing,
-       APLL, DMA and physical pinmux/CS routing
+       general PLL behavior, DMA and physical pinmux/CS routing
    * - DMA0/1
      - Two eight-channel shared-RAM engines, equal 8/16/32-bit widths,
        real memory transactions, partial-error progress and NS IRQ0/57
@@ -438,8 +439,10 @@ Implemented slice
   Connect UART0/1/2 with the first/second/third ``-serial`` option.
   SYS+0x30 bits 2/10/11 gate their functional clocks. SYS+0x20 uses divider
   fields 8:9/11:12/14:15 (divide by 1/2/4/8) and source bits 10/13/16
-  (XTAL/APLL). The fixed 26-MHz XTAL is available; APLL generation is absent,
-  so selecting APLL logs the omission and supplies no clock. The UART model
+  (XTAL/APLL). The fixed 26-MHz XTAL is available; UART's alternate source
+  remains unidentified, so selecting it logs the omission and supplies no
+  clock. The audio-PLL option below does not establish that UART net. The
+  UART model
   receives a QEMU clock rather than assuming every source is always 26 MHz.
 * SYS core control and interrupt enable/status registers. Reset release samples
   the vector address; changing vector bits while running does not reset a CPU.
@@ -917,7 +920,7 @@ ANA26/+0x168 carry control and coefficient fields. The
 `I2S driver
 <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/driver/i2s/i2s_driver.c#L859-L942>`_
 associates two explicit configurations with 98.304 and 90.3168 MHz. This
-supports future bounded configuration matching, not arbitrary coefficient
+supports the optional bounded SPI source below, not arbitrary coefficient
 equations or lock/stabilization timing. SPI calls the first rate 98,000,000
 in its baud calculation, while UART's ``APLL``-named selection is calculated
 at 120,000,000. Those names must not be used to join all peripheral inputs
@@ -1034,14 +1037,95 @@ SysTick exception entry against RTC/TIMG deadlines, including missing-option
 and missing-source failures. These remain chip functional probes, not STAR
 identity, production AP SMP or complete firmware acceptance.
 
+Experimental ideal SPI audio-PLL source
+--------------------------------------
+
+This separate opt-in chip experiment is disabled by default::
+
+  -global bk7258-soc.experimental-spi-apll=on
+
+The SDK directly establishes the following programming sequence and routes:
+
+* ANA5 at SYS+0x114 bit13 is active-high audio-PLL powerdown.
+* ANA26 at +0x168 takes coefficient 0x8973ca6f for nominal 98,304,000 Hz
+  or 0x88af2ec9 for nominal 90,316,800 Hz. These are exact profile matches,
+  not an inferred formula for arbitrary N fields.
+* ANA25 at +0x164 is programmed to 0xc2a0ae86, then its bit18 is set and
+  cleared. Other control bits must match that supported configuration.
+* SYS+0x28 bits4/5 select this audio-PLL path for SPI0/1. Their SYS+0x30
+  gate bits1/9 remain independent. UART's differently named 120-MHz option
+  is not connected to this source, and no I2S/audio device is added.
+
+The `BK7258 SPI HAL
+<https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/common/hal/spi_hal.c#L151-L171>`_
+executes the first coefficient's sequence before selecting SPI APLL. The
+`I2S coefficient mapping
+<https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/driver/i2s/i2s_driver.c#L932-L942>`_
+establishes both nominal rates. The Tuya T5 specification page 30 and Beken
+V2.2 page 61 corroborate 98.304 MHz. The SPI driver's 98,000,000-Hz constant
+is used in its baud calculation and must not silently replace the exact
+audio-source rate. Its 49-MHz maximum request also conflicts with the
+datasheets' 40-MHz SPI limit. Acceptance uses raw divider >=2: 24.576 or
+22.5792 MHz SCK, rather than presenting divider1's 49.152 MHz as guaranteed
+silicon operation.
+
+The source sequence does **not** establish physical lock timing, arbitrary
+trigger-edge behavior or powerdown/relock retention. The following rules are
+explicit ideal digital policies for this experimental source:
+
+* Only committed analog writes affect the profile. The existing one-microsecond
+  register-transfer latency is separate from PLL stabilization; the HAL's
+  ``delay(10)`` is not treated as a measured lock interval.
+* A supported, powered profile requires a committed high-to-low trigger
+  pulse. The high edge removes any prior source and arms the pulse; the
+  falling edge publishes the nominal clock only if the profile stayed valid.
+  Choosing this activation point is model policy, not a lock observation.
+  If several different analog registers commit together, their final snapshot
+  is used: a high edge may arm with a newly valid powered profile, but a low
+  edge combined with a power/profile change cannot activate an older pulse.
+* A committed coefficient or non-trigger control change, or powerdown,
+  invalidates both the source and the pending pulse. Powerup alone cannot
+  restart it; this conservative experiment requires another complete pulse.
+  Register values retain their existing readback. No-op valid writes preserve
+  source/pulse state and do not restart consumers' deadlines.
+* Unsupported control/coefficient writes supply zero clock and an
+  unimplemented diagnostic. Missing or incomplete pulses leave the source
+  stopped. No synthetic PLL ready, error, lock or calibration-success register
+  is added. The existing emulator policy rejects a write to a busy analog
+  register without replacing its pending value; that is not a claimed silicon
+  response to an invalid concurrent write.
+* SPI retains the existing whole-source-cycle pause/recovery abstraction,
+  including logical CS retention. Controller disable/reset cancels pending
+  words; later source recovery cannot resurrect them. SoC reset cancels the
+  analog transfer, profile and pulse as well as resetting the controllers.
+  Physical clock glitches, sub-cycle phase and pad waveforms remain absent.
+
+The ``apllclk`` QOM clock exposes this nominal source. Its only consumers are
+the two modeled SPI inputs; the independent core/DPLL experiment, DMA
+diagnostic clock and XTAL/LPO peripherals keep their existing routes.
+Both pinned BK7258 CP/AP defconfigs select the LL's SYS+0xe8 analog-busy
+polling path, which this model supports. The alternate SYS+0x2c path remains
+unsupported; its SDK ``idx+8`` shift also does not define a valid 32-bit mask
+for ANA25/26. The source-based guest uses the selected +0xe8 sequence and
+does not modify external firmware configuration.
+
+Native tests check profile/commit/pulse boundaries against actual SSI flash
+transactions, source loss/recovery and reset cancellation. Guest probes use
+real IRQ7/17 and an independent XTAL timer to check both source rates; absent
+opt-in, incomplete-pulse and unknown-profile controls must fail through
+executed guest deadlines. The attached SSI flash remains a replaceable test
+endpoint, not a newly asserted BOM for any board.
+
 SPI master functional boundaries
 -------------------------------
 
 Two ``bk7258-spi`` controllers expose native SSI buses ``spi0`` and ``spi1``
 at 0x44870000/0x45880000, with +0x10000000 aliases and IRQ7/17. SYS+0x30
-bits 1/9 gate their inputs. SYS+0x28 bits 4/5 select XTAL (0) or the absent
-APLL (1); selecting APLL logs that omission and stops the clock. Neither
-controller chooses or constructs an external peripheral. Test invocations
+bits 1/9 gate their inputs. SYS+0x28 bits 4/5 select XTAL (0) or audio
+APLL (1). APLL supplies no clock unless the explicit ideal-source option
+above has a completed supported profile; default-off selection logs the
+omission. Neither controller chooses or constructs an external peripheral.
+Test invocations
 explicitly attach QEMU's existing ``w25q32`` model, for example
 ``-device w25q32,bus=spi0,cs=0``. Its JEDEC EF4016 response is produced by
 that upstream device model, not hardcoded in the BK7258 controller and not

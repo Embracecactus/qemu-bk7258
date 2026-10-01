@@ -890,6 +890,118 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_dma1_unsupported_security(self):
         self.run_dma_security_fault("aidk_ai_toy", 1)
 
+    def run_spi_apll(self, board, enabled=True, probe_mode=0):
+        elf = self.build_fixture(
+            board, "spi_apll.c", PROBE_MODE=probe_mode
+        )
+        if enabled:
+            self.vm.add_args(
+                "-global", "bk7258-soc.experimental-spi-apll=on"
+            )
+        for bus in ("spi0", "spi1"):
+            self.vm.add_args("-device", f"w25q32,bus={bus},cs=0")
+        # TIMG0 observes virtual time from independent XTAL, never CPU speed.
+        self.vm.add_args("-icount", "shift=0,align=off,sleep=off")
+        mmio = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        positive = enabled and probe_mode == 0
+        output = wait_for_console_pattern(
+            self,
+            "BK7258 SPI APLL SSI ID STATUS TIMING IRQ OK" if positive else
+            "BK7258 SPI APLL XTAL DEADLINE FAILED",
+            "BK7258 SPI APLL PROBE FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0 if positive else 1)
+        samples = re.findall(
+            rb"BK7258 SPI APLL SAMPLE ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) ([0-9a-f]{8})", output
+        )
+        deadlines = re.findall(
+            rb"BK7258 SPI APLL DEADLINE ([0-9a-f]{8}) ([0-9a-f]{8})",
+            output,
+        )
+        if positive:
+            self.assertEqual(deadlines, [])
+            self.assertEqual(
+                [(int(profile, 16), int(index, 16))
+                 for profile, index, _ in samples],
+                [(profile, index)
+                 for profile in range(2) for index in range(2)],
+            )
+            for profile, _, elapsed in samples:
+                # 32 bytes * 8 bits * raw divider 255 * 2 source clocks,
+                # measured in 26-MHz XTAL ticks; zero inter-byte interval.
+                nominal = (34531, 37585)[int(profile, 16)]
+                self.assertLessEqual(abs(int(elapsed, 16) - nominal), 64)
+            self.assertIn(
+                b"BK7258 SPI APLL INDEPENDENT GATE RESUME IRQ OK", output
+            )
+            self.assertIn(b"BK7258 SPI APLL TRIGGER RESUME IRQ OK", output)
+        else:
+            # Both controllers execute and fail in the guest, with an
+            # independent 10-ms deadline and no invented receive response.
+            self.assertEqual(samples, [])
+            self.assertEqual(
+                [int(index, 16) for index, _ in deadlines], [0, 1]
+            )
+            for _, elapsed in deadlines:
+                self.assertGreaterEqual(int(elapsed, 16), 260000)
+                # TIMG1 wakes the guest at 100-us intervals (2600 ticks).
+                self.assertLess(int(elapsed, 16), 262664)
+            self.assertNotIn(b"SSI ID STATUS TIMING IRQ OK", output)
+        self.assertEqual(
+            mmio.read_text(),
+            "bk7258-sys: SPI APLL source is not implemented\n"
+            if not enabled else
+            "bk7258-sys: ideal SPI APLL coefficient 0x8973ca6e unsupported\n"
+            * 2 if probe_mode == 3 else "",
+        )
+
+    def test_t5_board_spi_apll(self):
+        self.run_spi_apll("t5_board")
+
+    def test_t5_board_spi_apll_disabled(self):
+        self.run_spi_apll("t5_board", enabled=False)
+
+    def test_t5_board_spi_apll_missing_trigger(self):
+        self.run_spi_apll("t5_board", probe_mode=1)
+
+    def test_t5_board_spi_apll_incomplete_trigger(self):
+        self.run_spi_apll("t5_board", probe_mode=2)
+
+    def test_t5_board_spi_apll_unknown_profile(self):
+        self.run_spi_apll("t5_board", probe_mode=3)
+
+    def test_t5ai_core_spi_apll(self):
+        self.run_spi_apll("t5ai_core")
+
+    def test_t5ai_core_spi_apll_disabled(self):
+        self.run_spi_apll("t5ai_core", enabled=False)
+
+    def test_t5ai_core_spi_apll_missing_trigger(self):
+        self.run_spi_apll("t5ai_core", probe_mode=1)
+
+    def test_t5ai_core_spi_apll_incomplete_trigger(self):
+        self.run_spi_apll("t5ai_core", probe_mode=2)
+
+    def test_t5ai_core_spi_apll_unknown_profile(self):
+        self.run_spi_apll("t5ai_core", probe_mode=3)
+
+    def test_aidk_ai_toy_spi_apll(self):
+        self.run_spi_apll("aidk_ai_toy")
+
+    def test_aidk_ai_toy_spi_apll_disabled(self):
+        self.run_spi_apll("aidk_ai_toy", enabled=False)
+
+    def test_aidk_ai_toy_spi_apll_missing_trigger(self):
+        self.run_spi_apll("aidk_ai_toy", probe_mode=1)
+
+    def test_aidk_ai_toy_spi_apll_incomplete_trigger(self):
+        self.run_spi_apll("aidk_ai_toy", probe_mode=2)
+
+    def test_aidk_ai_toy_spi_apll_unknown_profile(self):
+        self.run_spi_apll("aidk_ai_toy", probe_mode=3)
+
     def run_spi(
         self, board, missing_route=False, missing_endpoint=False, lsb=False,
         reject_index=None,

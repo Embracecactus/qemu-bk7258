@@ -85,9 +85,12 @@ struct BK7258State {
     Clock *cpuclk;
     Clock *coreclk[3];
     Clock *busclk;
+    Clock *apllclk;
     Clock *refclk[3];
     uint32_t core_clock_key;
     bool core_clock_unimplemented;
+    unsigned apll_hz;
+    bool apll_pulse_armed;
     uint32_t cpu_control[3];
     uint32_t irq_enable[3][2];
     uint64_t irq_levels;
@@ -95,6 +98,7 @@ struct BK7258State {
     uint32_t boot_vector;
     bool diagnostic_xip;
     bool experimental_core_clocks;
+    bool experimental_spi_apll;
 };
 
 #endif

@@ -1494,6 +1494,574 @@ static void test_spi_clock_cancel(const void *board)
     qtest_quit(qts);
 }
 
+#define SPI_APLL_ARGS "-global bk7258-soc.experimental-spi-apll=on"
+#define SPI_APLL_CONTROL 0xc2a0ae86U
+#define SPI_APLL_TRIGGER (1U << 18)
+#define SPI_APLL_48K 0x8973ca6fU
+#define SPI_APLL_44K1 0x88af2ec9U
+#define SPI_APLL_GATES ((1U << 1) | (1U << 9))
+#define SPI_APLL_SELECT ((1U << 4) | (1U << 5))
+
+static QTestState *start_spi_ideal_apll(const void *board, const char *args)
+{
+    /* Standard SSI test endpoints, not a claim about any board's BOM. */
+    return qtest_initf("-machine %s -serial null " SPI_APLL_ARGS
+                      " -device w25q32,bus=spi0,cs=0 "
+                      "-device w25q32,bus=spi1,cs=0 %s",
+                      (const char *)board, args);
+}
+
+static void spi_ideal_apll_write(QTestState *qts, unsigned reg, uint32_t value)
+{
+    qtest_writel(qts, SYS + 0x100 + 4 * reg, value);
+    expect(qts, SYS + 0xe8, 1U << reg);
+    qtest_clock_step(qts, 1000);
+    expect(qts, SYS + 0xe8, 0);
+    expect(qts, SYS + 0x100 + 4 * reg, value);
+}
+
+static void spi_ideal_apll_pulse(QTestState *qts)
+{
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    expect_clock(qts, "/machine/soc/apllclk", 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+}
+
+static void spi_ideal_apll_program(QTestState *qts, uint32_t coefficient)
+{
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    spi_ideal_apll_write(qts, 26, coefficient);
+    spi_ideal_apll_pulse(qts);
+}
+
+static void expect_spi_ideal_clocks(QTestState *qts, unsigned apll,
+                                  unsigned spi0, unsigned spi1)
+{
+    expect_clock(qts, "/machine/soc/apllclk", apll);
+    expect_clock(qts, "/machine/soc/spiclk0", spi0);
+    expect_clock(qts, "/machine/soc/spiclk1", spi1);
+    expect_clock(qts, "/machine/soc/spi[0]/pclk", spi0);
+    expect_clock(qts, "/machine/soc/spi[1]/pclk", spi1);
+}
+
+static void spi_ideal_setup(QTestState *qts, unsigned unit, unsigned divider)
+{
+    qtest_writel(qts, spi_base[unit] + 8, 3);
+    /* Eight-bit master, interval0; divider2 keeps nominal SCK below 40 MHz. */
+    g_assert_cmpuint(divider, >=, 2);
+    qtest_writel(qts, spi_base[unit] + 0x10, 0x40c00000 | (divider << 8));
+}
+
+static void spi_ideal_start_opcode(QTestState *qts, unsigned unit,
+                                  uint8_t opcode)
+{
+    uint32_t b = spi_base[unit];
+
+    qtest_writel(qts, b + 0x14, 0);
+    qtest_writel(qts, b + 0x18, 0x37f00);
+    qtest_writel(qts, b + 0x1c, opcode);
+    qtest_writel(qts, b + 0x14, 0x105);
+}
+
+static void spi_ideal_finish_after(QTestState *qts, unsigned unit, unsigned ns)
+{
+    qtest_clock_step(qts, ns - 1);
+    g_assert_cmphex(qtest_readl(qts, spi_base[unit] + 0x18) & 0x7800, ==, 0);
+    qtest_clock_step(qts, 1);
+    g_assert_cmphex(qtest_readl(qts, spi_base[unit] + 0x18) & 0x7800,
+                   ==, 0x2000);
+}
+
+static void spi_ideal_expect_wel(QTestState *qts, unsigned unit, bool enabled)
+{
+    const uint8_t status[] = { 0x05, 0 };
+    uint8_t rx[2];
+
+    spi_xfer(qts, unit, status, sizeof(status), rx);
+    g_assert_cmphex(rx[1] & 2, ==, enabled ? 2 : 0);
+}
+
+static void spi_ideal_timed_id(QTestState *qts, unsigned unit, unsigned ns)
+{
+    const uint8_t id[] = { 0x9f, 0, 0, 0 };
+    const uint8_t expected[] = { 0, 0xef, 0x40, 0x16 };
+    uint32_t b = spi_base[unit];
+
+    qtest_writel(qts, b + 0x14, 0);
+    qtest_writel(qts, b + 0x18, 0x37f00);
+    for (unsigned i = 0; i < sizeof(id); i++) {
+        qtest_writel(qts, b + 0x1c, id[i]);
+    }
+    qtest_writel(qts, b + 0x14, 0x00400403);
+    for (unsigned i = 0; i < sizeof(id); i++) {
+        qtest_clock_step(qts, ns - 1);
+        g_assert_cmphex(qtest_readl(qts, b + 0x18) & 0x7804, ==, 0);
+        qtest_clock_step(qts, 1);
+        g_assert_cmphex(qtest_readl(qts, b + 0x18) & 0x7804,
+                       ==, i == sizeof(id) - 1 ? 0x6004 : 4);
+        expect(qts, b + 0x1c, expected[i]);
+    }
+}
+
+static void test_spi_ideal_apll_profiles(const void *board)
+{
+    static const struct {
+        uint32_t coefficient;
+        unsigned hz, byte_ns;
+    } profiles[] = {
+        { SPI_APLL_48K, 98304000, 326 },
+        { SPI_APLL_44K1, 90316800, 355 },
+    };
+    QTestState *qts = start_spi_ideal_apll(board, "");
+
+    g_assert_true(qtest_qom_get_bool(qts, "/machine/soc",
+                                   "experimental-spi-apll"));
+    for (unsigned i = 0; i < G_N_ELEMENTS(profiles); i++) {
+        unsigned hz = profiles[i].hz;
+
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+        spi_ideal_apll_program(qts, profiles[i].coefficient);
+        expect_spi_ideal_clocks(qts, hz, 0, 0);
+        qtest_writel(qts, SYS + 0x30, 1U << spi_gate[0]);
+        expect_spi_ideal_clocks(qts, hz, hz, 0);
+        qtest_writel(qts, SYS + 0x30, 1U << spi_gate[1]);
+        expect_spi_ideal_clocks(qts, hz, 0, hz);
+        qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+        qtest_writel(qts, SYS + 0x28, 1U << 4);
+        expect_spi_ideal_clocks(qts, hz, hz, 26000000);
+        qtest_writel(qts, SYS + 0x28, 1U << 5);
+        expect_spi_ideal_clocks(qts, hz, 26000000, hz);
+        qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+        for (unsigned unit = 0; unit < 2; unit++) {
+            spi_ideal_setup(qts, unit, 2);
+            spi_ideal_timed_id(qts, unit, profiles[i].byte_ns);
+            spi_ideal_start_opcode(qts, unit, 0x06);
+            spi_ideal_finish_after(qts, unit, profiles[i].byte_ns);
+            spi_ideal_expect_wel(qts, unit, true);
+            spi_ideal_start_opcode(qts, unit, 0x04);
+            spi_ideal_finish_after(qts, unit, profiles[i].byte_ns);
+            spi_ideal_expect_wel(qts, unit, false);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_spi_ideal_apll_committed_pulse(const void *board)
+{
+    QTestState *qts = start_spi_ideal_apll(board, "");
+
+    qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+    qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL);
+    qtest_writel(qts, 0x54010168, SPI_APLL_48K);
+    expect(qts, SYS + 0xe8, (1U << 25) | (1U << 26));
+    qtest_clock_step(qts, 999);
+    expect(qts, SYS + 0x164, 0);
+    expect(qts, SYS + 0x168, 0);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    qtest_clock_step(qts, 1);
+    expect(qts, SYS + 0xe8, 0);
+    expect(qts, SYS + 0x164, SPI_APLL_CONTROL);
+    expect(qts, SYS + 0x168, SPI_APLL_48K);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL); /* No pulse. */
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    qtest_writel(qts, 0x54010164, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL); /* Busy, not an edge. */
+    qtest_clock_step(qts, 999);
+    expect(qts, SYS + 0x164, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    qtest_clock_step(qts, 1);
+    expect(qts, SYS + 0x164, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_clock_step(qts, 1000000); /* A high-only pulse never supplies SPI. */
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL);
+    qtest_clock_step(qts, 999);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    qtest_clock_step(qts, 1);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    /* No-op commits preserve both the active source and an armed pulse. */
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    spi_ideal_apll_write(qts, 26, SPI_APLL_48K);
+    spi_ideal_apll_write(qts, 5, 0);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 26, SPI_APLL_48K);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+
+    /* A committed profile change invalidates the old source and pulse. */
+    qtest_writel(qts, SYS + 0x168, SPI_APLL_44K1);
+    qtest_clock_step(qts, 999);
+    qtest_writel(qts, SYS + 0x168, SPI_APLL_48K); /* Cannot replace it. */
+    expect(qts, SYS + 0x168, SPI_APLL_48K);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    qtest_clock_step(qts, 1);
+    expect(qts, SYS + 0x168, SPI_APLL_44K1);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 26, SPI_APLL_48K); /* Changes while high. */
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+
+    /* Powerdown commits after 1000 ns and cannot retain calibration state. */
+    qtest_writel(qts, SYS + 0x114, 1U << 13);
+    qtest_clock_step(qts, 999);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    qtest_clock_step(qts, 1);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 5, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    qtest_quit(qts);
+}
+
+static void test_spi_ideal_apll_cycle_budget(const void *board)
+{
+    QTestState *qts = start_spi_ideal_apll(board, "");
+
+    for (unsigned unit = 0; unit < 2; unit++) {
+        uint32_t b = spi_base[unit];
+
+        spi_ideal_apll_program(qts, SPI_APLL_48K);
+        qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+        qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+        spi_ideal_setup(qts, unit, 2);
+        spi_ideal_start_opcode(qts, unit, 0x06);
+        for (unsigned n = 0; n < 64; n++) {
+            qtest_writel(qts, SYS + 0x30, 0);
+            qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+        }
+        spi_ideal_finish_after(qts, unit, 326);
+        spi_ideal_expect_wel(qts, unit, true);
+
+        spi_ideal_start_opcode(qts, unit, 0x04);
+        qtest_clock_step(qts, 100); /* Nine of 32 source cycles elapsed. */
+        qtest_writel(qts, SYS + 0x30,
+                     SPI_APLL_GATES & ~(1U << spi_gate[unit]));
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, b + 0x18) & 0x7800, ==, 0);
+        qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+        spi_ideal_finish_after(qts, unit, 234); /* Remaining 23 cycles. */
+        spi_ideal_expect_wel(qts, unit, false);
+
+        spi_ideal_start_opcode(qts, unit, 0x06);
+        qtest_clock_step(qts, 100);
+        qtest_writel(qts, SYS + 0x28,
+                     SPI_APLL_SELECT & ~(1U << (4 + unit)));
+        spi_ideal_finish_after(qts, unit, 885); /* 23 cycles at XTAL. */
+        spi_ideal_expect_wel(qts, unit, true);
+
+        qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+        qtest_writel(qts, b + 0x14, 0);
+        spi_ideal_setup(qts, unit, 13);
+        spi_ideal_start_opcode(qts, unit, 0x04);
+        qtest_clock_step(qts, 100);
+        qtest_writel(qts, SYS + 0x168, SPI_APLL_44K1);
+        qtest_clock_step(qts, 1000); /* 108 of 208 cycles elapsed. */
+        expect_spi_ideal_clocks(qts, 0, 0, 0);
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, b + 0x18) & 0x7800, ==, 0);
+        spi_ideal_apll_pulse(qts);
+        expect_spi_ideal_clocks(qts, 90316800, 90316800, 90316800);
+        spi_ideal_finish_after(qts, unit, 1108); /* 100 cycles, new rate. */
+        spi_ideal_expect_wel(qts, unit, false);
+
+        spi_ideal_start_opcode(qts, unit, 0x06);
+        qtest_clock_step(qts, 100);
+        spi_ideal_apll_write(qts, 5, 1U << 13);
+        /* 99 cycles elapsed before powerdown; 109 remain at 90.3168 MHz. */
+        expect_spi_ideal_clocks(qts, 0, 0, 0);
+        spi_ideal_apll_write(qts, 5, 0);
+        qtest_clock_step(qts, 1000000);
+        g_assert_cmphex(qtest_readl(qts, b + 0x18) & 0x7800, ==, 0);
+        spi_ideal_apll_pulse(qts);
+        spi_ideal_finish_after(qts, unit, 1207);
+        spi_ideal_expect_wel(qts, unit, true);
+        spi_ideal_start_opcode(qts, unit, 0x04);
+        spi_ideal_finish_after(qts, unit, 2304);
+    }
+    qtest_quit(qts);
+}
+
+static void test_spi_ideal_apll_atomic_commit(const void *board)
+{
+    QTestState *qts = start_spi_ideal_apll(board, "");
+
+    qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+    qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+    spi_ideal_apll_write(qts, 5, 1U << 13);
+    /* Ideal policy: a rising-edge snapshot may establish the profile. */
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_writel(qts, SYS + 0x168, SPI_APLL_48K);
+    qtest_writel(qts, SYS + 0x114, 0);
+    qtest_clock_step(qts, 999);
+    expect(qts, SYS + 0xe8, (1U << 5) | (1U << 25) | (1U << 26));
+    expect(qts, SYS + 0x114, 1U << 13);
+    expect(qts, SYS + 0x164, 0);
+    expect(qts, SYS + 0x168, 0);
+    qtest_clock_step(qts, 1);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 5, 1U << 5); /* Unrelated ANA5 change. */
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    spi_ideal_apll_write(qts, 5, 0);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL);
+    qtest_writel(qts, SYS + 0x168, SPI_APLL_44K1);
+    qtest_clock_step(qts, 1000);
+    /* Changed coefficient on the falling commit invalidates the pulse first. */
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    qtest_writel(qts, SYS + 0x168, SPI_APLL_48K);
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_clock_step(qts, 1000);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_writel(qts, SYS + 0x114, 1U << 13);
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL);
+    qtest_clock_step(qts, 1000);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL);
+    /* Powerup on the falling edge is not enough. */
+    qtest_writel(qts, SYS + 0x114, 0);
+    qtest_clock_step(qts, 1000);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL ^ 1U);
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    qtest_clock_step(qts, 1000);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    qtest_quit(qts);
+}
+
+static void test_spi_ideal_apll_unknown_profile(const void *board)
+{
+    g_autofree char *dir = g_dir_make_tmp("bk7258-ideal-apll-XXXXXX", NULL);
+    g_autofree char *path = NULL;
+    g_autofree char *args = NULL;
+    g_autofree char *log = NULL;
+    gsize before;
+    QTestState *qts;
+
+    g_assert_nonnull(dir);
+    path = g_build_filename(dir, "unimplemented.log", NULL);
+    args = g_strdup_printf("-d unimp,guest_errors -D %s", path);
+    qts = start_spi_ideal_apll(board, args);
+    before = core_clock_log_size(path);
+    qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+    qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+    spi_ideal_apll_program(qts, SPI_APLL_48K);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 5, 1U << 13);
+    spi_ideal_apll_write(qts, 5, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    /* Missing/incomplete pulses, no-ops, and known powerdown are silent. */
+    g_assert_cmpuint(core_clock_log_size(path), ==, before);
+    spi_ideal_apll_write(qts, 26, 0xdeadbeef);
+    g_assert_cmpuint(core_clock_log_size(path), >, before);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 26, SPI_APLL_48K);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+
+    before = core_clock_log_size(path);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL ^ 1U);
+    g_assert_cmpuint(core_clock_log_size(path), >, before);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 25,
+                         (SPI_APLL_CONTROL ^ 1U) | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL ^ 1U);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+
+    /* Changing away/back while high must not fabricate another rising edge. */
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 25,
+                         (SPI_APLL_CONTROL ^ 1U) | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+    spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    spi_ideal_apll_pulse(qts);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    qtest_quit(qts);
+    g_assert_true(g_file_get_contents(path, &log, NULL, NULL));
+    g_assert_nonnull(strstr(log, "ideal SPI APLL coefficient 0xdeadbeef "
+                                "unsupported"));
+    g_assert_nonnull(strstr(log, "ideal SPI APLL control 0xc2a0ae87 "
+                                "unsupported"));
+    g_assert_null(strstr(log, "control 0xc2a4ae87"));
+    g_assert_null(strstr(log, "bk7258-sys: write offset"));
+    g_assert_cmpint(unlink(path), ==, 0);
+    g_assert_cmpint(rmdir(dir), ==, 0);
+}
+
+static void test_spi_ideal_apll_reset_cancel(const void *board)
+{
+    QTestState *qts = start_spi_ideal_apll(board, "");
+
+    spi_ideal_apll_program(qts, SPI_APLL_48K);
+    qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+    qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+    for (unsigned reset_unit = 0; reset_unit < 2; reset_unit++) {
+        unsigned other = reset_unit ^ 1;
+
+        for (unsigned unit = 0; unit < 2; unit++) {
+            spi_ideal_setup(qts, unit, 2);
+            spi_ideal_start_opcode(qts, unit, 0x06);
+        }
+        qtest_clock_step(qts, 100);
+        qtest_writel(qts, spi_base[reset_unit] + 8, 0);
+        expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+        spi_ideal_finish_after(qts, other, 226);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, spi_base[reset_unit] + 0x18, 0);
+        spi_ideal_setup(qts, reset_unit, 2);
+        spi_ideal_expect_wel(qts, reset_unit, false);
+        spi_ideal_expect_wel(qts, other, true);
+        spi_ideal_start_opcode(qts, other, 0x04);
+        spi_ideal_finish_after(qts, other, 326);
+
+        /* A peripheral reset also leaves a pending SoC pulse intact. */
+        spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+        qtest_writel(qts, spi_base[reset_unit] + 8, 0);
+        spi_ideal_apll_write(qts, 25, SPI_APLL_CONTROL);
+        expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    }
+
+    for (unsigned phase = 0; phase < 2; phase++) {
+        /* Reset cancels either edge's uncommitted analog transfer. */
+        if (phase) {
+            spi_ideal_apll_program(qts, SPI_APLL_48K);
+            spi_ideal_apll_write(qts, 25,
+                                 SPI_APLL_CONTROL | SPI_APLL_TRIGGER);
+        }
+        qtest_writel(qts, SYS + 0x30, 0);
+        for (unsigned unit = 0; unit < 2; unit++) {
+            spi_ideal_setup(qts, unit, 2);
+            spi_ideal_start_opcode(qts, unit, 0x06);
+        }
+        qtest_writel(qts, SYS + 0x164, SPI_APLL_CONTROL |
+                     (phase ? 0 : SPI_APLL_TRIGGER));
+        qtest_clock_step(qts, 999);
+        qtest_system_reset(qts);
+        qtest_clock_step(qts, 1000000);
+        expect(qts, SYS + 0xe8, 0);
+        expect(qts, SYS + 0x114, 0);
+        expect(qts, SYS + 0x164, 0);
+        expect(qts, SYS + 0x168, 0);
+        expect_spi_ideal_clocks(qts, 0, 0, 0);
+        for (unsigned unit = 0; unit < 2; unit++) {
+            expect(qts, spi_base[unit] + 8, 0);
+            expect(qts, spi_base[unit] + 0x18, 0);
+        }
+        spi_ideal_apll_program(qts, SPI_APLL_48K);
+        qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+        qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+        for (unsigned unit = 0; unit < 2; unit++) {
+            spi_ideal_setup(qts, unit, 2);
+            spi_ideal_expect_wel(qts, unit, false);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_spi_ideal_apll_independence(const void *board)
+{
+    static const unsigned uart_gate[] = { 2, 10, 11 };
+    static const unsigned uart_shift[] = { 8, 11, 14 };
+    QTestState *qts = start_spi(board);
+
+    g_assert_false(qtest_qom_get_bool(qts, "/machine/soc",
+                                    "experimental-spi-apll"));
+    spi_ideal_apll_program(qts, SPI_APLL_48K);
+    qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES);
+    qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+    expect_spi_ideal_clocks(qts, 0, 0, 0);
+    qtest_writel(qts, SYS + 0x28, 0);
+    expect_spi_ideal_clocks(qts, 0, 26000000, 26000000);
+    for (unsigned unit = 0; unit < 2; unit++) {
+        spi_ideal_setup(qts, unit, 2);
+        spi_ideal_timed_id(qts, unit, 1231);
+    }
+    qtest_quit(qts);
+
+    qts = start_spi_ideal_apll(board, CORE_CLOCK_ARGS);
+    core_clock_dpll(qts, true);
+    core_clock_speeds(qts, 7, false);
+    core_clock_mode(qts, 0x33, false);
+    spi_ideal_apll_program(qts, SPI_APLL_48K);
+    expect_core_clocks(qts, 120000000, 120000000, 120000000, 120000000);
+    expect_clock(qts, "/machine/soc/xtalclk", 26000000);
+    qtest_writel(qts, SYS + 0x30, SPI_APLL_GATES | (1U << 2) |
+                 (1U << 10) | (1U << 11));
+    qtest_writel(qts, SYS + 0x28, SPI_APLL_SELECT);
+    for (unsigned unit = 0; unit < 3; unit++) {
+        g_autofree char *path =
+            g_strdup_printf("/machine/soc/uart[%u]/pclk", unit);
+
+        for (unsigned mode = 0; mode < 8; mode++) {
+            qtest_writel(qts, SYS + 0x20, 0x33 | (mode << uart_shift[unit]));
+            expect_clock(qts, path, mode & 4 ? 0 : 26000000 >> (mode & 3));
+            expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+        }
+        qtest_writel(qts, SYS + 0x30,
+                     qtest_readl(qts, SYS + 0x30) & ~(1U << uart_gate[unit]));
+        expect_clock(qts, path, 0);
+    }
+    /* DPLL changes and core tuples do not retune the nominal SPI source. */
+    core_clock_dpll(qts, false);
+    expect_core_clocks(qts, 0, 0, 0, 0);
+    expect_spi_ideal_clocks(qts, 98304000, 98304000, 98304000);
+    core_clock_mode(qts, 0, false);
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    qtest_writel(qts, SYS + 0x28, 0);
+    for (unsigned unit = 0; unit < 2; unit++) {
+        spi_ideal_setup(qts, unit, 13);
+        spi_ideal_start_opcode(qts, unit, 0x06);
+    }
+    qtest_clock_step(qts, 100);
+    spi_ideal_apll_write(qts, 5, 1U << 13);
+    expect_spi_ideal_clocks(qts, 0, 26000000, 26000000);
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    expect_clock(qts, "/machine/soc/xtalclk", 26000000);
+    spi_ideal_finish_after(qts, 0, 6900); /* Original XTAL deadline. */
+    g_assert_cmphex(qtest_readl(qts, spi_base[1] + 0x18) & 0x7800,
+                   ==, 0x2000);
+    spi_ideal_expect_wel(qts, 0, true);
+    spi_ideal_expect_wel(qts, 1, true);
+    qtest_quit(qts);
+}
+
 static const uint32_t i2c_base[] = { 0x45850000, 0x45860000 };
 static const unsigned i2c_gate[] = { 0, 8 };
 static const unsigned i2c_irq[] = { 6, 14 };
@@ -3313,6 +3881,19 @@ int main(int argc, char **argv)
         {"watchdog-deadline-time-horizon", test_watchdog_deadline_horizon},
         {"uart-clock-budget-rounding", test_uart_clock_budget},
         {"spi-clock-budget-rounding", test_spi_clock_budget},
+        {"spi-ideal-apll-profiles-gates-transactions",
+         test_spi_ideal_apll_profiles},
+        {"spi-ideal-apll-committed-pulse-lifecycle",
+         test_spi_ideal_apll_committed_pulse},
+        {"spi-ideal-apll-atomic-commit-policy",
+         test_spi_ideal_apll_atomic_commit},
+        {"spi-ideal-apll-unknown-profile-logs",
+         test_spi_ideal_apll_unknown_profile},
+        {"spi-ideal-apll-remaining-cycle-preservation",
+         test_spi_ideal_apll_cycle_budget},
+        {"spi-ideal-apll-reset-cancellation", test_spi_ideal_apll_reset_cancel},
+        {"spi-ideal-apll-default-off-uart-core-xtal",
+         test_spi_ideal_apll_independence},
         {"i2c-clock-budget-rounding", test_i2c_clock_budget},
         {"pwm-mixed-preload-enable-atomic", test_pwm_mixed_preload_atomic},
         {"pwm-counters-compares-routes", test_pwm_counters_compares_routes},
