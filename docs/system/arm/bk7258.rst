@@ -48,9 +48,10 @@ OpenVela source or profile changes are required for that gate.
      - Not established
    * - CPUs/NVIC/SysTick
      - Three generic Cortex-M33 instances; exceptions, NMI under PRIMASK,
-       both SysTick clocks, core release/halt/reset and private TCM execution
+       both SysTick clocks, core release/halt/reset and private TCM execution;
+       optional finite digital core-clock configurations described below
      - Full vendor STAR identity/ISA/cache/debug behavior, physical cache
-       coherence, dynamic CPU frequency and TrustZone attribution
+       coherence, complete clock/DVFS dynamics and TrustZone attribution
    * - Memory/interconnect
      - 640-KiB shared SRAM aliases; per-core 16-KiB ITCM/DTCM; shared physical
        Flash/CRC XIP or explicitly selected diagnostic logical XIP
@@ -160,7 +161,8 @@ names and counts of passing tests cannot close these gates.
      - Explicit LPO mux, UART/timer gates/dividers, RTC and two watchdog
        sources; stopped-clock and cold-reset negative tests
      - Source-backed reset-cause lifecycle, whole-chip versus digital-only
-       reset and retained domains; dynamic CPU clock/PLL dependencies.
+       reset and retained domains; complete CPU clock/PLL dependencies beyond
+       the optional finite digital-clock subset.
        Replace the named TIMG CLK32 netlist assumption with evidence.
    * - Interrupts and shared services
      - Per-core SYS/NVIC routing, NMI, SysTick, mailbox ownership/full state,
@@ -447,7 +449,8 @@ Implemented slice
   from appearing to succeed; it does not claim the silicon faults on every
   unmodeled register. Guest tests check the actual HardFault exception, precise
   BusFault status and fault address for secure reads and NS-alias writes.
-* Native Cortex-M33 SysTick exception delivery. CPU clock remains 26 MHz.
+* Native Cortex-M33 SysTick exception delivery. Core timing inputs remain
+  26 MHz unless the experimental finite-clock option below is enabled.
   SYS+0x40 bits 29/30/27 gate each core's selected LPO reference.
   Gating preserves timer count; changing an unselected source is inert.
 * AON watchdog key/reload/stop and timed system reset. APB watchdog clock
@@ -609,8 +612,10 @@ enabling other peripherals. No external firmware source changes are required.
 Flow/wake
 configuration has masked readback, but enabling physical RTS/CTS or sleep-wake
 signaling emits an unsupported warning. DMA, physical RX line errors and
-pad-level serial bitstreams are not modeled. SYS clock-mode and PMU power fields retain configuration only;
-no PLL lock, calibration completion, rail transition or DVFS success is faked.
+pad-level serial bitstreams are not modeled. Core clocks remain fixed by
+default; the explicit experimental option below implements selected digital
+clock configurations. PMU power fields still retain configuration only; no
+PLL lock, calibration completion, rail transition or DVFS success is faked.
 
 The LPO mux resets to encoding 0 as part of the existing diagnostic R41 reset
 contract, not a measured cold/warm silicon reset value. DIVD and ROSC both use
@@ -869,8 +874,9 @@ redistributed in this source tree.
 
 DPLL is a prerequisite to integrated PSRAM clocks. BK7258 datasheet section
 4.3 identifies nominal CLK_320M and CLK_480M outputs; SYS ANA5 (+0x114) bit5
-controls DPLL enable. This supports an explicitly ideal nominal-source
-abstraction, but no DPLL source is currently implemented. AON R7D (+0x1f4)
+controls DPLL enable. The optional core-clock experiment below supplies
+ideal nominal sources for its finite tuples; integrated PSRAM clocks and a
+general PLL model remain absent. AON R7D (+0x1f4)
 bit22 is raw DPLL_UNLOCK, while the separate bit21 refers to 26MPLL_UNLOCK.
 SYS high-bank bit19 routes DPLL unlock as global IRQ51. Their placement does
 not establish their reset values, settling, loss-of-lock or clearing behavior.
@@ -893,9 +899,9 @@ conflicting formulas. No inspected source proves an internal-versus-pin
 clock explanation. A selected nominal rate must not silently become a
 verified PSRAM timing contract or a three-board default.
 
-The SDK also establishes finite digital-clock configurations suitable for
-future model increments, without pretending that a PLL lock detector has
-been modeled. CP ``sys_hal_switch_cpu_bus_freq*`` programs SYS+0x20's core
+The SDK also establishes finite digital-clock configurations without
+specifying complete PLL locking dynamics. CP
+``sys_hal_switch_cpu_bus_freq*`` programs SYS+0x20's core
 mux[5:4]/divider[3:0] and each core control word's speed bit4. Its non-DCO
 configurations give CPU0/1/2 respectively 240/480/480 MHz for a ``480M`` request,
 160/320/320 for ``320M``, and equal 240, 120, 80, 60 or 26 MHz for the other
@@ -903,8 +909,8 @@ listed requests. The request enum is therefore not every core's frequency.
 See the `CP frequency table and executable configuration
 <https://github.com/Embracecactus/bk_avdk_smp/blob/4ca389311a7ef641f10b94d298dc07ee16b0f79c/cp/middleware/soc/bk7258/hal/sys_hal.c#L571-L636>`_.
 The optional DCO path is a separate configuration, and bus-divider behavior
-outside these exercised tuples is not established. These digital tuples
-remain unimplemented in the current fixed-CPU-clock model.
+outside these exercised tuples is not established. The optional core-clock
+model below implements these finite configurations.
 
 For audio PLL, SYS ANA5 bit13 is active-high power-down; ANA25/+0x164 and
 ANA26/+0x168 carry control and coefficient fields. The
@@ -932,6 +938,101 @@ These observations use the already pinned SDK's
 ``cp/middleware/driver/psram/psram_driver.c``,
 BK7258 ``sys_reg.h``, ``aon_pmu_reg.h``, ``icu_map.h`` and ``hal/sys_hal.c``.
 They do not add PSRAM support or establish a board BOM.
+
+Experimental digital core clocks
+--------------------------------
+
+The default model retains its fixed 26-MHz core timing inputs. Enable this
+bounded chip experiment explicitly, without selecting a firmware profile::
+
+  -global bk7258-soc.experimental-core-clocks=on
+
+Each emulated core then has an independent timing input connected to its
+ARMv7M instance and both Secure/Nonsecure SysTick devices. This does not
+scale TCG instruction execution, emulate cache performance, change the CPU
+variant or prove analog DVFS behavior. An unavailable input pauses SysTick;
+it does not halt the emulated instruction stream or prevent an independently
+clocked peripheral interrupt from executing.
+Existing core halt/power control and the incomplete power-domain contract
+remain separate; these rates do not prove physical post-gate clock activity.
+
+.. list-table:: Supported digital operating points
+   :header-rows: 1
+
+   * - SYS+0x20 low seven bits
+     - CPU0/1/2 speed bits
+     - Core timing inputs (MHz)
+     - Nominal bus output (MHz)
+   * - 0x00
+     - 1 / 1 / 1
+     - 26 / 26 / 26
+     - 26
+   * - 0x30
+     - 0 / 1 / 1
+     - 240 / 480 / 480
+     - 240
+   * - 0x20
+     - 0 / 1 / 1
+     - 160 / 320 / 320
+     - 160
+   * - 0x31
+     - 1 / 1 / 1
+     - 240 / 240 / 240
+     - 240
+   * - 0x33
+     - 1 / 1 / 1
+     - 120 / 120 / 120
+     - 120
+   * - 0x35
+     - 1 / 1 / 1
+     - 80 / 80 / 80
+     - 80
+   * - 0x37
+     - 1 / 1 / 1
+     - 60 / 60 / 60
+     - 60
+
+The speed bit is bit4 in each core's SYS+0x10/+0x14/+0x18 control word.
+SYS+0x20 contains the core divider[3:0], mux[5:4] and bus divider bit6;
+only bit6=0 is covered by the SDK's actual programming sequences. Its
+validated bus-divider parameter is not written by that HAL. DCO and other
+divider/speed combinations are not inferred from the endpoint examples.
+
+The existing diagnostic reset tuple (low seven bits zero, all speed bits
+zero) remains a separate 26/26/26-MHz boot exception. It preserves the
+established reset contract and does not claim those speed bits' silicon
+power-on interpretation. Every other unlisted tuple produces zero core and
+nominal bus clocks and an explicit unimplemented diagnostic. The SDK changes
+several fields sequentially; intermediate states outside the table remain
+unsupported rather than silently retaining a previous rate. Each digital
+write is applied immediately and a subsequent supported state recovers.
+
+DPLL-backed tuples additionally require ANA5/+0x114 bit5 set in the
+committed analog register. The existing one-microsecond register-transfer
+operation controls when that enable write becomes visible; it is not a
+PLL settling delay. The optional model supplies ideal nominal 320/480-MHz
+sources, without inventing lock/unlock, calibration success, IRQ51 or
+voltage behavior. A known tuple with the source disabled has zero clocks,
+not an unsupported-configuration warning. Repeated writes that leave clock
+periods unchanged do not restart consumers' timers.
+
+``coreclk0``/``coreclk1``/``coreclk2`` expose the core inputs and ``busclk``
+the table's nominal bus rate. No DMA or peripheral is connected to that bus
+output: the SDK table does not establish their wiring. The existing
+``cpuclk`` object remains the fixed diagnostic source for the RAM-only DMA
+scheduler. UART, timer-group, PWM and external SysTick reference inputs keep
+their independent XTAL/LPO sources; changing core fields alone must not
+restart pending peripheral work. Changing a peripheral selector in the same
+SYS word still invokes that peripheral's existing clock-change contract.
+
+SysTick uses QEMU's native clock/ptimer propagation. A stopped input saves
+the remaining whole count and recovery resumes it; fractional source phase
+and physical mux glitches are not established. Tests distinguish remaining
+count preservation from timer restart and stale-deadline behavior. Native
+qtests exercise exact boundaries and actual guests exercise three-core
+SysTick exception entry against RTC/TIMG deadlines, including missing-option
+and missing-source failures. These remain chip functional probes, not STAR
+identity, production AP SMP or complete firmware acceptance.
 
 SPI master functional boundaries
 -------------------------------

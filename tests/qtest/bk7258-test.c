@@ -46,6 +46,322 @@ static void expect_clock(QTestState *qts, const char *path, unsigned hz)
     qobject_unref(response);
 }
 
+#define CORE_CLOCK_ARGS "-global bk7258-soc.experimental-core-clocks=on"
+#define SYSTICK 0xe000e010
+
+static QTestState *start_core_clocks(const void *board)
+{
+    return qtest_initf("-machine %s -serial null " CORE_CLOCK_ARGS,
+                       (const char *)board);
+}
+
+static void core_clock_mode(QTestState *qts, unsigned mode, bool ns_alias)
+{
+    uint32_t addr = SYS + 0x20 + (ns_alias ? 0x10000000 : 0);
+    uint32_t value = (qtest_readl(qts, addr) & ~0x7fU) | mode;
+
+    qtest_writel(qts, addr, value);
+    expect(qts, SYS + 0x20, value);
+}
+
+static void core_clock_speeds(QTestState *qts, unsigned speeds, bool ns_alias)
+{
+    for (unsigned i = 0; i < 3; i++) {
+        uint32_t addr = SYS + 0x10 + 4 * i;
+        uint32_t value = (qtest_readl(qts, addr) & ~(1U << 4)) |
+                         (((speeds >> i) & 1) << 4);
+
+        qtest_writel(qts, addr + (ns_alias ? 0x10000000 : 0), value);
+        expect(qts, addr, value);
+    }
+}
+
+static void expect_core_clocks(QTestState *qts, unsigned cpu0, unsigned cpu1,
+                               unsigned cpu2, unsigned bus)
+{
+    const unsigned hz[] = { cpu0, cpu1, cpu2 };
+
+    for (unsigned i = 0; i < 3; i++) {
+        g_autofree char *source = g_strdup_printf("/machine/soc/coreclk%u", i);
+        g_autofree char *input =
+            g_strdup_printf("/machine/soc/cpu[%u]/cpuclk", i);
+        g_autofree char *secure =
+            g_strdup_printf("/machine/soc/cpu[%u]/systick-reg-s/cpuclk", i);
+        g_autofree char *nonsecure =
+            g_strdup_printf("/machine/soc/cpu[%u]/systick-reg-ns/cpuclk", i);
+
+        expect_clock(qts, source, hz[i]);
+        expect_clock(qts, input, hz[i]);
+        expect_clock(qts, secure, hz[i]);
+        expect_clock(qts, nonsecure, hz[i]);
+    }
+    expect_clock(qts, "/machine/soc/busclk", bus);
+    /* The diagnostic DMA input is independent of nominal busclk. */
+    expect_clock(qts, "/machine/soc/cpuclk", 26000000);
+    expect_clock(qts, "/machine/soc/dma[0]/hclk", 26000000);
+    expect_clock(qts, "/machine/soc/dma[1]/hclk", 26000000);
+}
+
+static void core_clock_dpll(QTestState *qts, bool enabled)
+{
+    qtest_writel(qts, SYS + 0x114, enabled ? 1U << 5 : 0);
+    qtest_clock_step(qts, 1000);
+}
+
+static void test_core_clock_tuples(const void *board)
+{
+    static const struct {
+        unsigned mode, speeds, mhz[3], bus;
+    } tuples[] = {
+        { 0x00, 0, { 26, 26, 26 }, 26 },
+        { 0x00, 7, { 26, 26, 26 }, 26 },
+        { 0x30, 6, { 240, 480, 480 }, 240 },
+        { 0x20, 6, { 160, 320, 320 }, 160 },
+        { 0x31, 7, { 240, 240, 240 }, 240 },
+        { 0x33, 7, { 120, 120, 120 }, 120 },
+        { 0x35, 7, { 80, 80, 80 }, 80 },
+        { 0x37, 7, { 60, 60, 60 }, 60 },
+    };
+    QTestState *qts = start_core_clocks(board);
+
+    g_assert_true(qtest_qom_get_bool(qts, "/machine/soc",
+                                   "experimental-core-clocks"));
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    core_clock_dpll(qts, true);
+    for (unsigned i = 0; i < G_N_ELEMENTS(tuples); i++) {
+        core_clock_speeds(qts, tuples[i].speeds, i & 1);
+        core_clock_mode(qts, tuples[i].mode, !(i & 1));
+        expect_core_clocks(qts, tuples[i].mhz[0] * 1000000,
+                           tuples[i].mhz[1] * 1000000,
+                           tuples[i].mhz[2] * 1000000,
+                           tuples[i].bus * 1000000);
+    }
+    /* ANA5 is committed after transfer; neither edge changes it early. */
+    qtest_writel(qts, 0x54010114, 0);
+    expect(qts, SYS + 0xe8, 1U << 5);
+    qtest_clock_step(qts, 999);
+    /* A busy-register rewrite cannot replace the queued source disable. */
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    expect(qts, SYS + 0xe8, 1U << 5);
+    expect(qts, SYS + 0x114, 1U << 5);
+    expect_core_clocks(qts, 60000000, 60000000, 60000000, 60000000);
+    qtest_clock_step(qts, 1);
+    expect(qts, SYS + 0xe8, 0);
+    expect(qts, SYS + 0x114, 0);
+    expect_core_clocks(qts, 0, 0, 0, 0);
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    qtest_clock_step(qts, 999);
+    expect(qts, SYS + 0x114, 0);
+    expect_core_clocks(qts, 0, 0, 0, 0);
+    qtest_clock_step(qts, 1);
+    expect_core_clocks(qts, 60000000, 60000000, 60000000, 60000000);
+    qtest_system_reset(qts);
+    expect(qts, SYS + 0x114, 0);
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    qtest_clock_step(qts, 999);
+    /* Cancel a pending enable, not just its outputs. */
+    qtest_system_reset(qts);
+    qtest_clock_step(qts, 1000);
+    expect(qts, SYS + 0x114, 0);
+    expect(qts, SYS + 0xe8, 0);
+    core_clock_speeds(qts, 7, true);
+    core_clock_mode(qts, 0x31, true);
+    expect_core_clocks(qts, 0, 0, 0, 0);
+    core_clock_mode(qts, 0, false); /* XTAL does not require DPLL enable. */
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    qtest_quit(qts);
+}
+
+static gsize core_clock_log_size(const char *path)
+{
+    g_autofree char *log = NULL;
+    gsize size;
+
+    g_assert_true(g_file_get_contents(path, &log, &size, NULL));
+    g_assert_null(strstr(log, "bk7258-sys: write offset"));
+    return size;
+}
+
+static void test_core_clock_unknown(const void *board)
+{
+    static const struct {
+        unsigned mode, speeds;
+    } unknown[] = {
+        { 0x10, 7 }, /* DCO source. */
+        { 0x32, 7 }, /* Unestablished core divider. */
+        { 0x71, 7 }, /* Unestablished bus divider bit. */
+        { 0x31, 6 }, /* Wrong per-core speed combination. */
+        { 0x30, 7 }, /* A requested 480M does not mean 480M on every core. */
+        { 0x00, 3 }, /* Partial XTAL speed mask. */
+    };
+    g_autofree char *dir = g_dir_make_tmp("bk7258-core-clock-XXXXXX", NULL);
+    g_autofree char *path = NULL;
+    g_autofree char *log = NULL;
+    gsize before;
+    QTestState *qts;
+
+    g_assert_nonnull(dir);
+    path = g_build_filename(dir, "unimplemented.log", NULL);
+    qts = qtest_initf("-machine %s -serial null " CORE_CLOCK_ARGS
+                      " -d unimp,guest_errors -D %s",
+                      (const char *)board, path);
+    core_clock_speeds(qts, 6, false);
+    before = core_clock_log_size(path);
+    core_clock_mode(qts, 0x30, false);
+    expect_core_clocks(qts, 0, 0, 0, 0);
+    g_assert_cmpuint(core_clock_log_size(path), ==, before);
+    core_clock_dpll(qts, true);
+    expect_core_clocks(qts, 240000000, 480000000, 480000000, 240000000);
+    g_assert_cmpuint(core_clock_log_size(path), ==, before);
+    core_clock_dpll(qts, false);
+    expect_core_clocks(qts, 0, 0, 0, 0);
+    g_assert_cmpuint(core_clock_log_size(path), ==, before);
+    core_clock_dpll(qts, true);
+    for (unsigned i = 0; i < G_N_ELEMENTS(unknown); i++) {
+        core_clock_speeds(qts, unknown[i].speeds, i & 1);
+        before = core_clock_log_size(path);
+        core_clock_mode(qts, unknown[i].mode, !(i & 1));
+        expect_core_clocks(qts, 0, 0, 0, 0);
+        g_assert_cmpuint(core_clock_log_size(path), >, before);
+        before = core_clock_log_size(path);
+        core_clock_mode(qts, unknown[i].mode, false);
+        core_clock_speeds(qts, unknown[i].speeds, true);
+        core_clock_dpll(qts, true);
+        g_assert_cmpuint(core_clock_log_size(path), ==, before);
+        core_clock_speeds(qts, 7, false);
+        core_clock_mode(qts, 0x33, true);
+        expect_core_clocks(qts, 120000000, 120000000, 120000000, 120000000);
+    }
+    qtest_quit(qts);
+    g_assert_true(g_file_get_contents(path, &log, NULL, NULL));
+    g_assert_nonnull(strstr(log, "experimental core clock tuple"));
+    g_assert_cmpint(unlink(path), ==, 0);
+    g_assert_cmpint(rmdir(dir), ==, 0);
+}
+
+static void test_core_clock_default_off(const void *board)
+{
+    QTestState *qts = start(board);
+
+    g_assert_false(qtest_qom_get_bool(qts, "/machine/soc",
+                                    "experimental-core-clocks"));
+    core_clock_dpll(qts, true);
+    core_clock_speeds(qts, 6, true);
+    core_clock_mode(qts, 0x30, false);
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    core_clock_speeds(qts, 7, false);
+    core_clock_mode(qts, 0x33, true);
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    core_clock_mode(qts, 0x7f, false);
+    core_clock_dpll(qts, false);
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    qtest_system_reset(qts);
+    expect_core_clocks(qts, 26000000, 26000000, 26000000, 26000000);
+    qtest_quit(qts);
+}
+
+static void core_systick_start(QTestState *qts, uint32_t reload)
+{
+    /* Native qtest accesses CPU0's private, nonsecure SysTick bank. */
+    qtest_writel(qts, SYSTICK, 0);
+    qtest_writel(qts, SYSTICK + 4, reload);
+    qtest_writel(qts, SYSTICK + 8, 0);
+    qtest_writel(qts, SYSTICK, 5);
+    expect(qts, SYSTICK, 5);
+}
+
+static void test_core_clock_systick_live(const void *board)
+{
+    QTestState *qts = start_core_clocks(board);
+
+    /* Deferred first reload; SysTick's 32.32 deadline rounds down. */
+    core_systick_start(qts, 25);
+    qtest_clock_step(qts, 39);
+    expect(qts, SYSTICK + 8, 25);
+    for (unsigned i = 0; i < 32; i++) {
+        core_clock_mode(qts, 0, i & 1);
+        core_clock_speeds(qts, 0, !(i & 1));
+    }
+    qtest_clock_step(qts, 959); /* 38 ns reload + floor(25 * 26M period). */
+    expect(qts, SYSTICK, 5);
+    qtest_clock_step(qts, 1);
+    expect(qts, SYSTICK, 0x10005);
+
+    core_clock_dpll(qts, true);
+    core_clock_speeds(qts, 7, false);
+    core_clock_mode(qts, 0x33, false);
+    for (unsigned pause = 0; pause < 2; pause++) {
+        core_clock_mode(qts, 0x33, false);
+        core_systick_start(qts, 11999);
+        qtest_clock_step(qts, 8); /* Deferred reload at 120 MHz. */
+        qtest_clock_step(qts, 20000);
+        expect(qts, SYSTICK + 8, 9599);
+        if (pause) {
+            core_clock_mode(qts, 0x10, true);
+            expect_core_clocks(qts, 0, 0, 0, 0);
+            qtest_clock_step(qts, 1000000);
+            expect(qts, SYSTICK + 8, 9599);
+            expect(qts, SYSTICK, 5);
+        }
+        core_clock_mode(qts, 0x31, true);
+        /* Preserve the remaining 9599 cycles at 240 MHz, not the reload. */
+        qtest_clock_step(qts, 39994);
+        expect(qts, SYSTICK, 5);
+        qtest_clock_step(qts, 1);
+        expect(qts, SYSTICK, 0x10005);
+    }
+    qtest_quit(qts);
+}
+
+static void test_core_clock_systick_stopped(const void *board)
+{
+    QTestState *qts = start_core_clocks(board);
+
+    core_clock_dpll(qts, true);
+    core_clock_speeds(qts, 7, false);
+    core_clock_mode(qts, 0x33, false);
+    core_systick_start(qts, 11999);
+    qtest_clock_step(qts, 20008);
+    qtest_writel(qts, SYSTICK, 4);
+    expect(qts, SYSTICK + 8, 9599);
+    core_clock_mode(qts, 0x10, false);
+    core_clock_mode(qts, 0x31, false);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, SYSTICK, 4);
+    expect(qts, SYSTICK + 8, 9599);
+    qtest_writel(qts, SYSTICK, 5);
+    qtest_clock_step(qts, 39994);
+    expect(qts, SYSTICK, 5);
+    qtest_clock_step(qts, 1);
+    expect(qts, SYSTICK, 0x10005);
+
+    core_clock_mode(qts, 0x33, false);
+    core_systick_start(qts, 11);
+    qtest_clock_step(qts, 8);
+    qtest_writel(qts, SYSTICK + 4, 0);
+    qtest_clock_step(qts, 91);
+    expect(qts, SYSTICK, 0x10005); /* Reload zero stops, leaving ENABLE set. */
+    expect(qts, SYSTICK + 8, 0);
+    core_clock_mode(qts, 0x10, false);
+    core_clock_mode(qts, 0x31, false);
+    qtest_clock_step(qts, 1000000);
+    expect(qts, SYSTICK, 5);
+    expect(qts, SYSTICK + 8, 0);
+
+    core_systick_start(qts, 3);
+    /* LPO-selected SysTick ignores core changes. */
+    qtest_writel(qts, SYSTICK, 1);
+    qtest_clock_step(qts, 1000);
+    core_clock_mode(qts, 0x10, false);
+    core_clock_mode(qts, 0x33, false);
+    qtest_clock_step(qts, 123999);
+    expect(qts, SYSTICK, 1);
+    qtest_clock_step(qts, 1);
+    expect(qts, SYSTICK, 0x10001);
+    qtest_quit(qts);
+}
+
 static void expect_lpo(QTestState *qts, unsigned hz, unsigned gated)
 {
     expect_clock(qts, "/machine/soc/lpo", hz);
@@ -436,6 +752,63 @@ static void uart_expect_output(int fd, const uint8_t *expected, size_t length)
         }
     }
     g_assert_cmpmem(actual, length, expected, length);
+}
+
+static void test_core_clock_peripheral_deadlines(const void *board)
+{
+    static const uint32_t timers[] = { 0x44810000, 0x45800000 };
+    g_autofree char *args = g_strdup_printf("-machine %s " CORE_CLOCK_ARGS,
+                                           (const char *)board);
+    int fd;
+    QTestState *qts = qtest_init_with_serial(args, &fd);
+
+    core_clock_dpll(qts, true);
+    core_clock_speeds(qts, 7, false);
+    core_clock_mode(qts, 0x33, false);
+    uart_rx_setup(qts);
+    qtest_writel(qts, SYS + 0x30, (1U << 2) | (1U << 4) | (1U << 13));
+    qtest_writel(qts, SYS + 0x20, (1U << 20) | (1U << 21) | 0x33);
+    for (unsigned i = 0; i < G_N_ELEMENTS(timers); i++) {
+        qtest_writel(qts, timers[i] + 8, 1);
+        qtest_writel(qts, timers[i] + 0x10, 2600); /* 100 us at XTAL. */
+        qtest_writel(qts, timers[i] + 0x1c, 1);
+    }
+    qtest_writel(qts, 0x4482001c, 'T'); /* 8N1 frame: also 100 us. */
+    g_assert_cmpint(send(fd, "R", 1, 0), ==, 1);
+    uart_wait_rx(qts); /* Its independent 32-bit-time idle window is 320 us. */
+    qtest_clock_step(qts, 39);
+    for (unsigned i = 0; i < 32; i++) {
+        qtest_clock_step(qts, 1);
+        core_clock_mode(qts, 0x31, true);
+        core_clock_mode(qts, 0x10, false);
+        core_clock_mode(qts, 0x33, true);
+        core_clock_speeds(qts, 6, true);
+        core_clock_speeds(qts, 7, false);
+    }
+    expect_clock(qts, "/machine/soc/uart[0]/pclk", 26000000);
+    expect_clock(qts, "/machine/soc/timer[0]/pclk", 26000000);
+    expect_clock(qts, "/machine/soc/timer[1]/pclk", 26000000);
+    expect_core_clocks(qts, 120000000, 120000000, 120000000, 120000000);
+    qtest_clock_step(qts, 99999 - 39 - 32);
+    expect(qts, 0x44820024, 0);
+    uart_expect_no_output(fd);
+    for (unsigned i = 0; i < G_N_ELEMENTS(timers); i++) {
+        expect(qts, timers[i] + 0x1c, 1);
+    }
+    qtest_clock_step(qts, 1);
+    expect(qts, 0x44820024, 32);
+    uart_expect_output(fd, (const uint8_t[]){ 'T' }, 1);
+    for (unsigned i = 0; i < G_N_ELEMENTS(timers); i++) {
+        expect(qts, timers[i] + 0x1c, 0x81);
+    }
+    qtest_writel(qts, 0x44820024, 32);
+    qtest_clock_step(qts, 219999);
+    expect(qts, 0x44820024, 0);
+    qtest_clock_step(qts, 1);
+    expect(qts, 0x44820024, 64);
+    expect(qts, 0x4482001c, 'R' << 8);
+    close(fd);
+    qtest_quit(qts);
 }
 
 static void test_uart_tx_fifo_frames(const void *board)
@@ -2925,6 +3298,14 @@ int main(int argc, char **argv)
         const char *name;
         GTestDataFunc test;
     } tests[] = {
+        {"core-clocks-known-tuples-analog-reset", test_core_clock_tuples},
+        {"core-clocks-unknown-source-off-logs", test_core_clock_unknown},
+        {"core-clocks-default-off", test_core_clock_default_off},
+        {"core-clocks-peripheral-deadlines",
+         test_core_clock_peripheral_deadlines},
+        {"core-clocks-systick-live-pause-repeat", test_core_clock_systick_live},
+        {"core-clocks-systick-disabled-zero-lpo",
+         test_core_clock_systick_stopped},
         {"uart-tx-fifo-framing-order", test_uart_tx_fifo_frames},
         {"uart-tx-service-mask-w1c-routes", test_uart_tx_service_routes},
         {"uart-tx-clock-pause-rounding", test_uart_tx_clock_pause},

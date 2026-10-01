@@ -30,6 +30,74 @@
 static const uint32_t uart_base[] = { 0x44820000, 0x45830000, 0x45840000 };
 static const unsigned uart_irq[] = { 4, 15, 16 };
 
+static void bk7258_update_core_clocks(BK7258State *s)
+{
+    /*
+     * These are the CP SDK's documented non-DCO operating points. They
+     * describe digital timing inputs, not PLL lock, voltage or TCG speed.
+     * The bus output has no DMA/peripheral consumer until routing is proven.
+     */
+    static const struct {
+        uint8_t mode;
+        uint8_t speeds;
+        unsigned mhz[3];
+        unsigned bus_mhz;
+    } tuples[] = {
+        /* Preserve the existing diagnostic reset, not a silicon POR claim. */
+        { 0x00, 0, { 26, 26, 26 }, 26 },
+        { 0x00, 7, { 26, 26, 26 }, 26 },
+        { 0x30, 6, { 240, 480, 480 }, 240 },
+        { 0x20, 6, { 160, 320, 320 }, 160 },
+        { 0x31, 7, { 240, 240, 240 }, 240 },
+        { 0x33, 7, { 120, 120, 120 }, 120 },
+        { 0x35, 7, { 80, 80, 80 }, 80 },
+        { 0x37, 7, { 60, 60, 60 }, 60 },
+    };
+    unsigned mode = s->clock_mode & 0x7f;
+    unsigned speeds = 0;
+    unsigned hz[3] = { 0 };
+    unsigned bus_hz = 0;
+    unsigned key;
+    bool found = false;
+
+    if (!s->experimental_core_clocks) {
+        for (unsigned i = 0; i < 3; i++) {
+            clock_update(s->coreclk[i], clock_get(s->cpuclk));
+        }
+        clock_update(s->busclk, clock_get(s->cpuclk));
+        return;
+    }
+    for (unsigned i = 0; i < 3; i++) {
+        speeds |= ((s->cpu_control[i] >> 4) & 1) << i;
+    }
+    key = (mode << 3) | speeds;
+    for (unsigned n = 0; n < ARRAY_SIZE(tuples); n++) {
+        if (tuples[n].mode != mode || tuples[n].speeds != speeds) {
+            continue;
+        }
+        found = true;
+        /* Use only the committed enable after the analog register transfer. */
+        if (mode == 0 || (s->analog[5] & (1U << 5))) {
+            for (unsigned i = 0; i < 3; i++) {
+                hz[i] = tuples[n].mhz[i] * 1000000U;
+            }
+            bus_hz = tuples[n].bus_mhz * 1000000U;
+        }
+        break;
+    }
+    if (!found && (!s->core_clock_unimplemented || s->core_clock_key != key)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "bk7258-sys: experimental core clock tuple "
+                      "mode=0x%02x speeds=0x%x is unsupported\n", mode, speeds);
+    }
+    s->core_clock_key = key;
+    s->core_clock_unimplemented = !found;
+    for (unsigned i = 0; i < 3; i++) {
+        clock_update_hz(s->coreclk[i], hz[i]);
+    }
+    clock_update_hz(s->busclk, bus_hz);
+}
+
 static void bk7258_update_uart_clocks(BK7258State *s)
 {
     static const unsigned gate[] = { 2, 10, 11 };
@@ -133,6 +201,7 @@ static void bk7258_analog_complete(void *opaque)
         }
     }
     s->analog_busy = 0;
+    bk7258_update_core_clocks(s);
     clock_update_hz(s->roscclk, s->analog[5] & (1U << 14) ? 0 : 32000);
     bk7258_update_wdt_clock(s);
     bk7258_update_timer_clocks(s);
@@ -279,10 +348,12 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
             async_run_on_cpu(CPU(s->cpu[index].cpu), bk7258_cpu_control_work,
                              RUN_ON_CPU_HOST_PTR(control));
         }
+        bk7258_update_core_clocks(s);
         bk7258_update_irqs(s);
         break;
     case 0x20:
         s->clock_mode = value;
+        bk7258_update_core_clocks(s);
         if (value & ((1U << 10) | (1U << 13) | (1U << 16))) {
             qemu_log_mask(LOG_UNIMP,
                           "bk7258-sys: UART APLL source is not implemented\n");
@@ -422,8 +493,10 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     }
 
     s->cpuclk = clock_new(obj, "cpuclk");
-    /* Fixed diagnostic clock; PLL/DVFS and clock-gating are not modeled. */
+    /* Legacy diagnostic source remains independent of the optional clocks. */
     clock_set_hz(s->cpuclk, 26000000);
+    s->busclk = clock_new(obj, "busclk");
+    clock_set(s->busclk, clock_get(s->cpuclk));
     s->xtalclk = clock_new(obj, "xtalclk");
     s->roscclk = clock_new(obj, "roscclk");
     s->div32kclk = clock_new(obj, "div32kclk");
@@ -442,6 +515,7 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         g_autofree char *name = g_strdup_printf("bk7258.cpu%u", i);
         g_autofree char *itcm_name = g_strdup_printf("bk7258.itcm%u", i);
         g_autofree char *dtcm_name = g_strdup_printf("bk7258.dtcm%u", i);
+        g_autofree char *clock_name = g_strdup_printf("coreclk%u", i);
 
         memory_region_init(&s->cpu_memory[i], obj, name, UINT64_C(1) << 32);
         memory_region_init_alias(&s->shared_alias[i], obj, "shared", memory,
@@ -465,7 +539,9 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         qdev_prop_set_uint32(cpu, "num-prio-bits", 3);
         qdev_prop_set_uint32(cpu, "init-svtor", i ? 0 : s->boot_vector);
         qdev_prop_set_bit(cpu, "start-powered-off", i != 0);
-        qdev_connect_clock_in(cpu, "cpuclk", s->cpuclk);
+        s->coreclk[i] = clock_new(obj, clock_name);
+        clock_set(s->coreclk[i], clock_get(s->cpuclk));
+        qdev_connect_clock_in(cpu, "cpuclk", s->coreclk[i]);
         s->refclk[i] = clock_new(obj, name);
         clock_set(s->refclk[i], clock_get(s->lpoclk));
         qdev_connect_clock_in(cpu, "refclk", s->refclk[i]);
@@ -660,6 +736,9 @@ static void bk7258_reset(DeviceState *dev)
     s->power_sleep = TICK_ROUTES;
     memset(s->gpio_mux, 0, sizeof(s->gpio_mux));
     memset(s->analog, 0, sizeof(s->analog));
+    s->core_clock_key = 0;
+    s->core_clock_unimplemented = false;
+    bk7258_update_core_clocks(s);
     clock_update_hz(s->roscclk, 32000);
     s->analog_busy = 0;
     timer_del(s->analog_timer);
@@ -724,6 +803,8 @@ static void bk7258_finalize(Object *obj)
 }
 
 static const Property bk7258_properties[] = {
+    DEFINE_PROP_BOOL("experimental-core-clocks", BK7258State,
+                     experimental_core_clocks, false),
     DEFINE_PROP_BOOL("diagnostic-xip", BK7258State, diagnostic_xip, false),
     DEFINE_PROP_UINT32("xip-size", BK7258State, flash_size,
                        (8 * MiB / 34) * 32),

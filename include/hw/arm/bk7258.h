@@ -83,13 +83,18 @@ struct BK7258State {
     MemoryRegion sysctrl_ns;
     MemoryRegion uart_ns[3];
     Clock *cpuclk;
+    Clock *coreclk[3];
+    Clock *busclk;
     Clock *refclk[3];
+    uint32_t core_clock_key;
+    bool core_clock_unimplemented;
     uint32_t cpu_control[3];
     uint32_t irq_enable[3][2];
     uint64_t irq_levels;
     uint32_t flash_size;
     uint32_t boot_vector;
     bool diagnostic_xip;
+    bool experimental_core_clocks;
 };
 
 #endif

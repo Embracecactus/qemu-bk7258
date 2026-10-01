@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
@@ -94,14 +95,14 @@ class BK7258Machine(QemuSystemTest):
 
         return elf
 
-    def launch_fixture(self, elf, console_index=0):
+    def launch_fixture(self, elf, console_index=0, accelerator="tcg"):
         mmio = Path(self.log_file("mmio.log"))
         # Semihosting exits the process directly; no monitor request is needed.
         self.vm.set_qmp_monitor(False)
         self.vm.set_console(console_index=console_index)
         self.vm.add_args(
             "-accel",
-            "tcg",
+            accelerator,
             "-kernel",
             str(elf),
             "-semihosting-config",
@@ -114,6 +115,97 @@ class BK7258Machine(QemuSystemTest):
         self.vm.launch()
         self.vm.console_socket.settimeout(10)
         return mmio
+
+    def run_core_clock(self, board, enabled=True, omit_dpll=False):
+        elf = self.build_fixture(
+            board, "core_clock.c", OMIT_DPLL=int(omit_dpll)
+        )
+        if enabled:
+            self.vm.add_args(
+                "-global", "bk7258-soc.experimental-core-clocks=on"
+            )
+        # Instruction counting makes RTC timestamps repeatable; the guest
+        # tests SysTick exception timing, never TCG instruction throughput.
+        self.vm.add_args("-icount", "shift=0,align=off,sleep=off")
+        mmio = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        positive = enabled and not omit_dpll
+        marker = (
+            "BK7258 THREE CORE CLOCK SYSTICK IRQ OK" if positive else
+            "BK7258 CORE CLOCK XTAL DEADLINE FAILED" if omit_dpll else
+            "BK7258 CORE CLOCK RTC TIMING FAILED"
+        )
+        output = wait_for_console_pattern(
+            self, marker, "BK7258 CORE CLOCK PROBE FAILED"
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0 if positive else 1)
+        samples = re.findall(
+            rb"BK7258 CORE CLOCK SAMPLE ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) ([0-9a-f]{8})", output
+        )
+        if positive:
+            self.assertEqual(
+                [(int(test, 16), int(core, 16))
+                 for test, core, _ in samples],
+                [(test, core) for test in range(8) for core in range(3)],
+            )
+        else:
+            self.assertNotIn(b"BK7258 THREE CORE CLOCK SYSTICK IRQ OK", output)
+            # These are executed guest negative controls, not launcher errors.
+            if omit_dpll:
+                self.assertEqual(samples, [])
+            else:
+                self.assertEqual(len(samples), 1)
+                self.assertEqual(samples[0][:2], (b"00000000", b"00000000"))
+                self.assertGreater(int(samples[0][2], 16), 300 * 32)
+
+        # Clock programming has deliberate, immediately visible intermediate
+        # tuples. No unrelated unimplemented access or guest error is allowed.
+        permitted = {
+            "bk7258-sys: experimental core clock tuple "
+            f"mode=0x{mode:02x} speeds=0x{speeds:x} is unsupported"
+            for mode, speeds in ((0, 1), (0, 3), (0, 6), (0x20, 7), (0x73, 7))
+        }
+        diagnostics = mmio.read_text().splitlines()
+        for diagnostic in diagnostics:
+            self.assertIn(diagnostic, permitted)
+        if positive:
+            self.assertEqual(
+                diagnostics.count(
+                    "bk7258-sys: experimental core clock tuple "
+                    "mode=0x73 speeds=0x7 is unsupported"
+                ),
+                3,
+            )
+        elif not enabled:
+            self.assertEqual(diagnostics, [])
+
+    def test_t5_board_core_clock(self):
+        self.run_core_clock("t5_board")
+
+    def test_t5_board_core_clock_disabled(self):
+        self.run_core_clock("t5_board", enabled=False)
+
+    def test_t5_board_core_clock_missing_dpll(self):
+        self.run_core_clock("t5_board", omit_dpll=True)
+
+    def test_t5ai_core_core_clock(self):
+        self.run_core_clock("t5ai_core")
+
+    def test_t5ai_core_core_clock_disabled(self):
+        self.run_core_clock("t5ai_core", enabled=False)
+
+    def test_t5ai_core_core_clock_missing_dpll(self):
+        self.run_core_clock("t5ai_core", omit_dpll=True)
+
+    def test_aidk_ai_toy_core_clock(self):
+        self.run_core_clock("aidk_ai_toy")
+
+    def test_aidk_ai_toy_core_clock_disabled(self):
+        self.run_core_clock("aidk_ai_toy", enabled=False)
+
+    def test_aidk_ai_toy_core_clock_missing_dpll(self):
+        self.run_core_clock("aidk_ai_toy", omit_dpll=True)
 
     def run_fixture(self, board, positive):
         elf = self.build_fixture(board, "diagnostic.c")
