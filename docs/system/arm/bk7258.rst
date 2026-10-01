@@ -1682,6 +1682,81 @@ bound, not a firmware pass criterion; the actual data abort and UART must be
 inspected. These probes do not enable semihosting, patch firmware, change its
 configuration, or claim ROM execution from a host-selected entry vector.
 
+Startup ownership and the next evidence boundary
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The first Flash clock read cannot be resolved by silently supplying a
+480-MHz source. A stopped-guest, system-address-space snapshot on QEMU
+``f75683507caa46ffb9a6240e27a54290efef18d6`` shows SYS+0x20=0,
+ANA5/+0x114=0x000f0000 (EN_DPLL bit5 clear), and Flash+0x28=0x0c08e025
+(CLK_CFG=5). These are model state observations at the unchanged direct
+app's fault, not measurements of a physical board. The external probe does
+not use instruction-count scheduling.
+
+The same frozen firmware source identifies the missing earlier owner:
+
+* BL1's `early runtime
+  <https://github.com/Embracecactus/contest2026_135_yongwangzhiqian/blob/ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43/chips/bk7258/bootloader/boot_runtime.c#L234-L263>`_
+  enables the OTP power/clock path and accesses 0x4b1002c8 before its main
+  clock initialization. That is the observed BL1 fault above.
+* `boot_clock_cold_init
+  <https://github.com/Embracecactus/contest2026_135_yongwangzhiqian/blob/ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43/chips/bk7258/bootloader/boot_clock.c#L225-L355>`_
+  sets ANA5.EN_DPLL, performs analog-register/calibration sequences, then
+  selects a divided DPLL core clock and the DPLL Flash source. BL1's
+  `caller
+  <https://github.com/Embracecactus/contest2026_135_yongwangzhiqian/blob/ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43/chips/bk7258/bootloader/boot_main.c#L446-L479>`_
+  checks the enable bit and refuses app handoff after three failed attempts.
+  An enable-bit check is not a measured PLL-lock guarantee.
+* The package's `BL2 platform initialization
+  <https://github.com/Embracecactus/contest2026_135_yongwangzhiqian/blob/ffe8356bf8b0e4eeaa504b6bcfaaf529bc842b43/chips/bk7258/bootloader/bl2/bk7258_bl2_main.c#L196-L214>`_
+  takes over vectors/watchdog after BL1's clock/Flash preparation. Entering
+  BL2 with host-invented predecessor state would not test that chain.
+
+There is useful OTP register evidence; the unresolved issue is a complete
+startup contract, not absence of register definitions. At the firmware SDK
+pin ``cb080de1655d579c7593ecf504c440997c4c137b``:
+
+* `OTP status/hardware fields
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/soc/otp_struct.h#L228-L267>`_
+  identify +0x2c4 bit0 as PTM busy, and +0x2c8 bits0/1 as PDSTB
+  (sleep/active) and CLKOSC_EN. RD_TO_SEL[7:6] explicitly selects an active
+  mode wait of 10/5/2 microseconds or immediate. The separate auto-repair
+  command is +0x2d0, not the +0x2c8 control despite BL1's local macro name.
+* The `LL sequence
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/hal/otp_ll.h#L434-L450>`_
+  sets both activation bits and polls busy; sleep waits for busy to clear
+  before clearing both. This shows software ordering, but does not specify
+  the complete busy/read-valid transition, reset values or access effects
+  while the macro is asleep or unpowered.
+* The `array layout
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/soc/otp_struct.h#L373-L387>`_
+  and `board OTP allocation
+  <https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/boards/bk7258/csv/otp1.csv#L33>`_
+  map +0x7c8 to OTP word 242, OTP_MEMORY_CHECK_VDDDIG, rather than a second
+  control register. BL1 tests its low nibble and conditionally writes 7 to
+  the memory-check controller. Neither the CSV nor a blank OTP bit value
+  establishes the provisioned calibration contents of this package's board.
+
+The SDK's shared `CMSIS startup sequence
+<https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/components/cmsis/CMSIS_5/Device/Beken/bk7236xx/Source/startup_bk7236.c#L362-L410>`_
+performs the same conditional memory-check setup before its early clock
+initialization. This corroborates the software order; it is not an additional
+definition of the hardware timing or evidence that this CMSIS entry is used
+by the separate NuttX product image.
+
+These OTP layout/LL/allocation files are unchanged in SDK ``4ca3893``.
+Neither a fixed busy=0 nor an invented calibration word is supplied. The
+next minimal evidence is (1) the OTP activation/reset/read-valid contract,
+including the meaning of the documented wait selector and memory-check
+calibration field; (2) the R0-to-R7A capture/clear/retention contract already
+identified above; and (3) a documented ROM/BL1 entry and analog-clock handoff
+contract if a cold boot or direct-app handoff is to be represented. Existing
+vendor documentation or a vendor-approved trace of these non-secret control
+transitions is sufficient in principle; a full OTP/key dump is neither needed
+nor requested. Unknown register reads are not assumed side-effect-free.
+The optional Flash-clock proposal remains unimplemented and is not a
+substitute for these predecessor stages.
+
 SYS2Flash configuration readback
 -------------------------------
 
