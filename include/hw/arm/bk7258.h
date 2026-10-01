@@ -15,6 +15,7 @@
 #include "hw/misc/bk7258_ckmn.h"
 #include "hw/misc/bk7258_mailbox.h"
 #include "hw/block/bk7258_flash.h"
+#include "hw/adc/bk7258_saradc.h"
 
 #define BK7258_FLASH_BASE 0x02000000
 
@@ -48,6 +49,9 @@ struct BK7258State {
     BK7258CKMNState ckmn;
     BK7258MailboxState mailbox;
     BK7258FlashState flashctrl;
+    BK7258SARADCState saradc;
+    MemoryRegion saradc_ns;
+    Clock *sadcclk;
     MemoryRegion flashctrl_ns;
     MemoryRegion mailbox_ns[3];
     uint64_t private_irqs[3];
@@ -100,6 +104,7 @@ struct BK7258State {
     bool diagnostic_xip;
     bool experimental_core_clocks;
     bool experimental_spi_apll;
+    bool experimental_saradc;
 };
 
 #endif

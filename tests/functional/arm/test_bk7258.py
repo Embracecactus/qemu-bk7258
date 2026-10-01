@@ -1305,6 +1305,80 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_timer_invalid_channel(self):
         self.run_timer("aidk_ai_toy", fault=True)
 
+    def run_saradc(self, board, mode=0):
+        elf = self.build_fixture(board, "saradc.c", TEST_MODE=mode)
+        codes = (0, 4095, 291, 2048, 2730, 85)
+        self.vm.add_args(
+            "-global", "bk7258-soc.experimental-saradc=on",
+            "-icount", "shift=5,align=off,sleep=off",
+        )
+        for channel, code in enumerate(codes, 1):
+            if mode != 2 or channel != 6:
+                self.vm.add_args(
+                    "-global", f"bk7258-saradc.input{channel}={code}"
+                )
+        mmio = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        output = wait_for_console_pattern(self, " DONE")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), mode, output.decode())
+        samples = [tuple(int(value, 16) for value in row) for row in
+                   re.findall(rb"BK7258 SARADC SAMPLE ([0-9a-f]{8}) "
+                              rb"([0-9a-f]{8}) END", output)]
+        expected = (list(enumerate(codes, 1)) * 2 + [(3, 291)] * 3 +
+                    [(4, 2048)]) if mode == 0 else (
+                        [(3, 291)] if mode == 1 else
+                        [(1, 0)] if mode == 3 else [])
+        self.assertEqual(samples, expected)
+        result = f"BK7258 SARADC RESULT {mode:08x} {len(expected):08x} DONE"
+        self.assertIn(result.encode(), output)
+        self.assertIn(
+            b"BK7258 SARADC PRECISE FAULT STATE OK" if mode else
+            b"BK7258 SARADC INPUT REARM CLOCK CANCEL OK", output,
+        )
+        errors = {
+            0: "",
+            1: "bk7258-saradc: unsupported write 0x7ea5 at 0x10\n",
+            2: "bk7258-saradc: unsupported write 0x7eb5 at 0x10\n",
+            3: "bk7258-saradc: unsupported write 0x1 at 0x8\n",
+        }
+        self.assertEqual(mmio.read_text(), errors[mode])
+
+    def test_t5_board_saradc(self):
+        self.run_saradc("t5_board", mode=0)
+
+    def test_t5_board_saradc_busy_write(self):
+        self.run_saradc("t5_board", mode=1)
+
+    def test_t5_board_saradc_missing_input(self):
+        self.run_saradc("t5_board", mode=2)
+
+    def test_t5_board_saradc_unsupported_reset(self):
+        self.run_saradc("t5_board", mode=3)
+
+    def test_t5ai_core_saradc(self):
+        self.run_saradc("t5ai_core", mode=0)
+
+    def test_t5ai_core_saradc_busy_write(self):
+        self.run_saradc("t5ai_core", mode=1)
+
+    def test_t5ai_core_saradc_missing_input(self):
+        self.run_saradc("t5ai_core", mode=2)
+
+    def test_t5ai_core_saradc_unsupported_reset(self):
+        self.run_saradc("t5ai_core", mode=3)
+
+    def test_aidk_ai_toy_saradc(self):
+        self.run_saradc("aidk_ai_toy", mode=0)
+
+    def test_aidk_ai_toy_saradc_busy_write(self):
+        self.run_saradc("aidk_ai_toy", mode=1)
+
+    def test_aidk_ai_toy_saradc_missing_input(self):
+        self.run_saradc("aidk_ai_toy", mode=2)
+
+    def test_aidk_ai_toy_saradc_unsupported_reset(self):
+        self.run_saradc("aidk_ai_toy", mode=3)
+
     def run_ckmn(self, board, missing_route=False):
         elf = self.build_fixture(
             board, "ckmn.c", MISSING_ROUTE=int(missing_route)

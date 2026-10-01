@@ -84,6 +84,11 @@ OpenVela source or profile changes are required for that gate.
    * - CKMN
      - Timed reference/measured clock ratio, mask/W1C, source-loss and cancel
      - Physical oscillator tuning/lock and automatic source switching
+   * - SARADC (explicit experiment)
+     - Single-step conversion of supplied raw codes, mode completion before
+       consuming read, rearm, XTAL gating and bounded cancellation
+     - Analog/calibrated voltage, automatic inputs, IRQ, multi-sample FIFO,
+       calibration, software-reset polarity and physical conversion timing
    * - MBOX0
      - Eight shared slots, three physical channels, private IRQ63, ordering,
        overflow/ownership protection and guest three-core exchange
@@ -126,7 +131,7 @@ OpenVela source or profile changes are required for that gate.
        capture/trigger/deadtime/center/down modes and measured edge behavior
    * - Other chip interfaces
      - Not modeled
-     - QSPI, SDIO, USB, CAN/Ethernet, ADC, TRNG/crypto,
+     - QSPI, SDIO, USB, CAN/Ethernet, SDMADC, TRNG/crypto,
        audio/video, Wi-Fi/BT and other absent register blocks
 
 For each added chip block, require source-backed access/reset/clock/IRQ
@@ -1756,6 +1761,87 @@ transitions is sufficient in principle; a full OTP/key dump is neither needed
 nor requested. Unknown register reads are not assumed side-effect-free.
 The optional Flash-clock proposal remains unimplemented and is not a
 substitute for these predecessor stages.
+
+Single-step SARADC digital-input experiment
+------------------------------------------
+
+``-global bk7258-soc.experimental-saradc=on`` enables a bounded controller
+at 0x45890000, with the shared nonsecure alias at 0x55890000. It is off by
+default. Every input is absent unless explicitly supplied, for example
+``-global bk7258-saradc.input1=291``. Properties ``input1`` through ``input6``
+accept unsigned 12-bit conversion codes; 0xffffffff means absent. These are
+uncalibrated digital test inputs, not voltages or factory OTP contents. No
+board automatically gains a virtual battery, sensor or analog ADC_KEY.
+Additional channels listed by the datasheet are outside this subset.
+The child follows the normal qdev realization lifecycle in both modes;
+the option controls its MMIO mapping and clock availability. Explicit input
+properties are range-checked even when the experiment is off.
+
+The pinned SDK's `ADC register layout
+<https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/soc/adc_struct.h#L40-L122>`_
+and `single-step HAL
+<https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/common/hal/adc_hal.c#L167-L175>`_
+support mode=1, enable bit2, busy bit29, completion changing mode to sleep,
+then reading ADC_DATA_16 at +0x20. The
+`BK7258 guide
+<https://docs.riselink.ai/arminodoc/bk_avdk_smp/cp_doc/bk7258/zh_CN/v3.1.1/developer-guide/peripheral/bk_adc.html>`_
+agrees with this completion-before-read order. Older ``adc.h`` API prose
+instead says sleep follows the read, which would deadlock that polling HAL;
+the model does not follow the contradictory prose. The SDK's
+`FIFO draining loop
+<https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/driver/saradc/adc_driver.c#L230-L260>`_
+consumes samples through +0x20. A repeated mode=1 write rearms after the
+previous sample is read, without requiring an enable toggle.
+
+Start requires calibration bypass (+0x18 bit10), filter=0 and saturation
+control=7 (+0x1c: enabled, select bits15:0), so the supplied code is returned
+without an invented calibration offset or rounding. The model snapshots
+the input at start, sets busy, then stores one result, clears busy and sets
+mode=0. Reading +0x20 consumes that result and sets FIFO_EMPTY. Empty reads,
+rearming an unread result, missing input and unsupported configuration are
+rejected without partial changes. These rejection rules bound the model;
+they do not assert silicon BusFault behavior, FIFO overflow or overrun policy.
+Read-only status bits are ignored in CTRL writes to support read-modify-write.
+
+The source is the existing nominal 26-MHz XTAL when SYS+0x20 bit17 selects
+XTAL, SYS+0x30 bit5 is enabled and committed ANA2 bit15 is enabled. These
+connections follow ``sys_saradc_clk_sel_t``, the active clock-driver macros
+and ``sys_hal_sadc_pwr_up/down``. APLL/32-MHz operation is unsupported; the
+SPI APLL experiment is not reused for this unrelated consumer.
+
+The scheduling budget is an explicit functional abstraction:
+``(16 + (ADC_SETTING ? 8 : 4) + (STEADY_CTRL + 1) * 8) * 2 * (ADC_DIV + 1)``
+source cycles. The SDK defines those individual fields, but does not establish
+their overlap, so their serial addition is a model policy, not a vendor
+timing formula. It neither predicts analog startup nor replaces the
+`datasheet's
+<https://docs.riselink.ai/spec/BK7258/BK7258%C2%A0Datasheet.pdf>`_
+separate typical specifications (page 95: 16 conversion cycles and 5-us
+startup, without configuration conditions). Clock/gate/analog-enable
+loss pauses the remaining whole-cycle budget; recovery resumes it. This is
+digital scheduling, not analog charge retention. Idempotent CTRL writes do
+not restart time. Busy reconfiguration is rejected; clearing mode or enable
+alone cancels without producing a result. QEMU device reset cancels and clears
+controller state while preserving supplied input properties, an explicit
+initialization convention rather than a silicon reset-domain claim.
+
+Calibration, software/continuous modes, filter accumulation, IRQ generation,
+ADC_RAW_DATA +0x14 and FIFO_DATA +0x24 are not implemented. The latter's
+bypass-mode read semantics are not established. Software reset at +0x08 is
+also rejected: the LL writes 1, but its pulse/level/self-clear meaning is
+unresolved. Thus this subset does not run the complete SDK initialization.
+Unknown accesses, partial accesses and writes to data are rejected rather
+than returning fabricated identity, ready or calibration values.
+
+Native tests cover all six explicit inputs, zero/full-scale codes, aliases,
+consuming reads/rearm, serial deadlines, source/gate/committed-power loss,
+cancel/reset and atomic negative cases. Source-built M33 guests independently
+check 16 completed samples per board, use live TIMG during three clock-loss
+intervals and verify precise fault address/status plus retained state for
+busy writes, absent inputs and unsupported software reset. Only these source
+fixtures use instruction-count scheduling; their guest deadlines remain
+unchanged. The unchanged product probes above still stop at SYS+0x24, AON R7A
+or OTP: this separate ADC capability does not remove those startup gaps.
 
 SYS2Flash configuration readback
 -------------------------------

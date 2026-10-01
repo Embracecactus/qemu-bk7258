@@ -193,6 +193,17 @@ static void bk7258_update_i2c_clocks(BK7258State *s)
     }
 }
 
+static void bk7258_update_saradc_clock(BK7258State *s)
+{
+    /* Only XTAL is sourced; do not substitute SPI's ideal APLL experiment. */
+    bool available = s->experimental_saradc &&
+                     (s->peripheral_clocks & (1U << 5)) &&
+                     !(s->clock_mode & (1U << 17)) &&
+                     (s->analog[2] & (1U << 15));
+
+    clock_update(s->sadcclk, available ? clock_get(s->xtalclk) : 0);
+}
+
 static void bk7258_update_timer_clocks(BK7258State *s)
 {
     static const unsigned gate[] = { 4, 13 };
@@ -264,6 +275,7 @@ static void bk7258_analog_complete(void *opaque)
     bk7258_audio_clock_commit(s, written, old_power, old_control,
                               old_coefficient);
     bk7258_update_core_clocks(s);
+    bk7258_update_saradc_clock(s);
     clock_update_hz(s->roscclk, s->analog[5] & (1U << 14) ? 0 : 32000);
     bk7258_update_wdt_clock(s);
     bk7258_update_timer_clocks(s);
@@ -424,6 +436,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
                           "bk7258-sys: UART APLL source is not implemented\n");
         }
         bk7258_update_uart_clocks(s);
+        bk7258_update_saradc_clock(s);
         bk7258_update_timer_clocks(s);
         bk7258_update_pwm_clocks(s);
         break;
@@ -475,6 +488,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         s->peripheral_clocks = value;
         bk7258_update_wdt_clock(s);
         bk7258_update_uart_clocks(s);
+        bk7258_update_saradc_clock(s);
         bk7258_update_timer_clocks(s);
         bk7258_update_pwm_clocks(s);
         bk7258_update_i2c_clocks(s);
@@ -589,6 +603,15 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
         return;
     }
     qdev_connect_clock_in(dev, "lpo", s->aon.lpo);
+    qdev_connect_clock_in(DEVICE(&s->saradc), "clk", s->sadcclk);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->saradc), errp)) {
+        return;
+    }
+    if (s->experimental_saradc) {
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->saradc), 0, 0x45890000);
+        bk7258_alias(&s->saradc_ns, obj, "bk7258.saradc-ns",
+                     &s->saradc.iomem, memory, 0x55890000, 0x1000);
+    }
     for (i = 0; i < 3; i++) {
         DeviceState *cpu = DEVICE(&s->cpu[i]);
         g_autofree char *name = g_strdup_printf("bk7258.cpu%u", i);
@@ -823,6 +846,7 @@ static void bk7258_reset(DeviceState *dev)
     s->core_clock_key = 0;
     s->core_clock_unimplemented = false;
     bk7258_update_core_clocks(s);
+    bk7258_update_saradc_clock(s);
     clock_update_hz(s->roscclk, 32000);
     s->analog_busy = 0;
     timer_del(s->analog_timer);
@@ -866,6 +890,8 @@ static void bk7258_init(Object *obj)
         object_initialize_child(obj, "dma[*]", &s->dma[i], TYPE_BK7258_DMA);
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
+    object_initialize_child(obj, "saradc", &s->saradc, TYPE_BK7258_SARADC);
+    s->sadcclk = clock_new(obj, "sadcclk");
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_BK7258_RTC);
     s->lpoclk = qdev_init_clock_in(DEVICE(obj), "lpo", bk7258_lpo_changed,
@@ -887,6 +913,8 @@ static void bk7258_finalize(Object *obj)
 }
 
 static const Property bk7258_properties[] = {
+    DEFINE_PROP_BOOL("experimental-saradc", BK7258State,
+                     experimental_saradc, false),
     DEFINE_PROP_BOOL("experimental-core-clocks", BK7258State,
                      experimental_core_clocks, false),
     DEFINE_PROP_BOOL("experimental-spi-apll", BK7258State,

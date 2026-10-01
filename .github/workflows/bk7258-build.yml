@@ -5,6 +5,9 @@ on:
     branches: [master]
     paths:
       - 'hw/arm/bk7258*.c'
+      - 'hw/adc/bk7258_saradc.c'
+      - 'hw/adc/meson.build'
+      - 'include/hw/adc/bk7258_saradc.h'
       - 'hw/char/bk7258_uart.c'
       - 'hw/i2c/bk7258_i2c.c'
       - 'hw/ssi/bk7258_spi.c'

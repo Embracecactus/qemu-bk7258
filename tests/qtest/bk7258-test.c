@@ -4347,6 +4347,492 @@ static void test_i2c_clock_budget(const void *board)
     qtest_quit(qts);
 }
 
+#define SARADC 0x45890000
+#define SARADC_NS 0x55890000
+#define SARADC_ARGS "-global bk7258-soc.experimental-saradc=on"
+#define SARADC_INPUTS "-global bk7258-saradc.input1=0 " \
+                      "-global bk7258-saradc.input2=4095 " \
+                      "-global bk7258-saradc.input3=1 " \
+                      "-global bk7258-saradc.input4=2048 " \
+                      "-global bk7258-saradc.input5=1370 " \
+                      "-global bk7258-saradc.input6=2645"
+#define SARADC_ENABLE (1U << 2)
+#define SARADC_BUSY (1U << 29)
+#define SARADC_EMPTY (1U << 30)
+#define SARADC_STATUS (7U << 29)
+#define SARADC_BYPASS (1U << 10)
+
+static QTestState *start_saradc(const void *board, const char *extra)
+{
+    return qtest_initf("-machine %s -serial null " SARADC_ARGS " "
+                       SARADC_INPUTS " %s", (const char *)board, extra);
+}
+
+static uint32_t saradc_control(unsigned channel, unsigned div, bool wait)
+{
+    return 1 | SARADC_ENABLE | (channel << 3) | (wait ? 1U << 7 : 0) |
+           (div << 9);
+}
+
+static uint64_t saradc_cycles(unsigned div, unsigned steady, bool wait)
+{
+    /* Serial digital stage budget, not a physical conversion-time claim. */
+    return (16 + (wait ? 8 : 4) + (steady + 1) * 8) * 2 * (div + 1);
+}
+
+static uint64_t saradc_ns(uint64_t cycles)
+{
+    return (cycles * 1000000000 + 25999999) / 26000000;
+}
+
+static void saradc_power(QTestState *qts, bool enabled)
+{
+    qtest_writel(qts, SYS + 0x108, enabled ? 1U << 15 : 0);
+    expect(qts, SYS + 0xe8, 1U << 2);
+    qtest_clock_step(qts, 1000);
+    expect(qts, SYS + 0xe8, 0);
+    expect(qts, SYS + 0x108, enabled ? 1U << 15 : 0);
+}
+
+static void saradc_setup(QTestState *qts, unsigned steady)
+{
+    qtest_writel(qts, SYS + 0x20, 0);
+    qtest_writel(qts, SYS + 0x30, 1U << 5);
+    saradc_power(qts, true);
+    expect_clock(qts, "/machine/soc/saradc/clk", 26000000);
+    qtest_writel(qts, SARADC + 0x18, SARADC_BYPASS | (steady << 5));
+    qtest_writel(qts, SARADC + 0x1c, 7);
+}
+
+static void saradc_expect_state(QTestState *qts, uint32_t control,
+                                uint32_t steady, uint32_t saturation)
+{
+    expect(qts, SARADC + 0x10, control);
+    expect(qts, SARADC_NS + 0x10, control);
+    expect(qts, SARADC + 0x18, steady);
+    expect(qts, SARADC_NS + 0x1c, saturation);
+}
+
+static gsize saradc_log_size(const char *path)
+{
+    g_autofree char *log = NULL;
+    gsize size;
+
+    g_assert_true(g_file_get_contents(path, &log, &size, NULL));
+    return size;
+}
+
+static void saradc_reject_write(QTestState *qts, const char *log,
+                                uint32_t addr, uint32_t value)
+{
+    uint32_t control = qtest_readl(qts, SARADC + 0x10);
+    uint32_t steady = qtest_readl(qts, SARADC + 0x18);
+    uint32_t saturation = qtest_readl(qts, SARADC + 0x1c);
+    gsize before = saradc_log_size(log);
+
+    qtest_writel(qts, addr, value);
+    g_assert_cmpuint(saradc_log_size(log), >, before);
+    saradc_expect_state(qts, control, steady, saturation);
+}
+
+static void saradc_reject_read(QTestState *qts, const char *log, uint32_t addr)
+{
+    uint32_t control = qtest_readl(qts, SARADC + 0x10);
+    uint32_t steady = qtest_readl(qts, SARADC + 0x18);
+    uint32_t saturation = qtest_readl(qts, SARADC + 0x1c);
+    gsize before = saradc_log_size(log);
+
+    /* Native qtest does not expose MemTxResult; verify log and atomicity. */
+    qtest_readl(qts, addr);
+    g_assert_cmpuint(saradc_log_size(log), >, before);
+    saradc_expect_state(qts, control, steady, saturation);
+}
+
+static void saradc_reject_access_sizes(QTestState *qts, const char *path)
+{
+    uint32_t control = qtest_readl(qts, SARADC + 0x10);
+    uint32_t steady = qtest_readl(qts, SARADC + 0x18);
+    uint32_t saturation = qtest_readl(qts, SARADC + 0x1c);
+
+    for (unsigned alias = 0; alias < 2; alias++) {
+        uint32_t base = alias ? SARADC_NS : SARADC;
+
+        for (unsigned access = 0; access < 6; access++) {
+            g_autofree char *log = NULL;
+            gsize before = saradc_log_size(path), after;
+
+            switch (access) {
+            case 0:
+                qtest_readb(qts, base + 0x20);
+                break;
+            case 1:
+                qtest_readw(qts, base + 0x20);
+                break;
+            case 2:
+                qtest_readl(qts, base + 0x21);
+                break;
+            case 3:
+                qtest_writeb(qts, base + 0x10, 0);
+                break;
+            case 4:
+                qtest_writew(qts, base + 0x10, 0);
+                break;
+            default:
+                qtest_writel(qts, base + 0x11, 0);
+                break;
+            }
+            g_assert_true(g_file_get_contents(path, &log, &after, NULL));
+            g_assert_cmpuint(after, >, before);
+            g_assert_nonnull(strstr(log + before, "Invalid "));
+            g_assert_nonnull(strstr(log + before, "bk7258-saradc"));
+            saradc_expect_state(qts, control, steady, saturation);
+        }
+    }
+}
+
+static void test_saradc_default_off(const void *board)
+{
+    QTestState *qts = start(board);
+
+    g_assert_false(qtest_qom_get_bool(qts, "/machine/soc",
+                                    "experimental-saradc"));
+    /* qdev children are realized, but this experiment has no mapped MMIO. */
+    g_assert_true(qtest_qom_get_bool(qts, "/machine/soc/saradc", "realized"));
+    qtest_writel(qts, SYS + 0x30, 1U << 5);
+    saradc_power(qts, true);
+    expect_clock(qts, "/machine/soc/saradc/clk", 0);
+    qtest_writel(qts, SARADC + 0x18, SARADC_BYPASS);
+    qtest_writel(qts, SARADC_NS + 0x1c, 7);
+    qtest_writel(qts, SARADC + 0x10, saradc_control(1, 0, false));
+    qtest_clock_step(qts, 1000000);
+    expect(qts, SARADC + 0x10, 0);
+    expect(qts, SARADC_NS + 0x10, 0);
+    expect(qts, SARADC + 0x18, 0);
+    expect(qts, SARADC_NS + 0x1c, 0);
+    qtest_quit(qts);
+}
+
+static void test_saradc_channels_repeat_aliases(const void *board)
+{
+    static const unsigned codes[] = { 0, 4095, 1, 2048, 1370, 2645 };
+    QTestState *qts = start_saradc(board, "");
+
+    g_assert_true(qtest_qom_get_bool(qts, "/machine/soc",
+                                   "experimental-saradc"));
+    g_assert_true(qtest_qom_get_bool(qts, "/machine/soc/saradc", "realized"));
+    saradc_expect_state(qts, SARADC_EMPTY, 0, 0);
+    saradc_setup(qts, 0);
+    for (unsigned round = 0; round < 2; round++) {
+        for (unsigned channel = 1; channel <= G_N_ELEMENTS(codes); channel++) {
+            uint32_t base = (channel + round) & 1 ? SARADC : SARADC_NS;
+            uint32_t other = base == SARADC ? SARADC_NS : SARADC;
+            uint32_t control = saradc_control(channel, 0, false);
+
+            qtest_writel(qts, base + 0x10, control);
+            expect(qts, other + 0x10, control | SARADC_BUSY | SARADC_EMPTY);
+            qtest_clock_step(qts, saradc_ns(saradc_cycles(0, 0, false)));
+            expect(qts, other + 0x10, control & ~3U);
+            expect(qts, other + 0x20, codes[channel - 1]);
+            expect(qts, base + 0x10, (control & ~3U) | SARADC_EMPTY);
+            qtest_clock_step(qts, 1000000);
+            expect(qts, other + 0x10, (control & ~3U) | SARADC_EMPTY);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_saradc_deadlines_clock_pause(const void *board)
+{
+    static const struct {
+        unsigned div, steady;
+        bool wait;
+    } timings[] = {
+        { 0, 0, false }, { 0, 0, true }, { 0, 7, false },
+        { 63, 7, true }, { 25, 3, false }, { 2, 4, true },
+    };
+    QTestState *qts = start_saradc(board, "");
+
+    saradc_setup(qts, 0);
+    for (unsigned i = 0; i < G_N_ELEMENTS(timings); i++) {
+        uint32_t control = saradc_control(2, timings[i].div, timings[i].wait);
+        uint64_t ns = saradc_ns(saradc_cycles(timings[i].div,
+                                             timings[i].steady,
+                                             timings[i].wait));
+
+        qtest_writel(qts, SARADC_NS + 0x18,
+                     SARADC_BYPASS | (timings[i].steady << 5));
+        qtest_writel(qts, SARADC + 0x10, control);
+        qtest_clock_step(qts, ns / 3);
+        /* A status-bearing read-modify-write must not restart the deadline. */
+        qtest_writel(qts, SARADC_NS + 0x10,
+                     qtest_readl(qts, SARADC + 0x10) | SARADC_STATUS);
+        qtest_clock_step(qts, ns - ns / 3 - 1);
+        expect(qts, SARADC + 0x10, control | SARADC_BUSY | SARADC_EMPTY);
+        qtest_clock_step(qts, 1);
+        expect(qts, SARADC + 0x10, control & ~3U);
+        expect(qts, SARADC_NS + 0x20, 4095);
+    }
+    /* Gate, unsupported APLL source selection, and committed analog power. */
+    for (unsigned stop = 0; stop < 3; stop++) {
+        for (unsigned inflight = 0; inflight < 2; inflight++) {
+            const uint32_t control = saradc_control(5, 3, true);
+            uint64_t cycles = saradc_cycles(3, 2, true);
+            unsigned elapsed = inflight ? 77 : 0;
+
+            qtest_writel(qts, SARADC + 0x18, SARADC_BYPASS | (2U << 5));
+            if (inflight) {
+                qtest_writel(qts, SARADC + 0x10, control);
+                qtest_clock_step(qts, elapsed);
+            }
+            if (stop == 0) {
+                qtest_writel(qts, SYS + 0x30, 0);
+            } else if (stop == 1) {
+                qtest_writel(qts, SYS + 0x20, 1U << 17);
+            } else {
+                qtest_writel(qts, SYS + 0x108, 0);
+                qtest_clock_step(qts, 999);
+                expect(qts, SYS + 0x108, 1U << 15);
+                expect(qts, SYS + 0xe8, 1U << 2);
+                expect_clock(qts, "/machine/soc/saradc/clk", 26000000);
+                qtest_clock_step(qts, 1);
+                expect(qts, SYS + 0x108, 0);
+                expect(qts, SYS + 0xe8, 0);
+                elapsed += inflight ? 1000 : 0;
+            }
+            expect_clock(qts, "/machine/soc/saradc/clk", 0);
+            if (!inflight) {
+                qtest_writel(qts, SARADC_NS + 0x10, control);
+            }
+            qtest_clock_step(qts, 1000000);
+            expect(qts, SARADC + 0x10, control | SARADC_BUSY | SARADC_EMPTY);
+            if (stop == 0) {
+                /* Repeated zero-time transitions cannot grow the budget. */
+                for (unsigned n = 0; n < 64; n++) {
+                    qtest_writel(qts, SYS + 0x30, 1U << 5);
+                    qtest_writel(qts, SYS + 0x30, 0);
+                }
+                qtest_writel(qts, SYS + 0x30, 1U << 5);
+            } else if (stop == 1) {
+                qtest_writel(qts, SYS + 0x20, 0);
+            } else {
+                qtest_writel(qts, SYS + 0x108, 1U << 15);
+                qtest_clock_step(qts, 999);
+                expect(qts, SYS + 0x108, 0);
+                expect_clock(qts, "/machine/soc/saradc/clk", 0);
+                expect(qts, SARADC + 0x10,
+                       control | SARADC_BUSY | SARADC_EMPTY);
+                qtest_clock_step(qts, 1);
+                expect(qts, SYS + 0x108, 1U << 15);
+                expect(qts, SYS + 0xe8, 0);
+            }
+            expect_clock(qts, "/machine/soc/saradc/clk", 26000000);
+            cycles -= (uint64_t)elapsed * 26000000 / 1000000000;
+            qtest_clock_step(qts, saradc_ns(cycles) - 1);
+            expect(qts, SARADC_NS + 0x10,
+                   control | SARADC_BUSY | SARADC_EMPTY);
+            qtest_clock_step(qts, 1);
+            expect(qts, SARADC + 0x10, control & ~3U);
+            expect(qts, SARADC + 0x20, 1370);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_saradc_cancel_reset(const void *board)
+{
+    const uint32_t control = saradc_control(6, 63, true);
+    const uint64_t ns = saradc_ns(saradc_cycles(63, 7, true));
+    const uint32_t cancel[] = {
+        control & ~3U, control & ~SARADC_ENABLE,
+        control & ~(3U | SARADC_ENABLE),
+    };
+    QTestState *qts = start_saradc(board, "");
+
+    saradc_setup(qts, 7);
+    for (unsigned i = 0; i < G_N_ELEMENTS(cancel); i++) {
+        qtest_writel(qts, SARADC + 0x10, control);
+        qtest_clock_step(qts, ns / 2);
+        qtest_writel(qts, SARADC_NS + 0x10, cancel[i] | SARADC_STATUS);
+        expect(qts, SARADC + 0x10, cancel[i] | SARADC_EMPTY);
+        qtest_clock_step(qts, ns);
+        expect(qts, SARADC + 0x10, cancel[i] | SARADC_EMPTY);
+        qtest_writel(qts, SARADC + 0x10, control);
+        qtest_clock_step(qts, ns);
+        /* Disable retains the completed unread sample. */
+        qtest_writel(qts, SARADC + 0x10, control & ~(3U | SARADC_ENABLE));
+        expect(qts, SARADC + 0x10, control & ~(3U | SARADC_ENABLE));
+        expect(qts, SARADC_NS + 0x20, 2645);
+    }
+    for (unsigned state = 0; state < 3; state++) {
+        qtest_writel(qts, SARADC + 0x10, control);
+        qtest_clock_step(qts, state == 2 ? ns : 77);
+        if (state == 1) {
+            qtest_writel(qts, SYS + 0x30, 0);
+        }
+        /* Also cancel a pending ANA2 transfer across system reset. */
+        qtest_writel(qts, SYS + 0x108, 0);
+        qtest_system_reset(qts);
+        saradc_expect_state(qts, SARADC_EMPTY, 0, 0);
+        expect_clock(qts, "/machine/soc/saradc/clk", 0);
+        expect(qts, SYS + 0x30, 0);
+        expect(qts, SYS + 0x108, 0);
+        expect(qts, SYS + 0xe8, 0);
+        qtest_clock_step(qts, ns * 2);
+        saradc_expect_state(qts, SARADC_EMPTY, 0, 0);
+        expect(qts, SYS + 0x108, 0);
+        saradc_setup(qts, 7);
+        qtest_writel(qts, SARADC_NS + 0x10, control);
+        qtest_clock_step(qts, ns);
+        expect(qts, SARADC + 0x20, 2645); /* Explicit input survives reset. */
+    }
+    qtest_quit(qts);
+}
+
+static void test_saradc_rejections_atomic(const void *board)
+{
+    static const unsigned unsupported[] = {
+        0, 4, 8, 0xc, 0x14, 0x24, 0x28, 0x2c, 0xffc,
+    };
+    const uint32_t control = saradc_control(6, 3, true);
+    const uint64_t ns = saradc_ns(saradc_cycles(3, 2, true));
+    const uint32_t reconfigure[] = {
+        control ^ (1U << 4), control ^ (1U << 9), control ^ (1U << 7),
+        (control & ~3U) ^ (1U << 9),
+        (control & ~SARADC_ENABLE) ^ (1U << 4),
+    };
+    g_autofree char *dir = g_dir_make_tmp("bk7258-saradc-XXXXXX", NULL);
+    g_autofree char *path = NULL;
+    g_autofree char *args = NULL;
+    QTestState *qts;
+
+    g_assert_nonnull(dir);
+    path = g_build_filename(dir, "rejections.log", NULL);
+    args = g_strdup_printf("-d unimp,guest_errors,invalid_mem -D %s", path);
+    qts = start_saradc(board, args);
+    saradc_setup(qts, 2);
+    saradc_reject_read(qts, path, SARADC + 0x20);
+    /* Mode=1 alone must not start while ENABLE is clear. */
+    qtest_writel(qts, SARADC + 0x10, control & ~SARADC_ENABLE);
+    qtest_clock_step(qts, ns);
+    expect(qts, SARADC + 0x10, (control & ~SARADC_ENABLE) | SARADC_EMPTY);
+    for (unsigned saturation = 0; saturation < 7; saturation++) {
+        qtest_writel(qts, SARADC + 0x1c, saturation);
+        expect(qts, SARADC_NS + 0x1c, saturation);
+        saradc_reject_write(qts, path, SARADC + 0x10, control);
+    }
+    qtest_writel(qts, SARADC_NS + 0x1c, 7);
+    qtest_writel(qts, SARADC + 0x18, 2U << 5);
+    saradc_reject_write(qts, path, SARADC_NS + 0x10, control);
+    qtest_writel(qts, SARADC + 0x18, SARADC_BYPASS | (2U << 5));
+    qtest_writel(qts, SARADC + 0x10, 0);
+    saradc_reject_write(qts, path, SARADC + 0x10, SARADC_ENABLE | 1);
+
+    for (unsigned state = 0; state < 3; state++) {
+        if (state == 1) {
+            qtest_writel(qts, SARADC + 0x10, control);
+            qtest_clock_step(qts, 77);
+        } else if (state == 2) {
+            qtest_clock_step(qts, ns - 77 - 1);
+            expect(qts, SARADC + 0x10,
+                   control | SARADC_BUSY | SARADC_EMPTY);
+            qtest_clock_step(qts, 1);
+            expect(qts, SARADC + 0x10, control & ~3U);
+        }
+        /* Partial/unaligned data reads must not consume an unread sample. */
+        saradc_reject_access_sizes(qts, path);
+        for (unsigned bit = 0; bit < 29; bit++) {
+            if (!(0x7effU & (1U << bit))) {
+                saradc_reject_write(qts, path, SARADC_NS + 0x10,
+                                    control | (1U << bit));
+            }
+        }
+        for (unsigned mode = 2; mode < 4; mode++) {
+            saradc_reject_write(qts, path, SARADC + 0x10,
+                                (control & ~3U) | mode);
+        }
+        for (unsigned channel = 7; channel < 16; channel++) {
+            saradc_reject_write(qts, path, SARADC_NS + 0x10,
+                                saradc_control(channel, 3, true));
+        }
+        for (unsigned bit = 0; bit < 32; bit++) {
+            if (!((SARADC_BYPASS | (7U << 5)) & (1U << bit))) {
+                saradc_reject_write(qts, path, SARADC + 0x18,
+                                    SARADC_BYPASS | (2U << 5) | (1U << bit));
+            }
+            if (bit >= 3) {
+                saradc_reject_write(qts, path, SARADC_NS + 0x1c,
+                                    7 | (1U << bit));
+            }
+        }
+        for (unsigned i = 0; i < G_N_ELEMENTS(unsupported); i++) {
+            saradc_reject_read(qts, path, SARADC + unsupported[i]);
+            saradc_reject_write(qts, path, SARADC_NS + unsupported[i], 1);
+        }
+        saradc_reject_write(qts, path, SARADC + 0x20, 0xabc);
+        if (state == 1) {
+            for (unsigned i = 0; i < G_N_ELEMENTS(reconfigure); i++) {
+                saradc_reject_write(qts, path, SARADC + 0x10, reconfigure[i]);
+            }
+            saradc_reject_write(qts, path, SARADC + 0x18,
+                                SARADC_BYPASS | (2U << 5));
+            saradc_reject_write(qts, path, SARADC + 0x1c, 7);
+            saradc_reject_read(qts, path, SARADC_NS + 0x20);
+            qtest_writel(qts, SARADC + 0x10, control | SARADC_STATUS);
+        } else if (state == 2) {
+            saradc_reject_write(qts, path, SARADC + 0x10, control);
+            saradc_reject_write(qts, path, SARADC_NS + 0x10,
+                                saradc_control(2, 0, false));
+        }
+    }
+    expect(qts, SARADC_NS + 0x20, 2645);
+    saradc_reject_read(qts, path, SARADC + 0x20);
+    qtest_writel(qts, SARADC + 0x10, control | SARADC_STATUS);
+    qtest_clock_step(qts, ns);
+    expect(qts, SARADC + 0x20, 2645);
+    qtest_quit(qts);
+    g_assert_cmpint(unlink(path), ==, 0);
+    g_assert_cmpint(rmdir(dir), ==, 0);
+}
+
+static void test_saradc_input_validation(const void *board)
+{
+    g_autofree char *dir = g_dir_make_tmp("bk7258-saradc-inputs-XXXXXX", NULL);
+    g_autofree char *path = NULL;
+    QTestState *qts;
+
+    g_assert_nonnull(dir);
+    path = g_build_filename(dir, "absent.log", NULL);
+    qts = qtest_initf("-machine %s -serial null " SARADC_ARGS
+                      " -d unimp,guest_errors -D %s",
+                      (const char *)board, path);
+    saradc_setup(qts, 0);
+    for (unsigned channel = 1; channel <= 6; channel++) {
+        g_autofree char *property = g_strdup_printf("input%u", channel);
+        QDict *reply = qtest_qmp(qts, "{'execute':'qom-get','arguments':"
+            "{'path':'/machine/soc/saradc','property':%s}}", property);
+
+        g_assert_true(qdict_haskey(reply, "return"));
+        g_assert_cmpuint(qdict_get_int(reply, "return"), ==, UINT32_MAX);
+        qobject_unref(reply);
+        saradc_reject_write(qts, path, SARADC + 0x10,
+                            saradc_control(channel, 0, false));
+    }
+    qtest_clock_step(qts, 1000000);
+    saradc_expect_state(qts, SARADC_EMPTY, SARADC_BYPASS, 7);
+    saradc_reject_read(qts, path, SARADC_NS + 0x20);
+    qtest_quit(qts);
+    g_assert_cmpint(unlink(path), ==, 0);
+    g_assert_cmpint(rmdir(dir), ==, 0);
+    for (unsigned channel = 1; channel <= 6; channel++) {
+        g_autofree char *args = g_strdup_printf(
+            "-machine %s -serial null " SARADC_ARGS
+            " -global bk7258-saradc.input%u=%u", (const char *)board,
+            channel, channel == 6 ? UINT32_MAX - 1 : 4096);
+
+        reject_start(args);
+    }
+}
+
 int main(int argc, char **argv)
 {
     static const char *boards[] = {"t5_board", "t5ai_core", "aidk_ai_toy"};
@@ -4354,6 +4840,12 @@ int main(int argc, char **argv)
         const char *name;
         GTestDataFunc test;
     } tests[] = {
+        {"saradc-default-off", test_saradc_default_off},
+        {"saradc-channels-repeat-aliases", test_saradc_channels_repeat_aliases},
+        {"saradc-deadlines-clock-pause", test_saradc_deadlines_clock_pause},
+        {"saradc-cancel-reset", test_saradc_cancel_reset},
+        {"saradc-rejections-atomic", test_saradc_rejections_atomic},
+        {"saradc-input-validation", test_saradc_input_validation},
         {"core-clocks-known-tuples-analog-reset", test_core_clock_tuples},
         {"core-clocks-unknown-source-off-logs", test_core_clock_unknown},
         {"core-clocks-default-off", test_core_clock_default_off},
