@@ -2944,10 +2944,12 @@ static void test_aidk_leds(const void *board)
     QTestState *qts = start(board);
 
     for (unsigned i = 0; i < G_N_ELEMENTS(leds); i++) {
-        QDict *response = qtest_qmp_assert_success_ref(qts,
+        QDict *response = qtest_qmp(qts,
             "{'execute':'qom-get', 'arguments':"
             "{'path':%s, 'property':'color'}}", leds[i].path);
 
+        g_assert_false(qdict_haskey(response, "error"));
+        g_assert_true(qdict_haskey(response, "return"));
         g_assert_cmpstr(qdict_get_str(response, "return"), ==, leds[i].color);
         qobject_unref(response);
         g_assert_true(qtest_qom_get_bool(qts, leds[i].path,
@@ -2969,15 +2971,14 @@ static void test_aidk_leds(const void *board)
         }
     }
     for (unsigned i = 0; i < G_N_ELEMENTS(leds); i++) {
-        QDict *response = qtest_qmp_assert_failure_ref(qts,
+        QDict *error = qtest_qmp_assert_failure_ref(qts,
             "{'execute':'qom-set', 'arguments':"
             "{'path':'/machine', 'property':%s, 'value':false}}",
             leds[i].property);
-        QDict *error = qdict_get_qdict(response, "error");
 
         g_assert_cmpstr(qdict_get_str(error, "class"), ==, "GenericError");
         g_assert_nonnull(strstr(qdict_get_str(error, "desc"), "not writable"));
-        qobject_unref(response);
+        qobject_unref(error);
         g_assert_true(board_property(qts, leds[i].property));
         for (unsigned j = 0; j < G_N_ELEMENTS(disabled); j++) {
             qtest_writel(qts, GPIO + 4 * leds[i].pin, disabled[j]);
@@ -3119,19 +3120,18 @@ static void test_aidk_properties_absent(const void *board)
 
     for (unsigned i = 0; i < G_N_ELEMENTS(properties); i++) {
         for (unsigned set = 0; set < 2; set++) {
-            QDict *response = set ? qtest_qmp_assert_failure_ref(qts,
+            QDict *error = set ? qtest_qmp_assert_failure_ref(qts,
                 "{'execute':'qom-set', 'arguments':"
                 "{'path':'/machine', 'property':%s, 'value':true}}",
                 properties[i]) : qtest_qmp_assert_failure_ref(qts,
                 "{'execute':'qom-get', 'arguments':"
                 "{'path':'/machine', 'property':%s}}", properties[i]);
-            QDict *error = qdict_get_qdict(response, "error");
 
             g_assert_cmpstr(qdict_get_str(error, "class"), ==, "GenericError");
             g_assert_nonnull(strstr(qdict_get_str(error, "desc"),
                                     properties[i]));
             g_assert_nonnull(strstr(qdict_get_str(error, "desc"), "not found"));
-            qobject_unref(response);
+            qobject_unref(error);
         }
     }
     g_assert_false(board_property(qts, "user-key-pressed"));
