@@ -95,10 +95,13 @@ class BK7258Machine(QemuSystemTest):
 
         return elf
 
-    def launch_fixture(self, elf, console_index=0, accelerator="tcg"):
+    def launch_fixture(
+        self, elf, console_index=0, accelerator="tcg", qmp=False
+    ):
         mmio = Path(self.log_file("mmio.log"))
-        # Semihosting exits the process directly; no monitor request is needed.
-        self.vm.set_qmp_monitor(False)
+        # Short semihosting guests can exit before the monitor connects.
+        # Interactive fixtures opt in and wait for a final host acknowledgement.
+        self.vm.set_qmp_monitor(qmp)
         self.vm.set_console(console_index=console_index)
         self.vm.add_args(
             "-accel",
@@ -115,6 +118,96 @@ class BK7258Machine(QemuSystemTest):
         self.vm.launch()
         self.vm.console_socket.settimeout(10)
         return mmio
+
+    def run_aidk_gpio(self, missing_route=False):
+        elf = self.build_fixture(
+            "aidk_ai_toy", "aidk_gpio.c", MISSING_ROUTE=int(missing_route)
+        )
+        mmio = self.launch_fixture(
+            elf, accelerator="tcg,thread=single", qmp=True
+        )
+        failure = "BK7258 AIDK GPIO PROBE FAILED"
+        contacts = (
+            ("key1-pressed", 13, True, False),
+            ("key2-pressed", 12, False, True),
+            ("user-key-pressed", 8, True, True),
+        )
+        if missing_route:
+            contacts = contacts[:1]
+        for index, (contact, pin, red, green) in enumerate(contacts):
+            wait_for_console_pattern(
+                self, f"BK7258 AIDK GPIO READY {pin:08x}", failure
+            )
+            self.assertFalse(self.vm.cmd(
+                "qom-get", path="/machine", property=contact
+            ))
+            self.vm.cmd(
+                "qom-set", path="/machine", property=contact, value=True
+            )
+            self.assertTrue(self.vm.cmd(
+                "qom-get", path="/machine", property=contact
+            ))
+            if missing_route:
+                output = wait_for_console_pattern(
+                    self, " SYS ROUTE DEADLINE", failure
+                )
+                sample = re.search(
+                    rb"BK7258 AIDK GPIO BLOCKED ([0-9a-f]{8}) "
+                    rb"([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8})",
+                    output,
+                )
+                self.assertIsNotNone(sample)
+                values = tuple(int(value, 16) for value in sample.groups())
+                # The peripheral latched P13, but no IRQ arrived by the
+                # independent SysTick deadline while its SYS route was absent.
+                self.assertEqual(values[:3], (pin, 1 << pin, 0))
+                self.assertGreaterEqual(values[3], 25)
+                red = green = False
+            else:
+                wait_for_console_pattern(
+                    self,
+                    f"BK7258 AIDK GPIO EVENT {pin:08x} {1 << pin:08x} "
+                    f"00000047 {index + 1:08x}",
+                    failure,
+                )
+            self.assertEqual(self.vm.cmd(
+                "qom-get", path="/machine", property="user-led-on"
+            ), red)
+            self.assertEqual(self.vm.cmd(
+                "qom-get", path="/machine", property="led2-on"
+            ), green)
+            self.vm.cmd(
+                "qom-set", path="/machine", property=contact, value=False
+            )
+            self.assertFalse(self.vm.cmd(
+                "qom-get", path="/machine", property=contact
+            ))
+            self.vm.console_socket.sendall(b"R")
+            wait_for_console_pattern(
+                self, f"BK7258 AIDK GPIO RELEASED {pin:08x}", failure
+            )
+        wait_for_console_pattern(self, "BK7258 AIDK GPIO EXIT READY", failure)
+        for led in ("user-led-on", "led2-on"):
+            self.assertFalse(self.vm.cmd(
+                "qom-get", path="/machine", property=led
+            ))
+        # All monitor requests finish before semihosting may exit QEMU.
+        self.vm.console_socket.sendall(b"X")
+        if missing_route:
+            wait_for_console_pattern(
+                self, "BK7258 AIDK GPIO EXPECTED SYS ROUTE FAILURE", failure
+            )
+        marker = failure if missing_route else "BK7258 AIDK GPIO PROBE OK"
+        wait_for_console_pattern(self, marker)
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), int(missing_route))
+        self.assertEqual(mmio.read_bytes(), b"")
+
+    def test_aidk_ai_toy_gpio(self):
+        self.run_aidk_gpio()
+
+    def test_aidk_ai_toy_gpio_missing_sys_route(self):
+        self.run_aidk_gpio(missing_route=True)
 
     def run_core_clock(self, board, enabled=True, omit_dpll=False):
         elf = self.build_fixture(

@@ -328,10 +328,11 @@ They establish wiring, not an as-built inventory or hidden module BOM:
 * Both T5 drawings connect their reset network to module EN pad 3. That
   establishes an external connection, not the SoC's reset-domain semantics,
   voltage thresholds or a delay calculated from the drawn RC components.
-* AIDK pages 2/4 additionally connect KEY1/P13 and KEY2/P12 through 1-kOhm
-  resistors to grounded contacts, without drawn external pull-ups. Net LED2
-  connects P41 through 330 ohms to green LED4. These are future board endpoint
-  candidates, not currently modeled inputs/outputs.
+* AIDK pages 2/4 connect KEY1/P13 and KEY2/P12 through 1-kOhm resistors to
+  grounded contacts, without drawn external pull-ups. Net LED2 connects P41
+  through 330 ohms to green LED4. The board model connects those additional
+  digital endpoints as described below; resistor values are not simulated
+  as analog voltage/current or threshold behavior.
 * AIDK pages 2/4 show SC7A20HTR on P20/P21 with INT1 on P48. Its register,
   address and interrupt contract must come from that component's source.
   Schematic net names IIC1/IIC2 do not establish software controller numbers.
@@ -364,16 +365,19 @@ endpoints. These are partial board models, not complete peripheral inventories:
      - P29 active-low
      - external 10-kOhm pull-up
    * - ``aidk_ai_toy``
-     - P40 active-high
-     - P8/KEY3 active-low
+     - P40/red LED1 net and P41/green LED2 net, active-high
+     - P13/KEY1, P12/KEY2 and P8/KEY3, active-low
      - open; firmware selects bias
 
 The LED uses QEMU's existing ``led`` device. Green for T5/Core is a visualization
-choice, not a verified component color; the AIDK LED1 net drives red LED3 in
-the source schematic. AIDK P9 is the motor control, not this board's LED.
-Other keys, reset-button circuits, motor, LCD, camera, audio, storage connectors
-and native USB remain unconnected. T5 P1's shared UART alternative function is not wired
-to the LED yet; GPIO-mode checks must not be presented as UART waveform tests.
+choice, not a verified component color. The AIDK LED1 net drives red LED3
+through R63/1 kOhm; LED2 drives green LED4 through R64/330 ohms, with both
+cathodes grounded. AIDK P9 is motor control, not an LED. Reset-button circuits,
+motor, LCD, camera, audio, storage connectors and native USB remain
+unconnected. T5 P1 and AIDK P40/P41's shared UART alternative functions are
+not wired to the LEDs; GPIO-mode checks must not be presented as UART
+waveform tests. The LEDs indicate digital GPIO drive only, not calibrated
+brightness or resistor/diode electrical behavior.
 
 The machine property ``user-key-pressed`` controls the ideal contact. For
 example, ``-M t5ai_core,user-key-pressed=on`` starts with it held. At runtime,
@@ -382,6 +386,28 @@ and observes the connected LED device. Holding a key across a system reset
 preserves the external contact while the SoC resets its GPIO configuration.
 There is no key debounce, RC charging, ADC conversion, supply or contention
 model. The T5 ADC_KEY input is covered only as a digital contact endpoint.
+
+On ``aidk_ai_toy``, the original properties continue to refer to KEY3/P8 and
+the red LED1 net/P40. Two additional writable booleans, ``key1-pressed`` and
+``key2-pressed``, control the separate P13/P12 contacts. Read-only ``led2-on``
+observes the green LED2 net/P41 through the independent ``/machine/led2``
+device. The original LED device remains ``/machine/user-led``. For example,
+``-M aidk_ai_toy,key1-pressed=on,key2-pressed=on`` starts with those two
+contacts held without pressing KEY3. Only the AIDK subclass exposes these
+extra properties; T5-Board and T5AI-Core retain their existing interfaces.
+
+All three AIDK contacts are independent ideal closures to ground, including
+simultaneous presses. R47/R50/R54's 1-kOhm series resistors do not create a
+released-state pull-up. Releasing any contact removes that external drive;
+the shared SoC GPIO model continues to decide input level, pulls, IRQ55,
+masking and W1C. This board change adds wiring and external endpoints only.
+The SDK, OS code and common GPIO implementation do not need board-specific
+branches. Native tests cover input/output independence, startup contact
+combinations, held-contact reset and property absence on the other boards.
+An AIDK guest exercises actual GPIO IRQ55 and LED writes while the host
+operates contacts through QMP; missing SYS routing must fail despite a
+latched peripheral event. Final UART acknowledgement precedes guest exit so
+the last contact operation cannot race a pending QMP reply.
 
 The SoC's named ``gpio-in`` lines accept 0/1 for an external level and -1 to
 release the external source. A released AIDK key therefore follows the GPIO's

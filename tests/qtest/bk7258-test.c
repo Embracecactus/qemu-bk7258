@@ -2759,6 +2759,296 @@ static void test_board_wiring(const void *board)
     qtest_quit(qts);
 }
 
+#define GPIO 0x44000400
+#define GPIO_STATUS (GPIO + 0x100)
+#define GPIO_IRQ55 (1U << 23)
+
+/* AIDK V1.0 schematic: KEY1=P13, KEY2=P12, KEY3=P8. */
+static const struct {
+    unsigned pin;
+    const char *property;
+} aidk_keys[] = {
+    { 13, "key1-pressed" },
+    { 12, "key2-pressed" },
+    { 8, "user-key-pressed" },
+};
+
+static void aidk_set_key(QTestState *qts, unsigned key, bool pressed)
+{
+    qtest_qmp_assert_success(qts, "{'execute':'qom-set', 'arguments':"
+                            "{'path':'/machine', 'property':%s, 'value':%i}}",
+                            aidk_keys[key].property, pressed);
+}
+
+static void aidk_expect_keys(QTestState *qts, unsigned pressed, unsigned high)
+{
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        g_assert_cmpint(board_property(qts, aidk_keys[i].property), ==,
+                        !!(pressed & (1U << i)));
+        g_assert_cmpuint(qtest_readl(qts, GPIO + 4 * aidk_keys[i].pin) & 1,
+                         ==, !!(high & (1U << i)));
+    }
+}
+
+static void test_aidk_key_contacts(const void *board)
+{
+    static const struct {
+        uint32_t config;
+        bool released_high;
+    } pulls[] = {
+        { 0x3c, true },  /* Internal pull-up. */
+        { 0x2c, false }, /* Internal pull-down. */
+        { 0x0c, false }, /* Floating input has the model's low policy. */
+        { 0x1c, false }, /* Pull selection without pull enable. */
+    };
+    QTestState *qts = start(board);
+
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        expect(qts, GPIO + 4 * aidk_keys[i].pin, 0x28);
+        qtest_writel(qts, GPIO + 4 * aidk_keys[i].pin, 0x3c);
+    }
+    /* A separate externally driven input must survive every contact change. */
+    qtest_writel(qts, GPIO + 4 * 2, 0x2c);
+    qtest_set_irq_in(qts, "/machine/soc/aon", "gpio-in", 2, 1);
+    aidk_expect_keys(qts, 0, 7);
+    for (unsigned pressed = 0; pressed < 8; pressed++) {
+        for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+            aidk_set_key(qts, i, pressed & (1U << i));
+        }
+        /* Includes each key alone, every pair, and all three held together. */
+        aidk_expect_keys(qts, pressed, pressed ^ 7);
+        expect(qts, GPIO + 4 * 2, 0x2d);
+    }
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        aidk_set_key(qts, i, false);
+    }
+    for (unsigned p = 0; p < G_N_ELEMENTS(pulls); p++) {
+        unsigned high = pulls[p].released_high ? 7 : 0;
+
+        for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+            qtest_writel(qts, GPIO + 4 * aidk_keys[i].pin, pulls[p].config);
+        }
+        aidk_expect_keys(qts, 0, high);
+        for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+            aidk_set_key(qts, i, true);
+            aidk_set_key(qts, i, true); /* Repeated writes are idempotent. */
+            aidk_expect_keys(qts, 1U << i, high & ~(1U << i));
+            aidk_set_key(qts, i, false);
+            aidk_expect_keys(qts, 0, high);
+            expect(qts, GPIO + 4 * 2, 0x2d);
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void test_aidk_leds(const void *board)
+{
+    static const struct {
+        unsigned pin;
+        const char *property, *path, *color;
+    } leds[] = {
+        { 40, "user-led-on", "/machine/user-led", "red" },
+        { 41, "led2-on", "/machine/led2", "green" },
+    };
+    static const uint32_t disabled[] = { 0x8e, 0xc6, 0x3c, 0x84 };
+    QTestState *qts = start(board);
+
+    for (unsigned i = 0; i < G_N_ELEMENTS(leds); i++) {
+        QDict *response = qtest_qmp_assert_success_ref(qts,
+            "{'execute':'qom-get', 'arguments':"
+            "{'path':%s, 'property':'color'}}", leds[i].path);
+
+        g_assert_cmpstr(qdict_get_str(response, "return"), ==, leds[i].color);
+        qobject_unref(response);
+        g_assert_true(qtest_qom_get_bool(qts, leds[i].path,
+                                        "gpio-active-high"));
+        g_assert_false(board_property(qts, leds[i].property));
+    }
+    qtest_writel(qts, GPIO + 4 * 1, 0x86);
+    qtest_writel(qts, GPIO + 4 * 9, 0x86);
+    g_assert_false(board_property(qts, "user-led-on"));
+    g_assert_false(board_property(qts, "led2-on"));
+    for (unsigned on = 0; on < 4; on++) {
+        for (unsigned i = 0; i < G_N_ELEMENTS(leds); i++) {
+            qtest_writel(qts, GPIO + 4 * leds[i].pin,
+                         0x84 | ((on & (1U << i)) ? 2 : 0));
+        }
+        for (unsigned i = 0; i < G_N_ELEMENTS(leds); i++) {
+            g_assert_cmpint(board_property(qts, leds[i].property), ==,
+                            !!(on & (1U << i)));
+        }
+    }
+    for (unsigned i = 0; i < G_N_ELEMENTS(leds); i++) {
+        QDict *response = qtest_qmp_assert_failure_ref(qts,
+            "{'execute':'qom-set', 'arguments':"
+            "{'path':'/machine', 'property':%s, 'value':false}}",
+            leds[i].property);
+        QDict *error = qdict_get_qdict(response, "error");
+
+        g_assert_cmpstr(qdict_get_str(error, "class"), ==, "GenericError");
+        g_assert_nonnull(strstr(qdict_get_str(error, "desc"), "not writable"));
+        qobject_unref(response);
+        g_assert_true(board_property(qts, leds[i].property));
+        for (unsigned j = 0; j < G_N_ELEMENTS(disabled); j++) {
+            qtest_writel(qts, GPIO + 4 * leds[i].pin, disabled[j]);
+            g_assert_false(board_property(qts, leds[i].property));
+            g_assert_true(board_property(qts, leds[i ^ 1].property));
+            qtest_writel(qts, GPIO + 4 * leds[i].pin, 0x86);
+            g_assert_true(board_property(qts, leds[i].property));
+        }
+    }
+    qtest_quit(qts);
+}
+
+static void aidk_expect_gpio_irq(QTestState *qts, bool raised)
+{
+    for (unsigned core = 0; core < 3; core++) {
+        expect(qts, SYS + 0xa4 + 8 * core, raised ? GPIO_IRQ55 : 0);
+    }
+}
+
+static void test_aidk_key_irqs(const void *board)
+{
+    QTestState *qts = start(board);
+    uint32_t status = 0;
+
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        qtest_writel(qts, GPIO + 4 * aidk_keys[i].pin, 0x1c3c);
+    }
+    expect(qts, GPIO_STATUS, 0);
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        aidk_set_key(qts, i, true);
+        status |= 1U << aidk_keys[i].pin;
+        expect(qts, GPIO_STATUS, status);
+        aidk_expect_gpio_irq(qts, false); /* CPU route masks start clear. */
+    }
+    for (unsigned core = 0; core < 3; core++) {
+        qtest_writel(qts, SYS + 0x84 + 8 * core, GPIO_IRQ55);
+    }
+    aidk_expect_gpio_irq(qts, true);
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        qtest_writel(qts, GPIO + 4 * aidk_keys[i].pin, 0x0c3c);
+        expect(qts, GPIO_STATUS, status); /* Masking retains each latch. */
+        aidk_expect_gpio_irq(qts, i + 1 < G_N_ELEMENTS(aidk_keys));
+    }
+    qtest_writel(qts, GPIO + 4 * 12, 0x1c3c);
+    aidk_expect_gpio_irq(qts, true);
+    qtest_writel(qts, GPIO_STATUS, 1U << 13);
+    status &= ~(1U << 13);
+    expect(qts, GPIO_STATUS, status);
+    aidk_expect_gpio_irq(qts, true); /* KEY2 still owns the asserted route. */
+    qtest_writel(qts, GPIO_STATUS, 1U << 2);
+    expect(qts, GPIO_STATUS, status);
+    aidk_expect_gpio_irq(qts, true);
+    qtest_writel(qts, GPIO_STATUS, 1U << 12);
+    expect(qts, GPIO_STATUS, 1U << 8);
+    aidk_expect_gpio_irq(qts, false); /* KEY3 is still latched but masked. */
+    qtest_writel(qts, GPIO + 4 * 8, 0x1c3c);
+    aidk_expect_gpio_irq(qts, true);
+    qtest_writel(qts, GPIO + 4 * 8, 0x3c3c); /* Per-pin W1C. */
+    expect(qts, GPIO_STATUS, 0);
+    aidk_expect_gpio_irq(qts, false);
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        qtest_writel(qts, GPIO + 4 * aidk_keys[i].pin, 0x1c3c);
+        aidk_set_key(qts, i, true); /* Already held: no second edge. */
+        aidk_set_key(qts, i, false); /* Falling-edge mode ignores release. */
+    }
+    expect(qts, GPIO_STATUS, 0);
+    aidk_expect_gpio_irq(qts, false);
+    qtest_quit(qts);
+}
+
+static void test_aidk_held_contacts_reset(const void *board)
+{
+    QTestState *qts = start(board);
+    uint32_t status = 0;
+
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        qtest_writel(qts, GPIO + 4 * aidk_keys[i].pin, 0x1c3c);
+        aidk_set_key(qts, i, true);
+        status |= 1U << aidk_keys[i].pin;
+    }
+    qtest_writel(qts, SYS + 0x84, GPIO_IRQ55);
+    expect(qts, GPIO_STATUS, status);
+    expect(qts, SYS + 0xa4, GPIO_IRQ55);
+    qtest_writel(qts, GPIO + 4 * 40, 0x86);
+    qtest_writel(qts, GPIO + 4 * 41, 0x86);
+    g_assert_true(board_property(qts, "user-led-on"));
+    g_assert_true(board_property(qts, "led2-on"));
+    qtest_system_reset(qts);
+    aidk_expect_keys(qts, 7, 0);
+    expect(qts, GPIO_STATUS, 0);
+    aidk_expect_gpio_irq(qts, false);
+    g_assert_false(board_property(qts, "user-led-on"));
+    g_assert_false(board_property(qts, "led2-on"));
+    for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+        expect(qts, GPIO + 4 * aidk_keys[i].pin, 0x28);
+        qtest_writel(qts, GPIO + 4 * aidk_keys[i].pin, 0x3c);
+    }
+    aidk_expect_keys(qts, 7, 0); /* All physical contacts remain grounded. */
+    for (unsigned i = 0, pressed = 7; i < G_N_ELEMENTS(aidk_keys); i++) {
+        aidk_set_key(qts, i, false);
+        pressed &= ~(1U << i);
+        aidk_expect_keys(qts, pressed, pressed ^ 7);
+    }
+    expect(qts, GPIO_STATUS, 0);
+    aidk_expect_gpio_irq(qts, false);
+    qtest_quit(qts);
+}
+
+static void test_aidk_cli_contacts(const void *board)
+{
+    for (unsigned pressed = 0; pressed < 8; pressed++) {
+        QTestState *qts = qtest_initf(
+            "-machine %s,key1-pressed=%s,key2-pressed=%s,user-key-pressed=%s "
+            "-serial null", (const char *)board,
+            pressed & 1 ? "on" : "off", pressed & 2 ? "on" : "off",
+            pressed & 4 ? "on" : "off");
+
+        for (unsigned reset = 0; reset < 2; reset++) {
+            aidk_expect_keys(qts, pressed, 0); /* Input sampling is disabled. */
+            for (unsigned i = 0; i < G_N_ELEMENTS(aidk_keys); i++) {
+                expect(qts, GPIO + 4 * aidk_keys[i].pin, 0x28);
+                qtest_writel(qts, GPIO + 4 * aidk_keys[i].pin, 0x3c);
+            }
+            aidk_expect_keys(qts, pressed, pressed ^ 7);
+            if (!reset) {
+                qtest_system_reset(qts);
+            }
+        }
+        qtest_quit(qts);
+    }
+}
+
+static void test_aidk_properties_absent(const void *board)
+{
+    static const char *const properties[] = {
+        "key1-pressed", "key2-pressed", "led2-on",
+    };
+    QTestState *qts = start(board);
+
+    for (unsigned i = 0; i < G_N_ELEMENTS(properties); i++) {
+        for (unsigned set = 0; set < 2; set++) {
+            QDict *response = set ? qtest_qmp_assert_failure_ref(qts,
+                "{'execute':'qom-set', 'arguments':"
+                "{'path':'/machine', 'property':%s, 'value':true}}",
+                properties[i]) : qtest_qmp_assert_failure_ref(qts,
+                "{'execute':'qom-get', 'arguments':"
+                "{'path':'/machine', 'property':%s}}", properties[i]);
+            QDict *error = qdict_get_qdict(response, "error");
+
+            g_assert_cmpstr(qdict_get_str(error, "class"), ==, "GenericError");
+            g_assert_nonnull(strstr(qdict_get_str(error, "desc"),
+                                    properties[i]));
+            g_assert_nonnull(strstr(qdict_get_str(error, "desc"), "not found"));
+            qobject_unref(response);
+        }
+    }
+    g_assert_false(board_property(qts, "user-key-pressed"));
+    g_assert_false(board_property(qts, "user-led-on"));
+    qtest_quit(qts);
+}
+
 static void test_gpio_external_release(const void *board)
 {
     QTestState *qts = start(board);
@@ -3957,5 +4247,19 @@ int main(int argc, char **argv)
             qtest_add_data_func(path, boards[i], tests[j].test);
         }
     }
+    qtest_add_data_func("bk7258/aidk_ai_toy/key-contacts-pulls-independence",
+                        "aidk_ai_toy", test_aidk_key_contacts);
+    qtest_add_data_func("bk7258/aidk_ai_toy/leds-independent-read-only",
+                        "aidk_ai_toy", test_aidk_leds);
+    qtest_add_data_func("bk7258/aidk_ai_toy/key-irq55-mask-w1c",
+                        "aidk_ai_toy", test_aidk_key_irqs);
+    qtest_add_data_func("bk7258/aidk_ai_toy/held-contacts-reset",
+                        "aidk_ai_toy", test_aidk_held_contacts_reset);
+    qtest_add_data_func("bk7258/aidk_ai_toy/cli-contact-presets",
+                        "aidk_ai_toy", test_aidk_cli_contacts);
+    qtest_add_data_func("bk7258/t5_board/aidk-properties-absent",
+                        "t5_board", test_aidk_properties_absent);
+    qtest_add_data_func("bk7258/t5ai_core/aidk-properties-absent",
+                        "t5ai_core", test_aidk_properties_absent);
     return g_test_run();
 }
