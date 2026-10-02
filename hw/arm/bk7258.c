@@ -442,6 +442,8 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         break;
     case 0x40:
         s->power_sleep = value;
+        bk7258_entry_probe_ready(&s->entry_probe,
+            (s->peripheral_clocks & (1U << 15)) && !(value & (1U << 3)));
         bk7258_update_tick_clocks(s);
         break;
     case 0x44:
@@ -486,6 +488,8 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         break;
     case 0x30:
         s->peripheral_clocks = value;
+        bk7258_entry_probe_ready(&s->entry_probe,
+            (value & (1U << 15)) && !(s->power_sleep & (1U << 3)));
         bk7258_update_wdt_clock(s);
         bk7258_update_uart_clocks(s);
         bk7258_update_saradc_clock(s);
@@ -601,6 +605,16 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     qdev_connect_clock_in(DEVICE(&s->aon), "rosc", s->roscclk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->aon), errp)) {
         return;
+    }
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->entry_probe), errp)) {
+        return;
+    }
+    if (s->entry_probe.has_otp) {
+        memory_region_add_subregion(memory, 0x4b100000, &s->entry_probe.otp);
+    }
+    if (s->entry_probe.has_r7a) {
+        memory_region_add_subregion_overlap(memory, 0x440001e8,
+                                            &s->entry_probe.r7a, 1);
     }
     qdev_connect_clock_in(dev, "lpo", s->aon.lpo);
     qdev_connect_clock_in(DEVICE(&s->saradc), "clk", s->sadcclk);
@@ -891,6 +905,8 @@ static void bk7258_init(Object *obj)
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], TYPE_BK7258_WDT);
     }
     object_initialize_child(obj, "saradc", &s->saradc, TYPE_BK7258_SARADC);
+    object_initialize_child(obj, "entry-probe", &s->entry_probe,
+                            TYPE_BK7258_ENTRY_PROBE);
     s->sadcclk = clock_new(obj, "sadcclk");
     object_initialize_child(obj, "aon", &s->aon, TYPE_BK7258_AON);
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_BK7258_RTC);

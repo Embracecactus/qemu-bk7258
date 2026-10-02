@@ -16,6 +16,7 @@
 #include "hw/misc/bk7258_mailbox.h"
 #include "hw/block/bk7258_flash.h"
 #include "hw/adc/bk7258_saradc.h"
+#include "hw/misc/bk7258_entry_probe.h"
 
 #define BK7258_FLASH_BASE 0x02000000
 
@@ -50,6 +51,7 @@ struct BK7258State {
     BK7258MailboxState mailbox;
     BK7258FlashState flashctrl;
     BK7258SARADCState saradc;
+    BK7258EntryProbeState entry_probe;
     MemoryRegion saradc_ns;
     Clock *sadcclk;
     MemoryRegion flashctrl_ns;

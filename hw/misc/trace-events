@@ -1,4 +1,8 @@
 # See docs/devel/tracing.rst for syntax documentation.
+bk7258_entry_probe_phase(unsigned phase) "diagnostic epoch phase %u"
+bk7258_entry_probe_otp_read(uint64_t addr, uint64_t value) "diagnostic OTP read 0x%" PRIx64 " = 0x%" PRIx64
+bk7258_entry_probe_otp_same_write(uint64_t addr, uint64_t value) "diagnostic OTP idempotent write 0x%" PRIx64 " = 0x%" PRIx64
+bk7258_entry_probe_r7a_read(uint64_t value) "diagnostic R7A read = 0x%" PRIx64
 
 # allwinner-cpucfg.c
 allwinner_cpucfg_cpu_reset(uint8_t cpu_id, uint32_t reset_addr) "id %u, reset_addr 0x%" PRIx32

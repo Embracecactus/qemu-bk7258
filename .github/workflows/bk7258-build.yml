@@ -44,6 +44,7 @@ on:
       - 'tests/functional/arm/meson.build'
       - '.github/workflows/bk7258-build.yml'
       - 'docs/system/arm/bk7258.rst'
+      - 'docs/system/arm/bk7258-entry-state-probe.rst'
   workflow_dispatch:
 permissions:
   contents: read

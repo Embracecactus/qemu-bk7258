@@ -4781,6 +4781,7 @@ F: hw/ssi/bk7258_spi.c
 F: hw/dma/bk7258_dma.c
 F: hw/misc/bk7258_aon.c
 F: hw/misc/bk7258_ckmn.c
+F: hw/misc/bk7258_entry_probe.c
 F: hw/misc/bk7258_mailbox.c
 F: hw/watchdog/bk7258_wdt.c
 F: hw/timer/bk7258_rtc.c
@@ -4797,6 +4798,7 @@ F: include/hw/dma/bk7258_dma.h
 F: include/hw/misc/bk7258_clock.h
 F: include/hw/misc/bk7258_aon.h
 F: include/hw/misc/bk7258_ckmn.h
+F: include/hw/misc/bk7258_entry_probe.h
 F: include/hw/misc/bk7258_mailbox.h
 F: include/hw/watchdog/bk7258_wdt.h
 F: include/hw/timer/bk7258_rtc.h
@@ -4808,4 +4810,5 @@ F: tests/functional/arm/test_bk7258.py
 F: tests/functional/arm/guest-src/bk7258/
 F: docs/system/arm/bk7258.rst
 F: docs/system/arm/bk7258-driver-audit.rst
+F: docs/system/arm/bk7258-entry-state-probe.rst
 F: .github/workflows/bk7258-build.yml

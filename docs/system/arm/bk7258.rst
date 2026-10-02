@@ -43,6 +43,7 @@ OpenVela source or profile changes are required for that gate.
    :maxdepth: 1
 
    bk7258-driver-audit
+   bk7258-entry-state-probe
 
 .. list-table:: Current chip capability and remaining boundaries
    :header-rows: 1
@@ -77,6 +78,10 @@ OpenVela source or profile changes are required for that gate.
      - Keyed retention, digital pad configuration, edge/level IRQ and
        external drive/release; LPO mux, source loss and per-core tick gates
      - R7A reset-cause lifecycle, analog rails, brownouts and pin contention
+   * - OTP/PUF controller
+     - Not modeled; diagnostic entry-state injection is not hardware support
+     - Activation/busy/read-valid/reset transitions, provisioned contents,
+       programming, repair, permissions and security behavior
    * - Watchdogs
      - ROSC-derived AON reset; LPO-derived APB divider/gate and CPU0 NMI;
        keys, source-loss pause and recovery of the remaining count
@@ -133,6 +138,11 @@ OpenVela source or profile changes are required for that gate.
      - Not modeled
      - QSPI, SDIO, USB, CAN/Ethernet, SDMADC, TRNG/crypto,
        audio/video, Wi-Fi/BT and other absent register blocks
+
+The separately documented diagnostic entry-state probe is off by default.
+Explicit synthetic OTP or R7A observations can locate the next access in an
+unchanged binary; they do not add OTP/AON capability to this table or establish
+boot-chain acceptance. Every probe result must identify its injected premise.
 
 For each added chip block, require source-backed access/reset/clock/IRQ
 semantics and native positive/negative tests: mask then unmask, W1C, disabled

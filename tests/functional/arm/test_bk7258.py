@@ -1849,6 +1849,228 @@ class BK7258Machine(QemuSystemTest):
     def test_t5_board_sys_read_fault(self):
         self.run_sys_fault("t5_board", False)
 
+    def run_entry_probe(self, board, mode, word=0xa5c317e2,
+                        r7a=0x91d6a52c):
+        """Diagnostic snapshot policy only; never OTP activation or OS boot."""
+        elf = self.build_fixture(
+            board, "entry_probe.c", PROBE_MODE=mode,
+            SNAPSHOT_WORD=f"0x{word:08x}u", SNAPSHOT_R7A=f"0x{r7a:08x}u"
+        )
+        properties = {}
+        if 1 <= mode <= 4:
+            properties = {"otp-control": 3, "otp-status": int(mode == 2),
+                          "otp-word242": word}
+        elif mode == 5:
+            properties = {"r7a": r7a}
+        for name, value in properties.items():
+            self.vm.add_args("-global", f"bk7258-entry-probe.{name}={value}")
+        inputs = Path(self.log_file("fixture-inputs.json"))
+        metadata = json.loads(inputs.read_text())
+        metadata.update({
+            "scope": "explicit diagnostic entry-state injection policy; "
+                     "not OTP activation, reset-capture or cold boot",
+            "entry_probe_properties": properties,
+            "expected_exit": 0,
+        })
+        inputs.write_text(json.dumps(metadata, indent=2) + "\n")
+        mmio = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        output = wait_for_console_pattern(self, " DONE")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0, output.decode())
+
+        control, status, data, reset_word = (
+            0x4b1002c8, 0x4b1002c4, 0x4b1007c8, 0x440001e8
+        )
+        invalid_addresses = [control, status, data, control]
+        expected_faults, expected_log = [], []
+
+        def otp_log(operation, address, phase):
+            expected_log.append(
+                f"bk7258-entry-probe: rejected OTP {operation} at "
+                f"0x{address - 0x4b100000:x} (phase {phase})"
+            )
+
+        if mode == 0:
+            addresses = invalid_addresses + [data + 0x10000000,
+                         reset_word, reset_word, reset_word + 0x10000000]
+            expected_faults = list(enumerate(addresses, 0x70))
+            expected_log = [
+                "bk7258-aon: read offset 0x1e8 is not implemented",
+                "bk7258-aon: write offset 0x1e8 is not implemented",
+                "bk7258-aon: read offset 0x1e8 is not implemented",
+            ]
+            self.assertIn(b"BK7258 ENTRY DEFAULT UNMAPPED OK", output)
+        elif mode == 3:
+            # This fresh epoch became ready, lost its gate and regained it
+            # before its first OTP access. Reads must not lazily arm it.
+            expected_faults = list(enumerate(invalid_addresses, 0x30))
+            for operation, address in zip(
+                    ("read", "read", "read", "write"), invalid_addresses):
+                otp_log(operation, address, 2)
+            self.assertIn(b"BK7258 ENTRY OTP UNREAD EPOCH INVALID OK", output)
+        elif mode == 5:
+            addresses = [reset_word] * 6 + [reset_word - 4,
+                         reset_word + 0x10000000, data,
+                         reset_word + 1, reset_word + 1]
+            expected_faults = list(enumerate(addresses, 0x50))
+            expected_faults += list(enumerate([reset_word] * 3, 0x60))
+            expected_log = [
+                "bk7258-entry-probe: rejected R7A write",
+                "bk7258-entry-probe: rejected R7A write",
+                "bk7258-aon: read offset 0x1e4 is not implemented",
+                "bk7258-aon: read offset 0x1e8 is not implemented",
+                "bk7258-entry-probe: invalid R7A snapshot",
+                "bk7258-entry-probe: invalid R7A snapshot",
+                "bk7258-entry-probe: rejected R7A write",
+            ]
+            self.assertIn(
+                f"BK7258 ENTRY R7A COMMIT INDEPENDENT {r7a:08x} "
+                "12345678 END".encode(), output
+            )
+            self.assertIn(b"BK7258 ENTRY R7A RESET INVALID OK", output)
+        else:
+            expected_faults = list(enumerate(invalid_addresses, 1))
+            for operation, address in zip(
+                    ("read", "read", "read", "write"), invalid_addresses):
+                otp_log(operation, address, 0)
+            addresses = [control, control, control, status, data,
+                         data - 4, data + 4, control + 4,
+                         data + 0x10000000, control, status, control, data,
+                         control + 1, control + 1]
+            expected_faults += list(enumerate(addresses, 0x10))
+            for operation, address in zip(
+                    ["write"] * 5 + ["read", "read", "write"], addresses):
+                otp_log(operation, address, 1)
+            visible = f"BK7258 ENTRY OTP VISIBLE 00000003 {int(mode == 2):08x}"
+            if mode != 2:
+                visible += f" {word:08x}"
+            self.assertIn((visible + " END").encode(), output)
+            self.assertIn(b"BK7258 ENTRY OTP ATOMIC REJECTIONS OK", output)
+            if mode == 2:
+                expected_faults += [(0x20, data), (0x21, data)]
+                otp_log("read", data, 1)
+                otp_log("read", data, 1)
+                self.assertIn(b"BK7258 ENTRY OTP BUSY IMMUTABLE OK", output)
+            else:
+                first_id = 0x40 if mode == 1 else 0x30
+                expected_faults += list(enumerate(
+                    invalid_addresses * 2, first_id
+                ))
+                for _ in range(2):
+                    for operation, address in zip(
+                            ("read", "read", "read", "write"),
+                            invalid_addresses):
+                        otp_log(operation, address, 2)
+                marker = ("RESET INVALID" if mode == 1 else
+                          "RESTORE STAYS INVALID")
+                self.assertIn(f"BK7258 ENTRY OTP {marker} OK".encode(), output)
+
+        observed_faults = re.findall(
+            rb"BK7258 ENTRY FAULT ([0-9a-f]{8}) ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) END", output
+        )
+        self.assertEqual(
+            [tuple(int(value, 16) for value in row)
+             for row in observed_faults],
+            [(case, 3, 0x40000000, 0x8200, address)
+             for case, address in expected_faults], output.decode()
+        )
+        result = re.search(
+            rb"BK7258 ENTRY RESULT ([0-9a-f]{8}) ([0-9a-f]{8}) "
+            rb"([0-9a-f]{8}) ([0-9a-f]{8}) DONE", output
+        )
+        self.assertIsNotNone(result, output.decode())
+        status_code, actual_mode, count, checks = (
+            int(value, 16) for value in result.groups()
+        )
+        self.assertEqual((status_code, actual_mode, count),
+                         (0, mode, len(expected_faults)))
+        self.assertGreaterEqual(checks, count * 4)
+        self.assertEqual(output.count(b"BK7258 ENTRY RESET ARMED"),
+                         int(mode in (1, 5)))
+        self.assertEqual(mmio.read_text().splitlines(), expected_log)
+
+    # Shared positive/rejection/reset coverage spans all three board variants.
+    # Fresh-process invalidation branches and default mappings are bounded to
+    # t5_board because the same SoC supplies their implementation.
+    def test_t5_board_entry_probe_otp_reset(self):
+        self.run_entry_probe("t5_board", 1, word=0)
+
+    def test_t5ai_core_entry_probe_otp_reset(self):
+        self.run_entry_probe("t5ai_core", 1, word=0xffffffff)
+
+    def test_aidk_ai_toy_entry_probe_otp_reset(self):
+        self.run_entry_probe("aidk_ai_toy", 1)
+
+    def test_t5_board_entry_probe_r7a_reset(self):
+        self.run_entry_probe("t5_board", 5, r7a=0)
+
+    def test_t5ai_core_entry_probe_r7a_reset(self):
+        self.run_entry_probe("t5ai_core", 5, r7a=0xffffffff)
+
+    def test_aidk_ai_toy_entry_probe_r7a_reset(self):
+        self.run_entry_probe("aidk_ai_toy", 5)
+
+    def test_t5_board_entry_probe_busy(self):
+        self.run_entry_probe("t5_board", 2)
+
+    def test_t5_board_entry_probe_gate_loss(self):
+        self.run_entry_probe("t5_board", 3)
+
+    def test_t5_board_entry_probe_power_loss(self):
+        self.run_entry_probe("t5_board", 4)
+
+    def test_t5_board_entry_probe_absent(self):
+        self.run_entry_probe("t5_board", 0)
+
+    def test_t5_board_entry_probe_invalid_options(self):
+        self.require_accelerator("tcg")
+        valid = {"otp-control": 3, "otp-status": 0, "otp-word242": 7}
+        otp_error = ("entry probe requires explicit otp-control=3, "
+                     "otp-status=0 or 1 and a 32-bit otp-word242")
+        cases = []
+        for name in valid:
+            cases.append(({key: value for key, value in valid.items()
+                           if key != name}, otp_error))
+            cases.append(({name: valid[name]}, otp_error))
+        for name, value in (("otp-control", 2), ("otp-status", 2),
+                            ("otp-word242", 0x100000000),
+                            ("otp-control", 0xffffffffffffffff),
+                            ("otp-status", 0xffffffffffffffff),
+                            ("otp-word242", 0xffffffffffffffff),
+                            ("otp-word242", -1),
+                            ("otp-word242", "not-a-number")):
+            cases.append((dict(valid, **{name: value}), otp_error))
+        # An explicit all-ones input is never an omitted-option sentinel.
+        cases.append((dict.fromkeys(valid, 0xffffffffffffffff), otp_error))
+        r7a_error = "entry probe r7a must be an explicit 32-bit word"
+        cases += [
+            ({"r7a": 0x100000000}, r7a_error),
+            ({"r7a": 0xffffffffffffffff}, r7a_error),
+            ({"r7a": -1}, r7a_error),
+            ({"r7a": "not-a-number"}, r7a_error),
+            (dict(valid, r7a=0),
+             "entry probe requires separate OTP and R7A runs"),
+        ]
+        for index, (properties, error) in enumerate(cases):
+            with self.subTest(properties=properties):
+                args = [self.qemu_bin, "-M", "t5_board", "-accel", "tcg",
+                        "-display", "none", "-monitor", "none",
+                        "-serial", "null", "-S"]
+                for name, value in properties.items():
+                    args += ["-global", f"bk7258-entry-probe.{name}={value}"]
+                result = subprocess.run(args, capture_output=True, text=True,
+                                        timeout=5, check=False)
+                Path(self.log_file(f"entry-options-{index}.json")).write_text(
+                    json.dumps({"args": args, "returncode": result.returncode,
+                                "stdout": result.stdout,
+                                "stderr": result.stderr}, indent=2) + "\n"
+                )
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn(error, result.stderr)
+                self.assertNotIn("injection enabled", result.stderr)
+                self.assertEqual(result.stdout, "")
+
     def test_t5_board_sys_write_fault(self):
         self.run_sys_fault("t5_board", True)
 
