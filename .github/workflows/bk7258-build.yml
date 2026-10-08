@@ -2,7 +2,7 @@
 name: BK7258 native build
 on:
   push:
-    branches: [master]
+    branches: [master, fix/bk7258-core-reset-vector]
     paths:
       - 'hw/arm/bk7258*.c'
       - 'hw/adc/bk7258_saradc.c'
