@@ -376,6 +376,8 @@ static bool bk7258_cpu_enabled(uint32_t value)
 }
 
 typedef struct BK7258CPUControl {
+    BK7258State *soc;
+    uint64_t generation;
     uint32_t value;
     bool reset_release;
 } BK7258CPUControl;
@@ -385,6 +387,14 @@ static void bk7258_cpu_control_work(CPUState *cs, run_on_cpu_data data)
     g_autofree BK7258CPUControl *control = data.host_ptr;
     ARMCPU *cpu = ARM_CPU(cs);
     bool enabled = bk7258_cpu_enabled(control->value);
+
+    /* Both reset and queued work execute under BQL, including paused VMs. */
+    if (control->generation != control->soc->cpu_control_generation) {
+        trace_bk7258_cpu_control_discard(cs->cpu_index, control->value,
+                                       control->generation,
+                                       control->soc->cpu_control_generation);
+        return;
+    }
 
     /* Work executes in the target CPU context, in register-write order. */
     if (control->reset_release) {
@@ -433,6 +443,8 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
          */
         if ((old ^ value) & (RESET_RELEASE | POWER_DOWN | CPU_HALT)) {
             control = g_new(BK7258CPUControl, 1);
+            control->soc = s;
+            control->generation = s->cpu_control_generation;
             control->value = value;
             control->reset_release = !(old & RESET_RELEASE) &&
                                      (value & RESET_RELEASE);
@@ -856,6 +868,8 @@ static void bk7258_reset(DeviceState *dev)
 {
     BK7258State *s = BK7258_SOC(dev);
 
+    /* A paused CPU may still have register writes queued before this reset. */
+    s->cpu_control_generation++;
     s->cpu_control[0] = s->boot_vector | RESET_RELEASE;
     s->cpu_control[1] = POWER_DOWN;
     s->cpu_control[2] = POWER_DOWN | CPU_HALT;

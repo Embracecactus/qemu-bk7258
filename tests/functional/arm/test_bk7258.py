@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import subprocess
 
 from qemu_test import QemuSystemTest, wait_for_console_pattern
@@ -393,6 +394,82 @@ class BK7258Machine(QemuSystemTest):
 
     def test_aidk_ai_toy_core_reset_vector(self):
         self.run_core_reset_vector("aidk_ai_toy")
+
+    def run_core_pending_reset(self, board):
+        elf = self.build_fixture(board, "core_pending_reset.c")
+        guest, host = socket.socketpair()
+        with guest, host:
+            os.set_inheritable(guest.fileno(), True)
+            host.settimeout(5)
+            self.vm.add_args(
+                "-S", "-chardev",
+                f"socket,id=core-control,fd={guest.fileno()}",
+                "-qtest", "chardev:core-control",
+                "-qtest-log", "/dev/null",
+                "-trace", "enable=bk7258_cpu_control_*",
+                "-trace", "enable=resettable_phase_hold_exec",
+            )
+            log = self.launch_fixture(
+                elf, accelerator="tcg,thread=single", qmp=True
+            )
+            guest.close()
+            with host.makefile("rwb", buffering=0) as qtest:
+                # One bounded input batch requests work while all CPUs are
+                # already stopped, then requests a normal AIRCR system reset.
+                qtest.write(
+                    b"writel 0x44010010 0x02010400\n"
+                    b"writel 0x44010010 0x02010401\n"
+                    b"writel 0x44010014 0x02010401\n"
+                    b"writel 0x44010018 0x02010801\n"
+                    b"writel 0xe000ed0c 0x05fa0004\n"
+                )
+                for _ in range(5):
+                    self.assertEqual(qtest.readline(), b"OK\n")
+                self.vm.event_wait("RESET")
+                self.vm.cmd("cont")
+                wait_for_console_pattern(
+                    self, "BK7258 PENDING CORE RESET READY",
+                    "BK7258 STALE CORE CONTROL EXECUTED",
+                )
+                self.vm.console_socket.sendall(b"X")
+                wait_for_console_pattern(
+                    self, "BK7258 PENDING CORE RESET PASS",
+                    "BK7258 STALE CORE CONTROL EXECUTED",
+                )
+                self.vm.wait(timeout=5)
+                self.assertEqual(self.vm.exitcode(), 0)
+        events = log.read_text().splitlines()
+        resets = [i for i, event in enumerate(events)
+                  if "(bk7258-soc) method=1" in event]
+        self.assertEqual(len(resets), 2, events)
+        requests = [event for event in events
+                    if event.startswith("bk7258_cpu_control_request ")]
+        applied = [event for event in events
+                   if event.startswith("bk7258_cpu_control_apply ")]
+        discarded = [event for event in events
+                     if event.startswith("bk7258_cpu_control_discard ")]
+        self.assertEqual(len(requests), 4)
+        self.assertEqual(len(applied) + len(discarded), len(requests))
+        # Either work drained before reset or it was discarded afterward;
+        # host scheduling may choose either legal ordering.
+        for event in events[resets[-1] + 1:]:
+            self.assertFalse(event.startswith("bk7258_cpu_control_apply "),
+                             event)
+        for event in discarded:
+            self.assertRegex(event, r"queued=1 current=2$")
+        for event in events:
+            self.assertTrue(event.startswith(("bk7258_cpu_control_",
+                                              "resettable_phase_hold_exec ")),
+                            event)
+
+    def test_t5_board_core_pending_reset(self):
+        self.run_core_pending_reset("t5_board")
+
+    def test_t5ai_core_core_pending_reset(self):
+        self.run_core_pending_reset("t5ai_core")
+
+    def test_aidk_ai_toy_core_pending_reset(self):
+        self.run_core_pending_reset("aidk_ai_toy")
 
     def run_fixture(self, board, positive):
         elf = self.build_fixture(board, "diagnostic.c")

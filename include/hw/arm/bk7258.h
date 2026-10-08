@@ -99,6 +99,8 @@ struct BK7258State {
     unsigned apll_hz;
     bool apll_pulse_armed;
     uint32_t cpu_control[3];
+    /* Host work epoch, not a guest-visible SYS status value. */
+    uint64_t cpu_control_generation;
     uint32_t irq_enable[3][2];
     uint64_t irq_levels;
     uint32_t flash_size;
