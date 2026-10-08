@@ -16,6 +16,7 @@
 #include "system/system.h"
 #include "target/arm/internals.h"
 #include "migration/vmstate.h"
+#include "trace.h"
 
 #define SRAM_SIZE (640 * KiB)
 #define TCM_SIZE (16 * KiB)
@@ -387,12 +388,24 @@ static void bk7258_cpu_control_work(CPUState *cs, run_on_cpu_data data)
 
     /* Work executes in the target CPU context, in register-write order. */
     if (control->reset_release) {
+        uint32_t init_svtor = cpu->init_svtor;
+
+        /*
+         * The SYS vector is an input to this core release only. Preserve the
+         * configured full-machine reset vector: cpu_reset() copies the input
+         * into architectural state, so restoring it does not undo the release.
+         */
         object_property_set_uint(OBJECT(cpu), "init-svtor",
                                  control->value & 0xffffff00, &error_abort);
         cpu_reset(cs);
+        object_property_set_uint(OBJECT(cpu), "init-svtor", init_svtor,
+                                 &error_abort);
     }
     arm_set_cpu_power_state(cpu, enabled ? PSCI_ON : PSCI_OFF);
     cs->halted = !enabled;
+    trace_bk7258_cpu_control_apply(cs->cpu_index, control->value,
+                                   control->reset_release, enabled,
+                                   cpu->env.v7m.vecbase[M_REG_S]);
 }
 
 static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
@@ -411,6 +424,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         index = (offset - 0x10) / 4;
         old = s->cpu_control[index];
         s->cpu_control[index] = value;
+        trace_bk7258_cpu_control_request(index, old, value);
         /*
          * Running-vector writes are software handshakes, not reset strobes.
          * Halt and power gates preserve CPU state; only reset release reloads

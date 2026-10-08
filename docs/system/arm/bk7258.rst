@@ -494,6 +494,19 @@ Implemented slice
 * SYS core control and interrupt enable/status registers. Reset release samples
   the vector address; changing vector bits while running does not reset a CPU.
   Halt/power gates preserve CPU state. Changes run in target-CPU order.
+  A release vector applies only to that core restart; it does not overwrite the
+  configured full-machine reset vector. After a whole-machine reset, CPU0
+  samples ``boot-vector`` again, and the secondary reset inputs retain their
+  existing diagnostic configuration. This does not extend the core-reset domain
+  to NVIC, SysTick or other unproven hardware reset wiring.
+  ``bk7258_cpu_control_request`` traces accepted SYS writes;
+  ``bk7258_cpu_control_apply`` traces the end of each queued gating/reset
+  callback, including its sampled architectural vector. A request trace or SYS
+  control-register readback does not establish callback completion. These
+  events expose model execution only, not hardware status at SYS+0x0c.
+  ``apply.enabled`` records the committed reset/halt/power gating decision;
+  it does not prove instruction progress or sample WFI sleep state. WFI's
+  QEMU halted flag is not interpreted as a SYS halt indication.
   Unsupported SYS reads/writes return a bus error as well as a diagnostic log.
   This strict model policy prevents an absent device-ID or ignored status write
   from appearing to succeed; it does not claim the silicon faults on every
@@ -2022,6 +2035,17 @@ after reset; every bad-input case must reach the guest fault marker and exit
 with status 1. Unknown MMIO logs, missing markers, unexpected exit status or
 bounded wait expiry fail the test. This is trusted bare-metal code, not NuttX,
 AP SMP scheduling or product boot acceptance.
+
+``core_reset_vector.c`` additionally releases both secondary cores, then has
+CPU1 restart CPU0 at an alternate vector. The alternate CPU0 handler requests a
+whole-machine reset and requires the original CPU0 vector to run afterward.
+Before the fix, release permanently changed ``init-svtor`` and every board
+reentered the alternate vector despite SYS readback showing ``boot-vector``.
+The model now overrides that reset input only while ``cpu_reset()`` samples it,
+then restores the configured value without altering the new architectural
+VTOR/MSP/PC. The three regressions check guest markers, exit status and paired
+request/application trace events. They do not establish all stopped-VM queue
+interleavings or the physical reset domain.
 
 The runner retains console/MMIO logs and compiler/source/ELF/emulator hashes.
 ``QEMU_TEST_KEEP_SCRATCH=1`` also keeps the generated ELF. These sources are

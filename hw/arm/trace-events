@@ -96,3 +96,7 @@ z2_aer915_event(int8_t event, int8_t len) "i2c event =0x%x len=%d bytes"
 
 # bcm2838.c
 bcm2838_gic_set_irq(int irq, int level) "gic irq:%d lvl:%d"
+
+# bk7258.c
+bk7258_cpu_control_request(unsigned cpu, uint32_t old, uint32_t value) "cpu=%u old=0x%08x value=0x%08x"
+bk7258_cpu_control_apply(unsigned cpu, uint32_t value, bool reset, bool enabled, uint32_t svtor) "cpu=%u value=0x%08x reset=%d enabled=%d svtor=0x%08x"

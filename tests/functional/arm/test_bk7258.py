@@ -330,6 +330,70 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_core_clock_missing_dpll(self):
         self.run_core_clock("aidk_ai_toy", omit_dpll=True)
 
+    def run_core_reset_vector(self, board):
+        elf = self.build_fixture(board, "core_reset_vector.c")
+        self.vm.add_args("-trace", "enable=bk7258_cpu_control_*")
+        log = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        output = wait_for_console_pattern(
+            self, "BK7258 CORE RESET VECTOR PASS",
+            "BK7258 CORE RESET VECTOR FAILED",
+        )
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0, output.decode())
+        self.assertEqual(
+            re.findall(rb"BK7258 [^\r\n]+", output),
+            [
+                b"BK7258 THREE CORE RESET VECTOR READY",
+                b"BK7258 CORE ALTERNATE VECTOR OK",
+                b"BK7258 CORE RESET VECTOR PASS",
+            ],
+        )
+        # Trace the accepted requests separately from completed callbacks.
+        # These are model events, never a fabricated SYS status register.
+        events = log.read_text().splitlines()
+        self.assertEqual(len(events), 8, events)
+        requests = []
+        pending = {0: [], 1: [], 2: []}
+        applied = []
+        for event in events:
+            request = re.fullmatch(
+                r"bk7258_cpu_control_request cpu=(\d) old=0x[0-9a-f]{8} "
+                r"value=0x([0-9a-f]{8})", event,
+            )
+            if request:
+                sample = tuple(int(v, 16) for v in request.groups())
+                requests.append(sample)
+                pending[sample[0]].append(sample[1])
+                continue
+            apply = re.fullmatch(
+                r"bk7258_cpu_control_apply cpu=(\d) value=0x([0-9a-f]{8}) "
+                r"reset=(\d) enabled=(\d) svtor=0x([0-9a-f]{8})", event,
+            )
+            self.assertIsNotNone(apply, event)
+            sample = tuple(int(v, 16) for v in apply.groups())
+            self.assertTrue(pending[sample[0]], event)
+            self.assertEqual(sample[1], pending[sample[0]].pop(0))
+            applied.append(sample)
+        self.assertEqual(len(requests), 4)
+        self.assertFalse(any(pending.values()), pending)
+        for core, value, reset, enabled, svtor in applied:
+            self.assertEqual(enabled, value & 1)
+            self.assertEqual(reset, value & 1)
+            if reset:
+                self.assertEqual(svtor, value & 0xffffff00)
+        self.assertEqual([v[0] for v in applied].count(0), 2)
+        self.assertEqual([v[0] for v in applied].count(1), 1)
+        self.assertEqual([v[0] for v in applied].count(2), 1)
+
+    def test_t5_board_core_reset_vector(self):
+        self.run_core_reset_vector("t5_board")
+
+    def test_t5ai_core_core_reset_vector(self):
+        self.run_core_reset_vector("t5ai_core")
+
+    def test_aidk_ai_toy_core_reset_vector(self):
+        self.run_core_reset_vector("aidk_ai_toy")
+
     def run_fixture(self, board, positive):
         elf = self.build_fixture(board, "diagnostic.c")
         mmio = self.launch_fixture(elf)
