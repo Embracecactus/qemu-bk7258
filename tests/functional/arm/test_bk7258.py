@@ -497,6 +497,36 @@ class BK7258Machine(QemuSystemTest):
         self.assertEqual(self.vm.exitcode(), 0 if positive else 1)
         self.assertEqual(mmio.read_bytes(), b"")
 
+    def run_sys_flash_clock_config(self, board, bad_write):
+        elf = self.build_fixture(board, "sys_flash_clock.c",
+                                 BAD_WRITE=int(bad_write))
+        mmio = self.launch_fixture(elf)
+        wait_for_console_pattern(self, "BK7258 FLASH CONFIG OK",
+                                 "BK7258 FLASH CONFIG FAILED")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        self.assertEqual(mmio.read_text(),
+                         "bk7258-sys: unsupported Flash clock configuration\n"
+                         if bad_write else "")
+
+    def test_t5_board_sys_flash_clock_config(self):
+        self.run_sys_flash_clock_config("t5_board", False)
+
+    def test_t5_board_sys_flash_clock_fault(self):
+        self.run_sys_flash_clock_config("t5_board", True)
+
+    def test_t5ai_core_sys_flash_clock_config(self):
+        self.run_sys_flash_clock_config("t5ai_core", False)
+
+    def test_t5ai_core_sys_flash_clock_fault(self):
+        self.run_sys_flash_clock_config("t5ai_core", True)
+
+    def test_aidk_ai_toy_sys_flash_clock_config(self):
+        self.run_sys_flash_clock_config("aidk_ai_toy", False)
+
+    def test_aidk_ai_toy_sys_flash_clock_fault(self):
+        self.run_sys_flash_clock_config("aidk_ai_toy", True)
+
     def run_sys_fault(self, board, write, flash_config=False):
         fields = {"WRITE_PROBE": int(write)}
         if flash_config:

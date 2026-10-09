@@ -3415,6 +3415,42 @@ static void flash_expect(QTestState *qts, unsigned address, uint32_t value)
     }
 }
 
+static void test_sys_flash_clock_configuration(const void *board)
+{
+    QTestState *qts = start(board);
+
+    expect(qts, SYS + 0x24, 0);
+    for (unsigned sel = 0; sel < 4; sel++) {
+        for (unsigned div = 0; div < 4; div++) {
+            uint32_t value = (sel << 24) | (div << 26);
+
+            /* SDK-style independent field RMW through opposite aliases. */
+            qtest_writel(qts, SYS + 0x24,
+                         (qtest_readl(qts, SYS + 0x24) & ~0x03000000U) |
+                         (sel << 24));
+            qtest_writel(qts, SYS + 0x10000024,
+                         (qtest_readl(qts, SYS + 0x10000024) & ~0x0c000000U) |
+                         (div << 26));
+            expect(qts, SYS + 0x24, value);
+            expect(qts, SYS + 0x10000024, value);
+            for (unsigned bit = 0; bit < 32; bit++) {
+                if (bit >= 24 && bit <= 27) {
+                    continue;
+                }
+                for (unsigned alias = 0; alias < 2; alias++) {
+                    qtest_writel(qts, SYS + 0x24 + alias * 0x10000000,
+                                 (value ^ 0x0f000000U) | (1U << bit));
+                    expect(qts, SYS + 0x24, value);
+                }
+            }
+        }
+    }
+    qtest_system_reset(qts);
+    expect(qts, SYS + 0x24, 0);
+    expect(qts, SYS + 0x10000024, 0);
+    qtest_quit(qts);
+}
+
 static void test_sys_flash_configuration(const void *board)
 {
     QTestState *qts = start(board);
@@ -4887,6 +4923,8 @@ int main(int argc, char **argv)
         {"dma-max-length-event-rearm", test_dma_max_length_rearm},
         {"dma-unsupported-modes-no-progress", test_dma_unsupported_modes},
         {"memory-uart-reset", test_memory_uart},
+        {"sys-flash-clock-configuration",
+         test_sys_flash_clock_configuration},
         {"sys-flash-configuration-readback-reset",
          test_sys_flash_configuration},
         {"sys-flash-unsupported-fields-atomic", test_sys_flash_invalid_fields},

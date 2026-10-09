@@ -331,6 +331,9 @@ static MemTxResult bk7258_sys_read(void *opaque, hwaddr offset,
     case 0x20:
         *value = s->clock_mode;
         break;
+    case 0x24:
+        *value = s->flash_clock_config;
+        break;
     case 0x28:
         *value = s->clock_select;
         break;
@@ -465,6 +468,20 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         bk7258_update_saradc_clock(s);
         bk7258_update_timer_clocks(s);
         bk7258_update_pwm_clocks(s);
+        break;
+    case 0x24:
+        /*
+         * SDK CKSEL_FLASH[25:24], CKDIV_FLASH[27:26] configuration only.
+         * Encoding readback is not source availability, divider timing or
+         * a clock connected to the Flash controller. Other device fields
+         * in this shared register remain unsupported, including on RMW.
+         */
+        if (value & ~0x0f000000U) {
+            qemu_log_mask(LOG_UNIMP,
+                          "bk7258-sys: unsupported Flash clock configuration\n");
+            return MEMTX_ERROR;
+        }
+        s->flash_clock_config = value;
         break;
     case 0x40:
         s->power_sleep = value;
@@ -880,6 +897,7 @@ static void bk7258_reset(DeviceState *dev)
     s->power_sleep = TICK_ROUTES;
     /* Direct-load model convention, not a claim about the silicon POR value. */
     s->flash_bus_config = 0;
+    s->flash_clock_config = 0;
     memset(s->gpio_mux, 0, sizeof(s->gpio_mux));
     memset(s->analog, 0, sizeof(s->analog));
     s->apll_hz = 0;

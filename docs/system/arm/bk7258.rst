@@ -44,6 +44,7 @@ OpenVela source or profile changes are required for that gate.
 
    bk7258-driver-audit
    bk7258-entry-state-probe
+   bk7258-sys-v1
 
 .. list-table:: Current chip capability and remaining boundaries
    :header-rows: 1
@@ -66,7 +67,7 @@ OpenVela source or profile changes are required for that gate.
    * - SYS/interrupt routing
      - Per-core masks, source status, private mailbox IRQs, ordered core
        control; asynchronous analog-register transfer and cancellation;
-       bounded SYS2Flash bit7 configuration readback
+       bounded SYS2Flash bit7 and Flash selector/divider configuration readback
      - Full SYS register inventory, PLL/DVFS/rail dynamics and reset-domain
        conformance beyond the documented diagnostic contract
    * - UART0/1/2
@@ -1789,7 +1790,8 @@ contract if a cold boot or direct-app handoff is to be represented. Existing
 vendor documentation or a vendor-approved trace of these non-secret control
 transitions is sufficient in principle; a full OTP/key dump is neither needed
 nor requested. Unknown register reads are not assumed side-effect-free.
-The optional Flash-clock proposal remains unimplemented and is not a
+The Flash-clock consumer remains unimplemented (the configuration-only
+subset is documented in :doc:`bk7258-sys-v1`) and is not a
 substitute for these predecessor stages.
 
 Single-step SARADC digital-input experiment
