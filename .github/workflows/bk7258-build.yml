@@ -2,49 +2,10 @@
 name: BK7258 native build
 on:
   push:
-    branches: [master, fix/bk7258-core-reset-vector]
-    paths:
-      - 'hw/arm/bk7258*.c'
-      - 'hw/adc/bk7258_saradc.c'
-      - 'hw/adc/meson.build'
-      - 'include/hw/adc/bk7258_saradc.h'
-      - 'hw/char/bk7258_uart.c'
-      - 'hw/i2c/bk7258_i2c.c'
-      - 'hw/ssi/bk7258_spi.c'
-      - 'hw/dma/bk7258_dma.c'
-      - 'hw/dma/meson.build'
-      - 'include/hw/dma/bk7258_dma.h'
-      - 'hw/ssi/meson.build'
-      - 'include/hw/ssi/bk7258_spi.h'
-      - 'hw/i2c/meson.build'
-      - 'include/hw/i2c/bk7258_i2c.h'
-      - 'hw/block/bk7258_*.c'
-      - 'hw/block/meson.build'
-      - 'hw/misc/bk7258_*.c'
-      - 'hw/watchdog/bk7258_wdt.c'
-      - 'hw/timer/armv7m_systick.c'
-      - 'hw/timer/bk7258_*.c'
-      - 'hw/timer/meson.build'
-      - 'accel/tcg/translator.c'
-      - 'include/hw/block/bk7258_*.h'
-      - 'include/hw/misc/bk7258_*.h'
-      - 'include/hw/watchdog/bk7258_wdt.h'
-      - 'include/hw/timer/bk7258_*.h'
-      - 'include/hw/arm/bk7258.h'
-      - 'include/hw/char/bk7258_uart.h'
-      - 'hw/arm/Kconfig'
-      - 'hw/arm/meson.build'
-      - 'hw/char/meson.build'
-      - 'tests/unit/test-bk7258-clock.c'
-      - 'tests/unit/meson.build'
-      - 'tests/qtest/bk7258-test.*'
-      - 'tests/qtest/meson.build'
-      - 'tests/functional/arm/test_bk7258.py'
-      - 'tests/functional/arm/guest-src/bk7258/**'
-      - 'tests/functional/arm/meson.build'
-      - '.github/workflows/bk7258-build.yml'
-      - 'docs/system/arm/bk7258.rst'
-      - 'docs/system/arm/bk7258-entry-state-probe.rst'
+    branches: [master, fix/bk7258-core-reset-vector, feat/bk7258-sys-v1]
+    # Shared QEMU headers, clocks, ptimer, trace generators and build inputs
+    # all affect this target. Run every change on these explicit branches;
+    # a device-only paths allowlist silently misses transitive dependencies.
   workflow_dispatch:
 permissions:
   contents: read
@@ -68,7 +29,8 @@ jobs:
             --disable-docs --disable-user --disable-tools --disable-rust \
             --enable-tcg --enable-werror --enable-tests
           ninja -j2 qemu-system-arm tests/qtest/bk7258-test \
-            tests/unit/test-bk7258-clock
+            tests/unit/test-bk7258-clock tests/unit/ptimer-test \
+            tests/qtest/cmsdk-apb-timer-test
       - name: Check three machine registrations
         run: |
           build-bk7258/qemu-system-arm -M help | tee machines.txt
@@ -80,6 +42,11 @@ jobs:
           cd build-bk7258
           ./pyvenv/bin/meson test --no-rebuild --print-errorlogs \
             --logbase bk7258-clock-unit test-bk7258-clock
+      - name: Check shared ptimer and non-BK timer consumer
+        run: |
+          cd build-bk7258
+          ./pyvenv/bin/meson test --no-rebuild --print-errorlogs \
+            --logbase shared-timer ptimer-test qtest-arm/cmsdk-apb-timer-test
       - name: Run independent BK7258 hardware qtests
         run: |
           cd build-bk7258
@@ -97,5 +64,6 @@ jobs:
           name: bk7258-tests-${{ github.sha }}
           path: |
             build-bk7258/meson-logs/bk7258-clock-unit*
+            build-bk7258/meson-logs/shared-timer*
             build-bk7258/meson-logs/testlog*
             build-bk7258/tests/functional/arm/test_bk7258.*
