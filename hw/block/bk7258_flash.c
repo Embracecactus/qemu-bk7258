@@ -12,6 +12,8 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-clock.h"
+#include "hw/misc/bk7258_clock.h"
 #include "hw/block/bk7258_flash.h"
 #include "system/system.h"
 #include "system/runstate.h"
@@ -19,7 +21,62 @@
 #define CRC_ENABLE (1U << 26)
 #define ALL_FF_OK (1U << 27)
 #define DEFAULT_CONFIG (CRC_ENABLE | ALL_FF_OK)
-#define TRANSACTION_NS 1000
+/*
+ * Preserve the old 1 us at 26 MHz as a functional work budget, not SPI or
+ * program/erase timing. Only progress/source loss/cancellation are modeled.
+ */
+#define TRANSACTION_CYCLES 26
+
+static void bk7258_flash_arm(BK7258FlashState *s)
+{
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t delay;
+
+    timer_del(s->timer);
+    if (!s->busy || !s->hz) {
+        return;
+    }
+    delay = DIV_ROUND_UP(s->cycles * NANOSECONDS_PER_SECOND, s->hz);
+    if (delay <= INT64_MAX - now) {
+        s->deadline = now + delay;
+        timer_mod(s->timer, s->deadline);
+    }
+}
+
+static void bk7258_flash_pause(BK7258FlashState *s)
+{
+    if (s->busy && s->hz && timer_pending(s->timer)) {
+        s->cycles = bk7258_remaining_cycles(
+            s->cycles, s->hz, s->deadline,
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    }
+}
+
+static void bk7258_flash_clock_update(BK7258FlashState *s)
+{
+    unsigned input = clock_get_hz(s->clk);
+    unsigned config = s->config & 15;
+
+    /*
+     * Reset diagnostic profile, and the two active SDK CLK_CFG=5 profiles.
+     * No topology or rate is invented for other configurations.
+     */
+    s->hz = ((config == 0 && input == 26000000) ||
+             (config == 5 && (input == 80000000 || input == 48000000))) ?
+            input : 0;
+    bk7258_flash_arm(s);
+}
+
+static void bk7258_flash_clock(void *opaque, ClockEvent event)
+{
+    BK7258FlashState *s = opaque;
+
+    if (event == ClockPreUpdate) {
+        bk7258_flash_pause(s);
+    } else {
+        bk7258_flash_clock_update(s);
+    }
+}
 
 static bool bk7258_flash_mutating(unsigned operation)
 {
@@ -182,8 +239,8 @@ static MemTxResult bk7258_flash_start(BK7258FlashState *s)
         bk7258_nor_set_busy(s->nor, true);
     }
     s->busy = true;
-    /* Functional transfer latency only, not flash program/erase performance. */
-    timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + TRANSACTION_NS);
+    s->cycles = TRANSACTION_CYCLES;
+    bk7258_flash_arm(s);
     return MEMTX_OK;
 }
 
@@ -236,11 +293,13 @@ static void bk7258_flash_reset(DeviceState *dev)
 
     timer_del(s->timer);
     s->busy = s->continuous = false;
+    s->cycles = 0;
     s->global = s->wp = s->command_config = s->state_config = s->command = 0;
     s->id = s->status = s->crc_errors = 0;
     s->tx_words = s->rx_words = s->rx_index = 0;
     /* Direct XIP entry contract; ROM setup and silicon POR are not modeled. */
     s->config = DEFAULT_CONFIG;
+    bk7258_flash_clock_update(s);
     bk7258_nor_reset(s->nor);
     bk7258_nor_set_wp(s->nor, false);
 }
@@ -293,6 +352,7 @@ static MemTxResult bk7258_flash_write(void *opaque, hwaddr addr, uint64_t value,
             return MEMTX_ERROR;
         }
         s->config = value & 0x1ffffdff;
+        bk7258_flash_clock_update(s);
         break;
     case 0x54:
         s->command = value & 0x1fffffff;
@@ -417,6 +477,8 @@ static void bk7258_flash_init(Object *obj)
     BK7258FlashState *s = BK7258_FLASH(obj);
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, bk7258_flash_complete, s);
+    s->clk = qdev_init_clock_in(DEVICE(obj), "sclk", bk7258_flash_clock, s,
+                                ClockPreUpdate | ClockUpdate);
     memory_region_init_io(&s->regs, obj, &bk7258_flash_ops, s,
                           "bk7258-flash", 0x1000);
     memory_region_init_io(&s->xip, obj, &bk7258_xip_ops, s,

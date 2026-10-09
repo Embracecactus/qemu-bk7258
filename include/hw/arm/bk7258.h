@@ -70,7 +70,7 @@ struct BK7258State {
     uint32_t peripheral_clocks;
     uint32_t power_sleep;
     uint32_t flash_bus_config;
-    /* SYS+0x24 Flash fields only; no functional clock connection. */
+    /* SYS+0x24 Flash fields; only finite clock profiles are supported. */
     uint32_t flash_clock_config;
     uint32_t clock_mode;
     uint32_t gpio_mux[7];
@@ -95,6 +95,7 @@ struct BK7258State {
     Clock *coreclk[3];
     Clock *busclk;
     Clock *apllclk;
+    Clock *flashclk;
     Clock *refclk[3];
     uint32_t core_clock_key;
     bool core_clock_unimplemented;

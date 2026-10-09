@@ -1684,9 +1684,9 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_i2c_sdk_bad_address(self):
         self.run_i2c_sdk("aidk_ai_toy", bad_address=True)
 
-    def run_flash_sdk(self, board, bad_fifo=False):
-        elf = self.build_fixture(board, "flash_sdk.c", BAD_FIFO=int(bad_fifo))
-        raw = Path(self.scratch_file("flash_sdk.bin"))
+    def build_nor_fixture(self, board, filename, **defines):
+        elf = self.build_fixture(board, filename, **defines)
+        raw = Path(self.scratch_file("fixture.bin"))
         objcopy = Path(self.fixture_compiler).with_name("arm-none-eabi-objcopy")
         subprocess.run(
             [str(objcopy), "-O", "binary", str(elf), str(raw)],
@@ -1706,6 +1706,52 @@ class BK7258Machine(QemuSystemTest):
         nor.write_bytes(image)
         metadata_file = Path(self.log_file("fixture-inputs.json"))
         metadata = json.loads(metadata_file.read_text())
+        metadata["sha256"].update({
+            "raw_payload": hashlib.sha256(raw.read_bytes()).hexdigest(),
+            "initial_nor": hashlib.sha256(image).hexdigest(),
+        })
+        metadata_file.write_text(json.dumps(metadata, indent=2) + "\n")
+        return nor, image, raw, metadata_file, metadata
+
+    def run_flash_clock(self, board):
+        nor, image, _, metadata_file, metadata = self.build_nor_fixture(
+            board, "flash_clock.c"
+        )
+        mmio = Path(self.log_file("mmio.log"))
+        self.vm.set_qmp_monitor(False)
+        self.vm.set_console()
+        self.vm.add_args(
+            "-accel", "tcg,thread=single",
+            "-icount", "shift=5,align=off,sleep=off",
+            "-semihosting-config", "enable=on,target=native",
+            "-drive", f"if=pflash,unit=0,format=raw,file={nor}",
+            "-d", "guest_errors,unimp", "-D", str(mmio)
+        )
+        self.vm.launch()
+        self.vm.console_socket.settimeout(10)
+        wait_for_console_pattern(self, "BK7258 FLASH CLOCK OK",
+                                 "BK7258 FLASH CLOCK FAILED")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0)
+        self.assertEqual(mmio.read_text(), "")
+        image[0x200000:0x200020] = bytes.fromhex("3412aa55") * 8
+        self.assertEqual(nor.read_bytes(), image)
+        metadata["sha256"]["committed_nor"] = hashlib.sha256(image).hexdigest()
+        metadata_file.write_text(json.dumps(metadata, indent=2) + "\n")
+
+    def test_t5_board_flash_clock(self):
+        self.run_flash_clock("t5_board")
+
+    def test_t5ai_core_flash_clock(self):
+        self.run_flash_clock("t5ai_core")
+
+    def test_aidk_ai_toy_flash_clock(self):
+        self.run_flash_clock("aidk_ai_toy")
+
+    def run_flash_sdk(self, board, bad_fifo=False):
+        nor, image, raw, metadata_file, metadata = self.build_nor_fixture(
+            board, "flash_sdk.c", BAD_FIFO=int(bad_fifo)
+        )
         metadata["expected_exit"] = int(bad_fifo)
         metadata["sha256"].update({
             "raw_payload": hashlib.sha256(raw.read_bytes()).hexdigest(),

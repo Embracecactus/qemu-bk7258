@@ -67,7 +67,7 @@ OpenVela source or profile changes are required for that gate.
    * - SYS/interrupt routing
      - Per-core masks, source status, private mailbox IRQs, ordered core
        control; asynchronous analog-register transfer and cancellation;
-       bounded SYS2Flash bit7 and Flash selector/divider configuration readback
+       bounded SYS2Flash bit7 configuration and finite Flash-command clocks
      - Full SYS register inventory, PLL/DVFS/rail dynamics and reset-domain
        conformance beyond the documented diagnostic contract
    * - UART0/1/2
@@ -1795,8 +1795,8 @@ contract if a cold boot or direct-app handoff is to be represented. Existing
 vendor documentation or a vendor-approved trace of these non-secret control
 transitions is sufficient in principle; a full OTP/key dump is neither needed
 nor requested. Unknown register reads are not assumed side-effect-free.
-The Flash-clock consumer remains unimplemented (the configuration-only
-subset is documented in :doc:`bk7258-sys-v1`) and is not a
+The finite Flash-command clock consumer is documented in :doc:`bk7258-sys-v1`.
+Its bounded nominal profiles do not resolve startup ownership and are not a
 substitute for these predecessor stages.
 
 Single-step SARADC digital-input experiment
@@ -1937,9 +1937,11 @@ validated finalized artifacts and layout offsets, leaves identity/calibration
 areas erased, and refuses to overwrite existing NOR files. It does not create
 a board-flashable production release or run a bootloader/OTA flow.
 
-Controller operations complete after one microsecond of virtual time, solely
-as an asynchronous functional boundary, not physical program/erase timing.
-Reset before that deadline cancels the operation. NOR programming ANDs bits
+Controller operations consume a 26-cycle functional work budget using the
+bounded profiles in :doc:`bk7258-sys-v1`. This preserves one microsecond at
+the diagnostic reset rate; available SDK profiles advance at 80/48 MHz and
+source loss pauses pending work. This is not physical program/erase timing.
+Reset cancels the operation, including while its clock is unavailable. NOR programming ANDs bits
 and wraps within a 256-byte page; erases and BP/CMP protection follow the part
 contract. Protected writes are no-ops. Malformed or unsupported asynchronous
 operations stop the VM; unknown MMIO/command accesses fault. FIFO underflow,

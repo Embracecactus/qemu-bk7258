@@ -3415,6 +3415,117 @@ static void flash_expect(QTestState *qts, unsigned address, uint32_t value)
     }
 }
 
+static void flash_begin(QTestState *qts, unsigned operation, unsigned address)
+{
+    qtest_writel(qts, FLASH + 0x54, operation << 24 | address);
+    qtest_writel(qts, FLASH + 0x10, 1U << 29);
+    g_assert_true(qtest_readl(qts, FLASH + 0x10) & (1U << 31));
+}
+
+static void flash_busy(QTestState *qts, bool busy)
+{
+    g_assert_cmpint(!!(qtest_readl(qts, FLASH + 0x10) & (1U << 31)), ==, busy);
+}
+
+static void test_sys_flash_clock_consumer(const void *board)
+{
+    QTestState *qts = start(board);
+
+    qtest_writel(qts, FLASH + 8, 1);
+    qtest_writel(qts, FLASH + 0x28, 0x0c000005);
+    qtest_writel(qts, SYS + 0x24, 0x05000000); /* DPLL /6, CLK_CFG=5. */
+    flash_begin(qts, 20, 0);
+    qtest_clock_step(qts, 100000);
+    flash_busy(qts, true); /* A request is not an available source. */
+    expect(qts, FLASH + 0x20, 0);
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    qtest_clock_step(qts, 999);
+    flash_busy(qts, true); /* Analog transfer has not committed. */
+    qtest_clock_step(qts, 1);
+    qtest_clock_step(qts, 324);
+    flash_busy(qts, true);
+    qtest_clock_step(qts, 1);
+    flash_busy(qts, false);
+    expect(qts, FLASH + 0x20, 0xc86517);
+
+    qtest_writel(qts, SYS + 0x24, 0x0d000000); /* DPLL /10 -> 48 MHz. */
+    flash_begin(qts, 20, 0);
+    qtest_clock_step(qts, 541);
+    flash_busy(qts, true);
+    qtest_clock_step(qts, 1);
+    flash_busy(qts, false);
+
+    qtest_writel(qts, SYS + 0x24, 0x05000000);
+    flash_begin(qts, 20, 0);
+    qtest_clock_step(qts, 100); /* Eight of 26 work cycles consumed. */
+    qtest_writel(qts, SYS + 0x10000024, 0x0d000000);
+    qtest_clock_step(qts, 374); /* Remaining 18 cycles at 48 MHz. */
+    flash_busy(qts, true);
+    qtest_clock_step(qts, 1);
+    flash_busy(qts, false);
+
+    qtest_writel(qts, SYS + 0x24, 0x05000000);
+    qtest_writel(qts, SYS + 0x114, 0);
+    qtest_clock_step(qts, 900);
+    flash_begin(qts, 20, 0);
+    qtest_clock_step(qts, 100); /* Committed source loss after eight cycles. */
+    qtest_clock_step(qts, 100000);
+    flash_busy(qts, true);
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    qtest_clock_step(qts, 1000);
+    qtest_clock_step(qts, 224);
+    flash_busy(qts, true);
+    qtest_clock_step(qts, 1);
+    flash_busy(qts, false);
+
+    /* Unknown divider/source combinations must not manufacture completion. */
+    for (unsigned value = 0; value < 16; value++) {
+        if (value == 5 || value == 13) {
+            continue;
+        }
+        qtest_writel(qts, SYS + 0x24, value << 24);
+        flash_begin(qts, 20, 0);
+        qtest_clock_step(qts, 100000);
+        flash_busy(qts, true);
+        qtest_writel(qts, FLASH + 8, 0);
+        flash_busy(qts, false);
+        qtest_writel(qts, FLASH + 8, 1);
+        qtest_writel(qts, FLASH + 0x28, 0x0c000005);
+    }
+
+    /* A source-less program cannot mutate NOR after peripheral cancellation. */
+    qtest_writel(qts, SYS + 0x24, 0x02000000);
+    for (unsigned i = 0; i < 8; i++) {
+        qtest_writel(qts, FLASH + 0x14, 0);
+    }
+    flash_begin(qts, 12, 0x1000);
+    qtest_clock_step(qts, 100000);
+    qtest_writel(qts, FLASH + 8, 0);
+    qtest_writel(qts, SYS + 0x24, 0x05000000);
+    qtest_clock_step(qts, 100000);
+    flash_busy(qts, false);
+    expect(qts, FLASH + 0x20, 0);
+
+    /* Full reset cancels paused work and a pending analog source enable. */
+    qtest_writel(qts, FLASH + 8, 1);
+    qtest_writel(qts, FLASH + 0x28, 0x0c000005);
+    qtest_writel(qts, SYS + 0x114, 0);
+    qtest_clock_step(qts, 1000);
+    qtest_writel(qts, SYS + 0x24, 0x05000000);
+    flash_begin(qts, 20, 0);
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    qtest_system_reset(qts);
+    qtest_clock_step(qts, 100000);
+    flash_busy(qts, false);
+    expect(qts, FLASH + 0x20, 0);
+    expect(qts, SYS + 0x24, 0);
+    expect(qts, SYS + 0x114, 0);
+    expect(qts, SYS + 0xe8, 0);
+    qtest_writel(qts, FLASH + 8, 1);
+    flash_expect(qts, 0x1000, 0xffffffff);
+    qtest_quit(qts);
+}
+
 static void test_sys_flash_clock_configuration(const void *board)
 {
     QTestState *qts = start(board);
@@ -4923,6 +5034,7 @@ int main(int argc, char **argv)
         {"dma-max-length-event-rearm", test_dma_max_length_rearm},
         {"dma-unsupported-modes-no-progress", test_dma_unsupported_modes},
         {"memory-uart-reset", test_memory_uart},
+        {"sys-flash-clock-consumer", test_sys_flash_clock_consumer},
         {"sys-flash-clock-configuration",
          test_sys_flash_clock_configuration},
         {"sys-flash-configuration-readback-reset",

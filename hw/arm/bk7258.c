@@ -99,6 +99,26 @@ static void bk7258_update_core_clocks(BK7258State *s)
     clock_update_hz(s->busclk, bus_hz);
 }
 
+static void bk7258_update_flash_clock(BK7258State *s)
+{
+    unsigned source = (s->flash_clock_config >> 24) & 3;
+    unsigned divider = (s->flash_clock_config >> 26) & 3;
+    unsigned hz = 0;
+
+    /* Finite SDK profiles, not a formula inferred from conflicting comments. */
+    if (source == 0 && divider == 0) {
+        hz = 26000000;
+    } else if (source == 1 && (s->analog[5] & (1U << 5))) {
+        if (divider == 1) {
+            hz = 80000000;
+        } else if (divider == 3) {
+            hz = 48000000;
+        }
+    }
+    /* A committed enable supplies nominal digital timing, not PLL lock. */
+    clock_update_hz(s->flashclk, hz);
+}
+
 static void bk7258_update_uart_clocks(BK7258State *s)
 {
     static const unsigned gate[] = { 2, 10, 11 };
@@ -276,6 +296,7 @@ static void bk7258_analog_complete(void *opaque)
     bk7258_audio_clock_commit(s, written, old_power, old_control,
                               old_coefficient);
     bk7258_update_core_clocks(s);
+    bk7258_update_flash_clock(s);
     bk7258_update_saradc_clock(s);
     clock_update_hz(s->roscclk, s->analog[5] & (1U << 14) ? 0 : 32000);
     bk7258_update_wdt_clock(s);
@@ -471,9 +492,9 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         break;
     case 0x24:
         /*
-         * SDK CKSEL_FLASH[25:24], CKDIV_FLASH[27:26] configuration only.
-         * Encoding readback is not source availability, divider timing or
-         * a clock connected to the Flash controller. Other device fields
+         * SDK CKSEL_FLASH[25:24], CKDIV_FLASH[27:26]. All raw encodings
+         * have configuration readback, but only the documented finite clock
+         * profiles supply a functional clock. Other device fields
          * in this shared register remain unsupported, including on RMW.
          */
         if (value & ~0x0f000000U) {
@@ -482,6 +503,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
             return MEMTX_ERROR;
         }
         s->flash_clock_config = value;
+        bk7258_update_flash_clock(s);
         break;
     case 0x40:
         s->power_sleep = value;
@@ -583,6 +605,7 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     unsigned i;
     MemoryRegion *xip;
 
+    qdev_connect_clock_in(DEVICE(&s->flashctrl), "sclk", s->flashclk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->flashctrl), errp) ||
         !memory_region_init_ram(&s->sram, obj, "bk7258.sram", SRAM_SIZE,
                                 errp)) {
@@ -906,6 +929,7 @@ static void bk7258_reset(DeviceState *dev)
     s->core_clock_key = 0;
     s->core_clock_unimplemented = false;
     bk7258_update_core_clocks(s);
+    bk7258_update_flash_clock(s);
     bk7258_update_saradc_clock(s);
     clock_update_hz(s->roscclk, 32000);
     s->analog_busy = 0;
@@ -961,6 +985,7 @@ static void bk7258_init(Object *obj)
     qdev_alias_clock(DEVICE(&s->aon), "x32k", DEVICE(obj), "lpo-external");
     object_initialize_child(obj, "ckmn", &s->ckmn, TYPE_BK7258_CKMN);
     object_initialize_child(obj, "mailbox", &s->mailbox, TYPE_BK7258_MAILBOX);
+    s->flashclk = clock_new(obj, "flashclk");
     object_initialize_child(obj, "flashctrl", &s->flashctrl, TYPE_BK7258_FLASH);
     object_property_add_alias(obj, "flash-nor", OBJECT(&s->flashctrl), "nor");
     qdev_init_gpio_in_named(DEVICE(obj), bk7258_mailbox_irq, "mailbox", 3);

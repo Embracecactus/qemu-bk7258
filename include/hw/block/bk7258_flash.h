@@ -5,6 +5,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/block/bk7258_nor.h"
 #include "qemu/timer.h"
+#include "hw/core/clock.h"
 
 #define TYPE_BK7258_FLASH "bk7258-flash"
 OBJECT_DECLARE_SIMPLE_TYPE(BK7258FlashState, BK7258_FLASH)
@@ -15,6 +16,10 @@ struct BK7258FlashState {
     MemoryRegion regs;
     MemoryRegion xip;
     QEMUTimer *timer;
+    Clock *clk;
+    unsigned hz;
+    uint64_t cycles;
+    int64_t deadline;
     uint32_t global;
     uint32_t wp;
     uint32_t command_config;
