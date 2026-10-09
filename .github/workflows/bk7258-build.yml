@@ -77,6 +77,7 @@ jobs:
         with:
           name: bk7258-entry-v2-evidence-${{ github.sha }}
           if-no-files-found: error
+          include-hidden-files: true
           path: |
             docs/system/arm/bk7258-entry-v2.rst
             docs/system/arm/bk7258-entry-v2-evidence/
