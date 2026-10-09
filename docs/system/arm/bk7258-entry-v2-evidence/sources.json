@@ -1,0 +1,93 @@
+[
+  {
+    "id": "aon-struct",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/middleware/soc/bk7258/soc/aon_pmu_struct.h",
+    "sha256": "133c4fa8beb948e74d2d7995ab625c1fd48712ea94db3574b2d2787a078fe50e",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/soc/aon_pmu_struct.h"
+  },
+  {
+    "id": "aon-ll",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/middleware/soc/bk7258/soc/aon_pmu_ll.h",
+    "sha256": "b3e2b07d106717bb67eee9502d87507ec0fb1eeeb96b02d910986a0d50698c73",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/soc/aon_pmu_ll.h"
+  },
+  {
+    "id": "aon-hal",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/middleware/soc/bk7258/hal/aon_pmu_hal.c",
+    "sha256": "a878aca36a341f0b0e8bcec8051965542b5f8564fb3d5fddf22898b709f344a1",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/hal/aon_pmu_hal.c"
+  },
+  {
+    "id": "reset-reason",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/middleware/driver/reset_reason/reset_reason.c",
+    "sha256": "7fadb80871fe8d8304da88d8b3c2e20299576d27928162d8ea3481e40b614c32",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/driver/reset_reason/reset_reason.c"
+  },
+  {
+    "id": "sys-pm-hal",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/middleware/soc/bk7258/hal/sys_pm_hal.c",
+    "sha256": "ed28f9fd42e345a9ac94469ab395095ebca802797d06b2853fdeee6840cf3dba",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/hal/sys_pm_hal.c"
+  },
+  {
+    "id": "sys-reg",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/middleware/soc/bk7258/soc/sys_reg.h",
+    "sha256": "406e85d3959d91757a4b8f1db16640c6d62824c441afc72ce47e50013b5701e3",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/soc/sys_reg.h"
+  },
+  {
+    "id": "sys-ll",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/middleware/soc/bk7258/hal/sys_ll.h",
+    "sha256": "1e27d6b083940a5868fbff053945dab43580a9e715b79b8eaa3b46117a65f75b",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/hal/sys_ll.h"
+  },
+  {
+    "id": "reg-base",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/include/soc/bk7258/reg_base.h",
+    "sha256": "412084ee80f2cc5bdf2b9c422466131ba96a236c22083cf70ea74fb2bc281a38",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/include/soc/bk7258/reg_base.h"
+  },
+  {
+    "id": "soc-config",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/middleware/soc/bk7258/bk7258.defconfig",
+    "sha256": "861a4a6bc175e2e60a6e14f32d733d588aadbf495195c12287501eb7e1dcead5",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/middleware/soc/bk7258/bk7258.defconfig"
+  },
+  {
+    "id": "vendor-bootloader",
+    "revision": "cb080de1655d579c7593ecf504c440997c4c137b",
+    "path": "cp/components/bk_libs/bk7258/bootloader/normal_bootloader/bootloader.bin",
+    "sha256": "105161bb603eedafbffcb5efb8f7c06a0c8503e42ba4da46490c2c21ed813de6",
+    "url": "https://github.com/Embracecactus/bk_avdk_smp/blob/cb080de1655d579c7593ecf504c440997c4c137b/cp/components/bk_libs/bk7258/bootloader/normal_bootloader/bootloader.bin"
+  },
+  {
+    "id": "official-aon-struct.h",
+    "revision": "650e754e12fe1e43c37ce2316a973668b033fd48",
+    "path": "middleware/soc/bk7258/soc/aon_pmu_struct.h",
+    "sha256": "bcf35ab088dd3117046e998a26be59fdb82cee38c546f04fe478d003e0821df7",
+    "url": "https://github.com/bekencorp/bk_idk/blob/650e754e12fe1e43c37ce2316a973668b033fd48/middleware/soc/bk7258/soc/aon_pmu_struct.h"
+  },
+  {
+    "id": "official-reset-reason.c",
+    "revision": "650e754e12fe1e43c37ce2316a973668b033fd48",
+    "path": "middleware/driver/reset_reason/reset_reason.c",
+    "sha256": "4179837eeef8e2ea4c0443ec5d1ddc13da49c81c6e957f4fcd4395618d927366",
+    "url": "https://github.com/bekencorp/bk_idk/blob/650e754e12fe1e43c37ce2316a973668b033fd48/middleware/driver/reset_reason/reset_reason.c"
+  },
+  {
+    "id": "datasheet",
+    "revision": "DS-BK7258-E12 V2.1, 2025-05-23",
+    "sha256": "c806deb7adc9299e157399cf49847c34ca125df6a7d44f79838fdefc723ddf55",
+    "url": "https://docs.bekencorp.com/spec/BK7258/BK7258%C2%A0Datasheet.pdf",
+    "relevant_page": 61
+  }
+]

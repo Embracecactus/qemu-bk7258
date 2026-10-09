@@ -1,0 +1,253 @@
+{
+  "qemu": "/tmp/qemu-bk7258-sys-v1/build-bk7258/qemu-system-arm",
+  "qemu_sha256": "afe48a9282d7dcd583df25ae33c52435c3c808125667c0c74a35119d21256ef0",
+  "board": "aidk_ai_toy",
+  "entry": "0x2010200",
+  "initial_sp": "0x28043480",
+  "reset_pc": "0x20114a9",
+  "nor_sha256_before": "795e90a4dd7e29bff700ac4f932c1fdc848e5545e784f1c9f6d7f3bd39c13cf4",
+  "status_sha256_before": "0447b8e676635ad3befa686ec7e75bf5dbea1f7005a0e2af8f808582eb12fe6e",
+  "capture_seconds": 8.0,
+  "injection": {
+    "r7a": 16777248
+  },
+  "qmp_events": [
+    {
+      "timestamp": {
+        "seconds": 1791537198,
+        "microseconds": 526571
+      },
+      "event": "RESUME"
+    },
+    {
+      "timestamp": {
+        "seconds": 1791537201,
+        "microseconds": 111727
+      },
+      "event": "WATCHDOG",
+      "data": {
+        "action": "reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791537201,
+        "microseconds": 112238
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791537203,
+        "microseconds": 626544
+      },
+      "event": "WATCHDOG",
+      "data": {
+        "action": "reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791537203,
+        "microseconds": 627339
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791537206,
+        "microseconds": 52476
+      },
+      "event": "WATCHDOG",
+      "data": {
+        "action": "reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791537206,
+        "microseconds": 53025
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791537206,
+        "microseconds": 538021
+      },
+      "event": "STOP"
+    },
+    {
+      "timestamp": {
+        "seconds": 1791537206,
+        "microseconds": 539443
+      },
+      "event": "SHUTDOWN",
+      "data": {
+        "guest": false,
+        "reason": "host-qmp-quit"
+      }
+    }
+  ],
+  "boot_success": "not asserted",
+  "argv": [
+    "/tmp/qemu-bk7258-sys-v1/build-bk7258/qemu-system-arm",
+    "-M",
+    "aidk_ai_toy",
+    "-S",
+    "-qmp",
+    "unix:/tmp/bk7258-probe-aesvk__f/qmp,server=on,wait=off",
+    "-gdb",
+    "unix:/tmp/bk7258-probe-aesvk__f/gdb,server=on,wait=off",
+    "-global",
+    "bk7258-soc.boot-vector=0x2010200",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "file:/home/lijian/project/qemu-bk7258/evidence/startup-entry-v2-20261009/diagnostic-r7a-extended/uart.log",
+    "-drive",
+    "if=pflash,unit=0,format=raw,file=/home/lijian/project/qemu-bk7258/evidence/startup-entry-v2-20261009/diagnostic-r7a-extended/nor.bin",
+    "-drive",
+    "if=pflash,unit=1,format=raw,file=/home/lijian/project/qemu-bk7258/evidence/startup-entry-v2-20261009/diagnostic-r7a-extended/status.bin",
+    "-d",
+    "int,guest_errors,unimp",
+    "-D",
+    "/home/lijian/project/qemu-bk7258/evidence/startup-entry-v2-20261009/diagnostic-r7a-extended/trace.log",
+    "-trace",
+    "enable=clock_set",
+    "-global",
+    "bk7258-entry-probe.r7a=0x1000020"
+  ],
+  "stopped_cpu0_registers": [
+    "0x2801b960",
+    "0x0",
+    "0x28042c80",
+    "0x28023884",
+    "0x28042c80",
+    "0x0",
+    "0x0",
+    "0x0",
+    "0x0",
+    "0x0",
+    "0x0",
+    "0x0",
+    "0x0",
+    "0x28043470",
+    "0x2011837",
+    "0x2024ca4"
+  ],
+  "stopped_stack_raw": "000000000000000000000000ffffffffffffff7f040000000000000000000000",
+  "stopped_cfsr_raw": "00000000",
+  "stopped_bfar_raw": "00000000",
+  "fault_addresses_in_order": [
+    "0x4980c000",
+    "0x440001e8",
+    "0x440001e8"
+  ],
+  "first_fault_address": "0x4980c000",
+  "uart_fault_pcs_in_order": [
+    "0x020daa80",
+    "0x020180fa",
+    "0x020180fa"
+  ],
+  "first_uart_fault_pc": "0x020daa80",
+  "trace_boundary_events": [
+    {
+      "line": 9,
+      "text": "Loaded reset SP 0x28043480 PC 0x20114a9 from vector table"
+    },
+    {
+      "line": 12,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 15,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 17,
+      "text": "Loaded reset SP 0x28043480 PC 0x20114a9 from vector table"
+    },
+    {
+      "line": 18,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 19,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 485,
+      "text": "...at fault address 0x4980c000"
+    },
+    {
+      "line": 490,
+      "text": "Loaded reset SP 0x28043480 PC 0x20114a9 from vector table"
+    },
+    {
+      "line": 491,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 492,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 725,
+      "text": "bk7258-entry-probe: invalid R7A snapshot"
+    },
+    {
+      "line": 727,
+      "text": "...at fault address 0x440001e8"
+    },
+    {
+      "line": 732,
+      "text": "Loaded reset SP 0x28043480 PC 0x20114a9 from vector table"
+    },
+    {
+      "line": 733,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 734,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 939,
+      "text": "bk7258-entry-probe: invalid R7A snapshot"
+    },
+    {
+      "line": 941,
+      "text": "...at fault address 0x440001e8"
+    },
+    {
+      "line": 946,
+      "text": "Loaded reset SP 0x28043480 PC 0x20114a9 from vector table"
+    },
+    {
+      "line": 947,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    },
+    {
+      "line": 948,
+      "text": "Loaded reset SP 0x0 PC 0x0 from vector table"
+    }
+  ],
+  "capture_note": "Stopped registers/stack may follow a watchdog reset; they are not the first exception frame. Trace vector loads are not individually reset events; consult the separate QMP event stream. No fault within the window is not boot success.",
+  "nor_sha256_after": "795e90a4dd7e29bff700ac4f932c1fdc848e5545e784f1c9f6d7f3bd39c13cf4",
+  "status_sha256_after": "d89cb7ff8b082aa37e3df97289277342237a6b24429e377a806fc9c0fdac82d3"
+}

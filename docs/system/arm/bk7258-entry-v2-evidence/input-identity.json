@@ -1,0 +1,83 @@
+{
+  "source_commit": "e0dce2516b7300d58ef6a4cd12861f2f39380378",
+  "package_sha256": "394fcd8cd1d3a30efd66c56a100b281e5d0c3d4ce7261e41ac919e141e4de5d2",
+  "nor_sha256": "795e90a4dd7e29bff700ac4f932c1fdc848e5545e784f1c9f6d7f3bd39c13cf4",
+  "copied_members": [
+    {
+      "artifact": "boot",
+      "member": "images/boot/boot.bin",
+      "offset": 0,
+      "partition": "primary_bootloader",
+      "sha256": "60f3364f8c7c5fc48587bfe33d09f2d4e8e4665af67b719cb441eb248b7a009d",
+      "size": 69462
+    },
+    {
+      "artifact": "cp",
+      "member": "images/cp/cp.bin",
+      "offset": 69632,
+      "partition": "primary_cp_app",
+      "sha256": "afd416017ec2c0e3a48a59c2fcacaa336db0b9b3abef861fc9d8d770255a2b20",
+      "size": 1253376
+    },
+    {
+      "artifact": "ap",
+      "member": "images/ap/ap.bin",
+      "offset": 1323008,
+      "partition": "primary_ap_app",
+      "sha256": "f824aa474cf4634582336a0e867f8a487b712b8a6524be5225f14c1a03b4fb95",
+      "size": 2158592
+    },
+    {
+      "artifact": "pair",
+      "member": "images/pair/pair.bin",
+      "offset": 3481600,
+      "partition": "s_app",
+      "sha256": "efe5be98154c42f68004eaa3773da6f6395a3778374abd47b2ef6feac5970fac",
+      "size": 3411968
+    },
+    {
+      "artifact": "manifest_a",
+      "member": "images/manifest_a/manifest-a.bin",
+      "offset": 6955008,
+      "partition": "primary_manifest",
+      "sha256": "b8776e9356ce7c8f26e4ee5f556fadd9e98da604e9cf5c42c13db6e28a1f8685",
+      "size": 256
+    },
+    {
+      "artifact": "manifest_b",
+      "member": "images/manifest_b/manifest-b.bin",
+      "offset": 6959104,
+      "partition": "secondary_manifest",
+      "sha256": "d38b5f55498f1bd7859229233bf5d9cd457019c152862aadb9df307efb29316f",
+      "size": 256
+    },
+    {
+      "artifact": "bl2_a",
+      "member": "images/bl2_a/bl2-a.bin",
+      "offset": 6963200,
+      "partition": "primary_bl2",
+      "sha256": "4b6cd07340dc8bf774893333a8da803041fb3c3e8e98459549720d9ec467dde5",
+      "size": 14484
+    },
+    {
+      "artifact": "bl2_b",
+      "member": "images/bl2_b/bl2-b.bin",
+      "offset": 7102464,
+      "partition": "secondary_bl2",
+      "sha256": "4b6cd07340dc8bf774893333a8da803041fb3c3e8e98459549720d9ec467dde5",
+      "size": 14484
+    },
+    {
+      "member": "payloads/persistent_data.bin",
+      "offset": 7241728,
+      "partition": "persistent_data",
+      "sha256": "f5fb04aa5b882706b9309e885f19477261336ef76a150c3b4d3489dfac3953ec",
+      "size": 1048576
+    }
+  ],
+  "entries": {
+    "bl1": "0x02000000",
+    "cp": "0x02010200"
+  },
+  "scope": "Simulation container, byte-identical package members; unspecified ranges erased. Not a physical flash image; no ROM or signature acceptance claim."
+}

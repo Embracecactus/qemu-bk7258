@@ -1,0 +1,4 @@
+# Preserve captured bytes and hashes, including literal UART carriage returns.
+*.log -text
+*/uart.log -diff
+vendor-normal-bit9.txt -text -diff

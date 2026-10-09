@@ -1,0 +1,19 @@
+Command: arm-none-eabi-objdump -D -b binary -marm -Mforce-thumb --adjust-vma=0x02010000 --start-address=0x020180f4 --stop-address=0x02018112 /tmp/qemu-bk7258-sys-v1/evidence/local-firmware-20261009/cp-unframed-analysis.bin
+
+/tmp/qemu-bk7258-sys-v1/evidence/local-firmware-20261009/cp-unframed-analysis.bin:     file format binary
+
+
+Disassembly of section .data:
+
+020180f4 <.data+0x80f4>:
+ 20180f4:	b150      	cbz	r0, 0x201810c
+ 20180f6:	f04f 4388 	mov.w	r3, #1140850688	; 0x44000000
+ 20180fa:	f8d3 31e8 	ldr.w	r3, [r3, #488]	; 0x1e8
+ 20180fe:	f3c3 1307 	ubfx	r3, r3, #4, #8
+ 2018102:	6003      	str	r3, [r0, #0]
+ 2018104:	2300      	movs	r3, #0
+ 2018106:	7103      	strb	r3, [r0, #4]
+ 2018108:	4618      	mov	r0, r3
+ 201810a:	4770      	bx	lr
+ 201810c:	f06f 0015 	mvn.w	r0, #21
+ 2018110:	4770      	bx	lr

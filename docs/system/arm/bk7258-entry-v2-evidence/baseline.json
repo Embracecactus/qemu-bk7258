@@ -1,0 +1,13 @@
+{
+  "head": "1f2d4876b5cc65455ed6b15d129c9632f94e565b",
+  "ci_run": 37903264521,
+  "ci_conclusion": "success",
+  "ci_head_sha": "1f2d4876b5cc65455ed6b15d129c9632f94e565b",
+  "baseline_archive_sha256": "f455d5ce40296b4d91be399dd4093aa11ab8c37846077293d2a1ab2c1600cc50",
+  "baseline_runs": 24,
+  "baseline_reused_not_rerun": true,
+  "hardware_model_changed": false,
+  "hardware_subset_status": "PARTIAL: no justified R7A or SYS+0x0c implementation",
+  "default_cp_deinjection_status": "PARTIAL: first fault remains R7A",
+  "complete_boot_status": "PARTIAL"
+}

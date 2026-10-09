@@ -40,13 +40,15 @@ def connect(path, process):
             time.sleep(0.01)
 
 
-def qmp(stream, command):
+def qmp(stream, command, events):
     stream.write(json.dumps({'execute': command}).encode() + b'\n')
     while True:
         line = stream.readline()
         if not line:
             raise RuntimeError('QMP closed before reply')
         reply = json.loads(line)
+        if 'event' in reply:
+            events.append(reply)
         if 'error' in reply:
             raise RuntimeError(reply['error'])
         if 'return' in reply:
@@ -132,7 +134,8 @@ def main():
               'nor_sha256_before': digest(nor),
               'status_sha256_before': digest(status),
               'capture_seconds': args.seconds,
-              'injection': {}, 'boot_success': 'not asserted'}
+              'injection': {}, 'qmp_events': [],
+              'boot_success': 'not asserted'}
     properties = []
     if args.r7a is not None:
         record['injection']['r7a'] = args.r7a
@@ -166,10 +169,10 @@ def main():
                 with connect(qmp_path, process) as control:
                     with control.makefile('rwb', buffering=0) as stream:
                         json.loads(stream.readline())
-                        qmp(stream, 'qmp_capabilities')
-                        qmp(stream, 'cont')
+                        qmp(stream, 'qmp_capabilities', record['qmp_events'])
+                        qmp(stream, 'cont', record['qmp_events'])
                         time.sleep(args.seconds)
-                        qmp(stream, 'stop')
+                        qmp(stream, 'stop', record['qmp_events'])
                         with connect(gdb_path, process) as debug:
                             packet(debug, '?')
                             if packet(debug, 'Hg1') != 'OK':
@@ -185,7 +188,7 @@ def main():
                                 debug, 'me000ed28,4')
                             record['stopped_bfar_raw'] = packet(
                                 debug, 'me000ed38,4')
-                        qmp(stream, 'quit')
+                        qmp(stream, 'quit', record['qmp_events'])
                         process.wait(timeout=5)
             finally:
                 if process.poll() is None:
@@ -199,8 +202,15 @@ def main():
     record['first_fault_address'] = faults[0] if faults else None
     record['uart_fault_pcs_in_order'] = ['0x' + pc for pc in pcs]
     record['first_uart_fault_pc'] = '0x' + pcs[0] if pcs else None
+    record['trace_boundary_events'] = [
+        {'line': number, 'text': line}
+        for number, line in enumerate(trace.splitlines(), 1)
+        if ('fault address ' in line or 'Loaded reset SP ' in line or
+            'invalid R7A snapshot' in line)]
     record['capture_note'] = ('Stopped registers/stack may follow a watchdog '
                               'reset; they are not the first exception frame. '
+                              'Trace vector loads are not individually reset '
+                              'events; consult the separate QMP event stream. '
                               'No fault within the window is not boot success.')
     record['nor_sha256_after'] = digest((output / 'nor.bin').read_bytes())
     record['status_sha256_after'] = digest((output / 'status.bin').read_bytes())

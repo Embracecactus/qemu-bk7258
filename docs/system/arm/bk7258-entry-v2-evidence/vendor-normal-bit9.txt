@@ -1,0 +1,20 @@
+$ arm-none-eabi-objdump -b binary -marm --adjust-vma=0x02000000 -D -Mforce-thumb --start-address=0x020003b0 --stop-address=0x020003be /tmp/bk7258-vendor-normal.bin
+
+/tmp/bk7258-vendor-normal.bin:     file format binary
+
+
+Disassembly of section .data:
+
+020003b0 <.data+0x3b0>:
+ 20003b0:	b538      	push	{r3, r4, r5, lr}
+ 20003b2:	4605      	mov	r5, r0
+ 20003b4:	4c17      	ldr	r4, [pc, #92]	; (0x2000414)
+ 20003b6:	68e3      	ldr	r3, [r4, #12]
+ 20003b8:	f423 7000 	bic.w	r0, r3, #512	; 0x200
+ 20003bc:	60e0      	str	r0, [r4, #12]
+$ arm-none-eabi-objdump -b binary -marm --adjust-vma=0x02000000 -s --start-address=0x02000414 --stop-address=0x02000418 /tmp/bk7258-vendor-normal.bin
+
+/tmp/bk7258-vendor-normal.bin:     file format binary
+
+Contents of section .data:
+ 2000414 00000144                             ...D            

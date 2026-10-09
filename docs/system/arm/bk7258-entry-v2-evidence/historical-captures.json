@@ -1,0 +1,36 @@
+[
+  {
+    "case": "diag3-r0",
+    "source": "/home/lijian/project/open-vela/logs/bk7258-xts-20260823/diag3-r0/serial.txt",
+    "source_sha256": "f0010b5a99181dfad6e151bbafb619fd20bf344f385257cc2ad094a6aa4671f2",
+    "observations": [
+      {
+        "line": 4,
+        "text": "reset cause raw=0 mapped=1 R0=00000000 R2=00000026 R7A=00000000"
+      }
+    ],
+    "action": "CaptureOnly",
+    "capture_started_utc": "2026-08-23T03:46:19.4138319Z",
+    "target_action": {
+      "status": "not_requested"
+    },
+    "limits": "Historical UART sample; no silicon revision, per-access timestamp or controlled reset/R0 transition matrix established. Test output contains failures; capture tool passed is not device test PASS."
+  },
+  {
+    "case": "diag3-r1",
+    "source": "/home/lijian/project/open-vela/logs/bk7258-xts-20260823/diag3-r1/serial.txt",
+    "source_sha256": "a013b0d631cbbaac7c53231f721924fc59c516983ce9adfbb6248c42738df430",
+    "observations": [
+      {
+        "line": 6,
+        "text": "reset cause raw=0 mapped=1 R0=00000000 R2=00000026 R7A=00000020"
+      }
+    ],
+    "action": "CaptureOnly",
+    "capture_started_utc": "2026-08-23T03:48:54.2970512Z",
+    "target_action": {
+      "status": "not_requested"
+    },
+    "limits": "Historical UART sample; no silicon revision, per-access timestamp or controlled reset/R0 transition matrix established. Test output contains failures; capture tool passed is not device test PASS."
+  }
+]

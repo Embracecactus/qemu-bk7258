@@ -58,6 +58,11 @@ jobs:
           cd build-bk7258
           command -v arm-none-eabi-gcc
           ./pyvenv/bin/meson test --setup thorough --print-errorlogs func-arm-bk7258
+      - name: Verify entry investigation evidence
+        run: |
+          python3 -m py_compile scripts/bk7258-product-probe.py
+          cd docs/system/arm/bk7258-entry-v2-evidence
+          sha256sum --check SHA256SUMS
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -67,3 +72,12 @@ jobs:
             build-bk7258/meson-logs/shared-timer*
             build-bk7258/meson-logs/testlog*
             build-bk7258/tests/functional/arm/test_bk7258.*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bk7258-entry-v2-evidence-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            docs/system/arm/bk7258-entry-v2.rst
+            docs/system/arm/bk7258-entry-v2-evidence/
+            scripts/bk7258-product-probe.py

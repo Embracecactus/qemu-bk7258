@@ -1,0 +1,949 @@
+clock_set '/machine/soc/cpuclk', 0Hz->26000000Hz
+clock_set '/machine/soc/busclk', 0Hz->26000000Hz
+clock_set '/machine/soc/xtalclk', 0Hz->26000000Hz
+clock_set '/machine/soc/roscclk', 0Hz->32000Hz
+clock_set '/machine/soc/div32kclk', 0Hz->32000Hz
+clock_set '(null)', 0Hz->32000Hz
+clock_set '/machine/soc/coreclk0', 0Hz->26000000Hz
+clock_set '/machine/soc/bk7258.cpu0', 0Hz->32000Hz
+Loaded reset SP 0x28043480 PC 0x20114a9 from vector table
+clock_set '/machine/soc/coreclk1', 0Hz->26000000Hz
+clock_set '/machine/soc/bk7258.cpu1', 0Hz->32000Hz
+Loaded reset SP 0x0 PC 0x0 from vector table
+clock_set '/machine/soc/coreclk2', 0Hz->26000000Hz
+clock_set '/machine/soc/bk7258.cpu2', 0Hz->32000Hz
+Loaded reset SP 0x0 PC 0x0 from vector table
+clock_set '/machine/soc/wdtclk0', 0Hz->1000Hz
+Loaded reset SP 0x28043480 PC 0x20114a9 from vector table
+Loaded reset SP 0x0 PC 0x0 from vector table
+Loaded reset SP 0x0 PC 0x0 from vector table
+clock_set '(null)', 0Hz->26000000Hz
+NVIC: Bad read offset 0xdfc
+NVIC: Bad write offset 0xdfc
+Write of unassigned area of PPB: offset 0xfb0
+Read of unassigned area of PPB: offset 0x1000
+Write of unassigned area of PPB: offset 0x1000
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+clock_set '/machine/soc/uartclk0', 0Hz->26000000Hz
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+NVIC: Bad read offset 0xdf0
+Read of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x2000
+Write of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x1000
+NVIC: Bad read offset 0xdfc
+NVIC: Bad write offset 0xdfc
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...tailchaining to pending exception
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+clock_set '(null)', 26000000Hz->0Hz
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...tailchaining to pending exception
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 4 [Data Abort] on CPU 0
+...at fault address 0x4980c000
+...with CFSR.PRECISERR and BFAR 0x4980c000
+...taking pending secure exception 3
+...loading from element 3 of secure vector table at 0x2801080c
+...loaded new PC 0x28010941
+Loaded reset SP 0x28043480 PC 0x20114a9 from vector table
+Loaded reset SP 0x0 PC 0x0 from vector table
+Loaded reset SP 0x0 PC 0x0 from vector table
+clock_set '(null)', 0Hz->26000000Hz
+clock_set '/machine/soc/uartclk0', 26000000Hz->0Hz
+NVIC: Bad read offset 0xdfc
+NVIC: Bad write offset 0xdfc
+Write of unassigned area of PPB: offset 0xfb0
+Read of unassigned area of PPB: offset 0x1000
+Write of unassigned area of PPB: offset 0x1000
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+clock_set '/machine/soc/uartclk0', 0Hz->26000000Hz
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+NVIC: Bad read offset 0xdf0
+Read of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x2000
+Write of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x1000
+NVIC: Bad read offset 0xdfc
+NVIC: Bad write offset 0xdfc
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+bk7258-entry-probe: invalid R7A snapshot
+Taking exception 4 [Data Abort] on CPU 0
+...at fault address 0x440001e8
+...with CFSR.PRECISERR and BFAR 0x440001e8
+...taking pending secure exception 3
+...loading from element 3 of secure vector table at 0x2801080c
+...loaded new PC 0x28010941
+Loaded reset SP 0x28043480 PC 0x20114a9 from vector table
+Loaded reset SP 0x0 PC 0x0 from vector table
+Loaded reset SP 0x0 PC 0x0 from vector table
+clock_set '/machine/soc/uartclk0', 26000000Hz->0Hz
+NVIC: Bad read offset 0xdfc
+NVIC: Bad write offset 0xdfc
+Write of unassigned area of PPB: offset 0xfb0
+Read of unassigned area of PPB: offset 0x1000
+Write of unassigned area of PPB: offset 0x1000
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+clock_set '/machine/soc/uartclk0', 0Hz->26000000Hz
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+NVIC: Bad read offset 0xdf0
+Read of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x2000
+Write of unassigned area of PPB: offset 0x2000
+Read of unassigned area of PPB: offset 0x1000
+NVIC: Bad read offset 0xdfc
+NVIC: Bad write offset 0xdfc
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 2 [SVC] on CPU 0
+...taking pending secure exception 11
+...loading from element 11 of secure vector table at 0x2801082c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 11
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+Taking exception 5 [IRQ] on CPU 0
+...taking pending secure exception 15
+...loading from element 15 of secure vector table at 0x2801083c
+...loaded new PC 0x2012d6d
+Read of unassigned area of PPB: offset 0x1004
+Read of unassigned area of PPB: offset 0x1004
+Taking exception 8 [QEMU v7M exception exit] on CPU 0
+Exception return: magic PC ffffffed previous exception 15
+...successful exception return
+bk7258-entry-probe: invalid R7A snapshot
+Taking exception 4 [Data Abort] on CPU 0
+...at fault address 0x440001e8
+...with CFSR.PRECISERR and BFAR 0x440001e8
+...taking pending secure exception 3
+...loading from element 3 of secure vector table at 0x2801080c
+...loaded new PC 0x28010941
+Loaded reset SP 0x28043480 PC 0x20114a9 from vector table
+Loaded reset SP 0x0 PC 0x0 from vector table
+Loaded reset SP 0x0 PC 0x0 from vector table
+clock_set '/machine/soc/uartclk0', 26000000Hz->0Hz
