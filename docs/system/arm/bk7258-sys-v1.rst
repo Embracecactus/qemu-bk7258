@@ -119,3 +119,44 @@ Minimum remaining evidence
   missing or inaccessible artifact must not be replaced by a new firmware
   build. Default and individually enabled OTP/R7A diagnostic runs remain
   separate evidence categories.
+
+Local validation (2026-10-09)
+----------------------------
+
+On baseline ``1ce94aeafec7f92e1d73c1dac3599d0ba8109ed4``, native compilation
+with ``--enable-werror`` and source-built guests establish the following
+configuration-subset evidence after this change:
+
+* 3 clock-accounting unit checks, 576 existing shared ptimer checks and the
+  existing non-BK CMSDK timer qtest passed.
+* All 256 BK native qtests and 259 functional tests passed across t5_board,
+  t5ai_core and aidk_ai_toy. Existing negative tests were retained, including
+  core-reset-vector and pending-reset generation coverage.
+* The exact same positive and negative guest ELF bytes were then executed on
+  independently built baseline and changed emulators on all three boards.
+  All six baseline executions failed at the first +0x24 read: PC 0x020100f4,
+  fault address 0x44010024. Changed positive guests completed successfully;
+  changed negative guests faulted at PC 0x02010142, address 0x54010024 and
+  checked that the previous supported configuration remained intact.
+  These 12 runs record emulator/guest hashes, command lines, UART and traces.
+
+The first local qtest invocation failed because the sandbox disallowed its
+UNIX socket, before hardware testing. Its original log was retained; the
+identical command passed with local IPC permitted. Initial Python dependency
+failures were likewise retained and resolved in an isolated temporary Python
+3.12 environment. No hardware implementation or negative test was changed to
+work around those environment failures.
+
+Historical product artifacts 11084027687 and 11084869555 were queried
+separately and both returned HTTP 404. Their documented hashes were not
+found in the checked local input locations. No replacement firmware was built.
+Default product and injected OTP/R7A product runs were therefore **not rerun**;
+the prior stop addresses remain historical, with the new next stop unknown.
+The fork CI run 37724570591 was rechecked as successful at exactly the
+baseline SHA, but is not validation of these new commits. New remote branch
+publication and CI still require the user's applicable authorization.
+
+Configuration readback has a contract, implementation and independent
+positive/negative evidence. Actual startup status/clock functionality and
+complete product capability remain PARTIAL. The preceding minimum-evidence
+list is the next gate, not a reason to claim a completed clock connection.

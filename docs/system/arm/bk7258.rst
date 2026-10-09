@@ -1694,6 +1694,11 @@ No keys are generated, no images are re-signed, and no device is programmed.
      - OTP-controller read; execution began in BL1 but did not complete
        a bootloader chain or a hardware ROM boot
 
+These are historical observations for the named revisions. The configuration
+subset in :doc:`bk7258-sys-v1` now implements the +0x24 read, but its next
+unchanged-product stop must be measured again with the same hashed inputs;
+it cannot be inferred from the source-built guest tests.
+
 The CP UART reports CFSR=0x8200, the matching BFAR and its stacked PC. BL1's
 trace reports PRECISERR and the matching BFAR; its fault PC is obtained
 from the instruction trace immediately before the data abort. Product CP
