@@ -8,7 +8,8 @@ Flash-command clock consumer. The supported finite profiles have independent
 register, progress, source-loss and cancellation tests. It does not implement
 SYS+0x0c status, general Flash clock topology, physical serial/program/erase
 timing, PLL lock, or complete product startup. Product acceptance remains
-PARTIAL until its unchanged inputs and remote gate are validated.
+PARTIAL. The remote gate and a local unchanged-product comparison have now
+been validated below; default startup still stops at unimplemented devices.
 
 Engineering gate
 ----------------
@@ -298,3 +299,113 @@ The bounded Flash-command slice now has its contract, implementation and
 independent positive/negative evidence. New remote CI and the original product
 NOR comparisons remain open. SYS+0x0c and full product capability remain
 PARTIAL; neither stopped manufacturer run closes those gaps.
+
+Local unchanged-product comparison (2026-10-09)
+------------------------------------------------
+
+The user supplied the local OpenVela project as the firmware source, read-only.
+The existing full package from cold-delivery run ``36506715047`` was copied
+with its release/build manifests. Its declared source is
+``e0dce2516b7300d58ef6a4cd12861f2f39380378``, version ``0.7.0+1``, target
+``aidk_ai_toy``, CP ``app``, AP ``openvela_ap``, boot ``mcuboot``.
+No product source, configuration, build output or firmware byte was modified;
+no product rebuild, signing or physical flashing was performed. Running this
+AIDK input on the other two machine models is model regression, not evidence
+that their physical boards accept this product package.
+
+This is a new, separately identified product baseline. It does not recover
+the missing historical direct-app/MCUboot images listed above:
+
+* Package SHA256:
+  ``394fcd8cd1d3a30efd66c56a100b281e5d0c3d4ce7261e41ac919e141e4de5d2``.
+* Simulation NOR SHA256:
+  ``795e90a4dd7e29bff700ac4f932c1fdc848e5545e784f1c9f6d7f3bd39c13cf4``.
+* Original raw CP hash, recovered from CRC-framed payload after its 512-byte
+  MCUboot header and checked against the build manifest:
+  ``a6974b8f93155a707ba8942b57c0e4a3eb9f17b0c45dcedab69cf5bbce11c07b``.
+* Original raw BL1 hash, likewise checked:
+  ``4e1da542eb4d43a585f40d569ddbf7b15f9714a838b9444368f12d6eba20378c``.
+
+The 8-MiB NOR container copies every package ``images`` member and the
+``full_update`` payload unchanged to its manifest offset, checking sizes,
+hashes, partition bounds and non-overlap. Other ranges remain erased,
+including unspecified device identity and calibration. This is not a
+board-flashable factory image or a signature/boot-chain acceptance result.
+The explicit Flash status input is 512 bytes: ``00 00 20`` followed by zeros,
+SHA256 ``0447b8e676635ad3befa686ec7e75bf5dbea1f7005a0e2af8f808582eb12fe6e``.
+It is a diagnostic backend input, not a captured physical-device status.
+
+The same inputs ran on baseline ``1ce94ae`` and SYS V1 ``3adf85e`` on
+``t5_board``, ``t5ai_core`` and ``aidk_ai_toy``. All 24 executions agreed
+across the three machines:
+
+.. list-table:: First fault, before and after SYS V1
+   :header-rows: 1
+   :widths: 31 30 30
+
+   * - Entry / premise
+     - Baseline PC / address
+     - SYS V1 PC / address
+   * - CP 0x02010200, no probe
+     - 0x020180fa / 0x440001e8
+     - 0x020180fa / 0x440001e8
+   * - BL1 0x02000000, no probe
+     - 0x02000bfa / 0x4b1002c8
+     - 0x02000bfa / 0x4b1002c8
+   * - CP, explicit R7A=0x01000020 only
+     - 0x0202b9b2 / 0x44010024
+     - 0x020daa80 / 0x4980c000
+   * - BL1, explicit OTP control=3/status=0/word242=0 only
+     - 0x02000b18 / 0x4401000c
+     - 0x02000b18 / 0x4401000c
+
+CP fault PCs come from the firmware's UART exception frame, correlated with
+QEMU's first data-abort address. BL1 PCs come from its stable exception stack
+and instruction trace. In the R7A experiment, the later watchdog reset
+invalidates the supplied snapshot; a subsequent fault returns to R7A.
+Reading only the last BFAR/PC would therefore hide the first RF fault.
+Stopped CPU registers and raw stack are retained separately and must not
+automatically be called the first exception frame.
+
+This comparison proves that unchanged product code crosses the previous
+SYS+0x24 boundary. It does not independently validate every supported Flash
+rate, nor make the R7A injection a real reset model. The independent native
+and source-built guest tests remain the command-clock consumer oracle.
+RF at 0x4980c000 is the next unimplemented boundary, not a newly discovered
+regression; RF implementation is outside SYS V1. Unknown accesses still fault.
+
+Reproducing a prepared-input capture
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``scripts/bk7258-product-probe.py`` accepts explicit NOR/status hashes and a
+vector-table entry. It creates fresh writable copies in a new output directory,
+preserves source inputs, saves the command, emulator hash, UART, trace, stopped
+registers and before/after hashes, and never interprets a timed capture as
+successful startup. It needs local QMP/GDB Unix sockets. For example::
+
+  python3 scripts/bk7258-product-probe.py \
+    --qemu build-bk7258/qemu-system-arm --board aidk_ai_toy \
+    --nor product.nor \
+    --nor-sha256 795e90a4dd7e29bff700ac4f932c1fdc848e5545e784f1c9f6d7f3bd39c13cf4 \
+    --status input.status \
+    --status-sha256 0447b8e676635ad3befa686ec7e75bf5dbea1f7005a0e2af8f808582eb12fe6e \
+    --entry 0x02010200 --seconds 5 --output cp-default
+
+Use a different output directory for each capture. A separate, explicit
+``--r7a 0x01000020`` run reproduces the CP diagnostic. For BL1 use entry
+``0x02000000``, ``--seconds 1`` and ``--instruction-trace``; its isolated
+diagnostic additionally supplies ``--otp-control 3 --otp-status 0
+--otp-word242 0``. No diagnostic input is enabled by default, and combining
+OTP with R7A is rejected before launching QEMU. Partial OTP inputs and hash
+mismatches were also tested to reject without creating output or starting QEMU.
+
+An initial one-second CP capture with instruction tracing stopped during BSS
+zeroing, with no fault yet; it was not treated as success or a hardware bug.
+The measured CP comparisons use five seconds and no per-instruction trace.
+Every NOR remained hash-identical after execution. The original local package
+and manifests were rehashed after testing and remained unchanged.
+
+The actual ``3adf85e`` branch CI run ``37897442986`` and master CI run
+``37898455438`` both succeeded. These replace the former remote-gate gap for
+that implementation commit. Default product boot, SYS+0x0c ownership/status,
+physical-device behavior and complete product capability remain PARTIAL.
