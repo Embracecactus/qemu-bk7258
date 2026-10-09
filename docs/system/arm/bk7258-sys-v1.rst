@@ -404,6 +404,12 @@ zeroing, with no fault yet; it was not treated as success or a hardware bug.
 The measured CP comparisons use five seconds and no per-instruction trace.
 Every NOR remained hash-identical after execution. The original local package
 and manifests were rehashed after testing and remained unchanged.
+The six CP/R7A captures legitimately changed their private Flash status copies:
+bytes 0 and 1 became 0x38 and 0x02. Baseline and SYS V1 agree on those writes;
+all other captures leave status unchanged. This is distinct from unchanged
+NOR-array bytes and the read-only source status input. A blanket assertion
+that all writable status copies must remain unchanged was rejected during
+the final audit; the per-run before/after hashes preserve the actual behavior.
 
 The actual ``3adf85e`` branch CI run ``37897442986`` and master CI run
 ``37898455438`` both succeeded. These replace the former remote-gate gap for
