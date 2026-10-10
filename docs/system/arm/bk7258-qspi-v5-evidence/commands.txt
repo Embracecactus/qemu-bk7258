@@ -1,0 +1,32 @@
+Independent repository baseline: 7f72f37ccb3d3ea119eed6b0967621a08913a760.
+SDK read-only pin: cb080de1655d579c7593ecf504c440997c4c137b.
+No SDK or OpenVela build. No firmware or physical device operation.
+
+Configure options retained from V4:
+--target-list=arm-softmmu --without-default-features --disable-docs
+--disable-user --disable-tools --disable-rust --enable-tcg --enable-werror --enable-tests
+
+Build:
+ninja -C build-bk7258 -j2 qemu-system-arm tests/qtest/bk7258-test
+
+Same ELF on V4/new, from repository root:
+MESON_BUILD_ROOT=$PWD/build-bk7258 build-bk7258/pyvenv/bin/python3.12 docs/system/arm/bk7258-qspi-v5-evidence/reproduce.py <V4-qemu-system-arm> build-bk7258/qemu-system-arm <output>
+The three delivered ELF inputs use Arm GNU 10.3.1. Exact build and invocation
+arguments, exit results and hashes are in comparison.json. Both binaries
+receive the same ELF and the same explicit native SSI NOR topology.
+
+Full native gates, from build-bk7258:
+./pyvenv/bin/meson test --no-rebuild --print-errorlogs --logbase qspi-v5-native test-bk7258-clock ptimer-test qtest-arm/cmsdk-apb-timer-test test-i2c-readdress qtest-arm/npcm7xx_smbus-test qtest-arm/bk7258-test
+
+Full guest regression, from build-bk7258:
+QEMU_TEST_KEEP_SCRATCH=1 ./pyvenv/bin/meson test --setup thorough --no-rebuild --print-errorlogs --logbase qspi-v5-functional func-arm-bk7258
+
+Native long-frame evidence, from repository root:
+REAL_QEMU=$PWD/build-bk7258/qemu-system-arm QSPI_TRACE=$PWD/pause-cancel-native.log QTEST_QEMU_BINARY=$PWD/docs/system/arm/bk7258-qspi-v5-evidence/trace-qemu-system-arm build-bk7258/tests/qtest/bk7258-test -p /arm/bk7258/t5_board/qspi-page-pause-cancel
+MESON_BUILD_ROOT=$PWD/build-bk7258 build-bk7258/pyvenv/bin/python3.12 docs/system/arm/bk7258-qspi-v5-evidence/verify-cancel.py pause-cancel-native.log pause-cancel-frames.json
+The same capture/check is included in exact-SHA CI.
+
+Prior evidence reference, not copied:
+V4: https://github.com/Embracecactus/qemu-bk7258/tree/7f72f37ccb3d3ea119eed6b0967621a08913a760/docs/system/arm/bk7258-qspi-v4-evidence
+V4 archive SHA256: 99051f31b75369f1986968baec642de3f0fbdda3229695a6d7a1c704402c9d2c
+QSPI V4, SYS V1, multicore and I2C V3 tests remain in the regression.

@@ -1,0 +1,25 @@
+{
+  "baseline_sha": "7f72f37ccb3d3ea119eed6b0967621a08913a760",
+  "scope": "V5 sequence compatibility, not original SDK binary, full initialization or product boot",
+  "counts": {
+    "clock": 3,
+    "ptimer": 576,
+    "cmsdk_timer": 1,
+    "shared_i2c": 5,
+    "npcm_smbus": 40,
+    "bk_qtest": 286,
+    "bare_metal_functional": 274
+  },
+  "clock_contract_ns": {
+    "48MHz_one_byte": 167,
+    "24MHz_one_byte": 334,
+    "24MHz_two_bytes": 668,
+    "24MHz_100ns_before_gate_then_resume_remaining": 250
+  },
+  "clock_evidence": "qspi-flash-clock-progress assertions plus native-final.txt; actual command completion and NOR status, not only attributes",
+  "target_no_implicit_wren": "WRDI then program/read stays erased in qspi-page-boundaries",
+  "ci": "Exact delivered SHA CI required; final handoff records run and artifacts",
+  "preserved_failure": "extra WEL-autoclear guest assertion contradicted native m25p80; reverted to fixed SDK WIP-only post-program check, no target modifications",
+  "public_logs": "Inherited environment removed; failures, commands, UART and SSI bytes retained",
+  "prior_evidence": "V4 archive SHA256 99051f31b75369f1986968baec642de3f0fbdda3229695a6d7a1c704402c9d2c; no historical capture duplication"
+}

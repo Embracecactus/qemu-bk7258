@@ -1,0 +1,63 @@
+Traceback (most recent call last):
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/arm/test_bk7258.py", line 2012, in test_t5_board_qspi_page24
+    self.run_qspi_page("t5_board")
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/arm/test_bk7258.py", line 1984, in run_qspi_page
+    output = wait_for_console_pattern(self, "QSPI PAGE OK")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 191, in wait_for_console_pattern
+    return _console_interaction(test, success_message, failure_message,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 134, in _console_interaction
+    done, line = _console_read_line_until_match(test, vm,
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 59, in _console_read_line_until_match
+    test.fail(
+AssertionError: EOF in console, expected 'b'QSPI PAGE OK''
+
+TAP version 13
+not ok 1 test_bk7258.BK7258Machine.test_t5_board_qspi_page24
+Traceback (most recent call last):
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/arm/test_bk7258.py", line 2021, in test_t5_board_qspi_length33_48
+    self.run_qspi_page("t5_board", length=33, profile48=True)
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/arm/test_bk7258.py", line 1984, in run_qspi_page
+    output = wait_for_console_pattern(self, "QSPI PAGE OK")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 191, in wait_for_console_pattern
+    return _console_interaction(test, success_message, failure_message,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 134, in _console_interaction
+    done, line = _console_read_line_until_match(test, vm,
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 59, in _console_read_line_until_match
+    test.fail(
+AssertionError: EOF in console, expected 'b'QSPI PAGE OK''
+
+not ok 2 test_bk7258.BK7258Machine.test_t5_board_qspi_length33_48
+Traceback (most recent call last):
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/arm/test_bk7258.py", line 2024, in test_t5_board_qspi_short24
+    self.run_qspi_page("t5_board", length=32)
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/arm/test_bk7258.py", line 1984, in run_qspi_page
+    output = wait_for_console_pattern(self, "QSPI PAGE OK")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 191, in wait_for_console_pattern
+    return _console_interaction(test, success_message, failure_message,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 134, in _console_interaction
+    done, line = _console_read_line_until_match(test, vm,
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qemu-bk7258-sys-v1/tests/functional/qemu_test/cmd.py", line 59, in _console_read_line_until_match
+    test.fail(
+AssertionError: EOF in console, expected 'b'QSPI PAGE OK''
+
+not ok 3 test_bk7258.BK7258Machine.test_t5_board_qspi_short24
+ok 4 test_bk7258.BK7258Machine.test_t5_board_qspi_pio
+1..4
+More information on test_bk7258.BK7258Machine.test_t5_board_qspi_page24 could be found here:
+ /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/functional/arm/test_bk7258.BK7258Machine.test_t5_board_qspi_page24/base.log
+ /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/functional/arm/test_bk7258.BK7258Machine.test_t5_board_qspi_page24/console.log
+More information on test_bk7258.BK7258Machine.test_t5_board_qspi_length33_48 could be found here:
+ /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/functional/arm/test_bk7258.BK7258Machine.test_t5_board_qspi_length33_48/base.log
+ /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/functional/arm/test_bk7258.BK7258Machine.test_t5_board_qspi_length33_48/console.log
+More information on test_bk7258.BK7258Machine.test_t5_board_qspi_short24 could be found here:
+ /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/functional/arm/test_bk7258.BK7258Machine.test_t5_board_qspi_short24/base.log
+ /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/functional/arm/test_bk7258.BK7258Machine.test_t5_board_qspi_short24/console.log

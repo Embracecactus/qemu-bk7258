@@ -1,0 +1,4 @@
+#!/bin/sh
+# Optional qtest evidence capture; no model or target behavior changes.
+exec "${REAL_QEMU:?}" "$@" -trace enable=m25p80_select \
+    -trace enable=m25p80_transfer -D "${QSPI_TRACE:?}"

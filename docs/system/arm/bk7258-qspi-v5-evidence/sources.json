@@ -1,0 +1,28 @@
+{
+  "sdk_commit": "cb080de1655d579c7593ecf504c440997c4c137b",
+  "checked_working_files_equal_pinned_blobs": true,
+  "source_sha256": {
+    "ap/middleware/driver/qspi/qspi_flash.c": "42bd834c5994c6b6116bb214adecb28bcbf3ba8c22ab99f7b3e064145cf5a13f",
+    "ap/middleware/driver/qspi/qspi_driver.c": "729ae9d4319ea9a87fdcf246634b7ce65adb32763bc656c5335ef4000c16ab0e",
+    "ap/middleware/soc/common/hal/qspi_hal.c": "a6dd72bf65b87e4f7ec26d9c6c80b063326bacfe440df4c8e8ae739a75a207d7",
+    "ap/middleware/soc/bk7258_ap/hal/qspi_ll.h": "58a4dd22c7b9d750744e850639fbd977e00bde4c863ea3f30b28f3c348979707",
+    "ap/middleware/soc/bk7258_ap/soc/qspi_struct.h": "419ca093829be553ea8346fd65703a1e95a118a1930187fc26cf9d3c5ad968d7",
+    "ap/middleware/soc/bk7258_ap/hal/sys_hal.c": "62ed2100cccf2c7850bed82fc377a01acdabaa207d16d9c7dde197898e2c0201",
+    "ap/middleware/soc/bk7258_ap/hal/sys_ll.h": "f8b1700aca0078ee607fa3036590f598d3faab4bcb8eed362ab3c1bcd56534d8",
+    "ap/middleware/soc/bk7258_ap/hal/sys_types.h": "e4bf8480c39e33f69821a9cbc0ffee6b4bce8d6a2a3ccd37256d80bf55d6ce40"
+  },
+  "v4_source_manifest": "../bk7258-qspi-v4-evidence/sources.json",
+  "web_version": "AP BK7258 v3.1.1",
+  "web_readable": "search-index text; confirmed 480/4/2=24MHz and 256-byte guide description",
+  "raw_html_download": "not reacquired; V4 timeout evidence reused",
+  "raw_html_sha256": null,
+  "v4_archive_sha256": "99051f31b75369f1986968baec642de3f0fbdda3229695a6d7a1c704402c9d2c",
+  "sdk_built_or_modified": false,
+  "guest_adaptations": [
+    "one aligned page per call; no faulty uint32_t pointer cross-block increment",
+    "equivalent packed command bytes; zero inactive bytes",
+    "SysTick timeout replaces RTOS services",
+    "3-byte JEDEC fixture ID read",
+    "WIP is checked separately after controller completion; no assumption of WEL auto-clear by native target"
+  ]
+}

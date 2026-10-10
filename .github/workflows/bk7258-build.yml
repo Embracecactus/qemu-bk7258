@@ -58,6 +58,18 @@ jobs:
         run: |
           cd build-bk7258
           ./pyvenv/bin/meson test --no-rebuild --print-errorlogs qtest-arm/bk7258-test
+      - name: Check QSPI long-frame pause and cancellation events
+        run: |
+          REAL_QEMU=$PWD/build-bk7258/qemu-system-arm \
+          QSPI_TRACE=$PWD/build-bk7258/meson-logs/qspi-page-cancel-trace.log \
+          QTEST_QEMU_BINARY=$PWD/docs/system/arm/bk7258-qspi-v5-evidence/trace-qemu-system-arm \
+            build-bk7258/tests/qtest/bk7258-test \
+            -p /arm/bk7258/t5_board/qspi-page-pause-cancel
+          MESON_BUILD_ROOT=$PWD/build-bk7258 \
+            build-bk7258/pyvenv/bin/python3 \
+            docs/system/arm/bk7258-qspi-v5-evidence/verify-cancel.py \
+            build-bk7258/meson-logs/qspi-page-cancel-trace.log \
+            build-bk7258/meson-logs/qspi-page-cancel-frames.json
       - name: Execute source-built three-core fixtures
         env:
           QEMU_TEST_KEEP_SCRATCH: '1'
@@ -65,6 +77,10 @@ jobs:
           cd build-bk7258
           command -v arm-none-eabi-gcc
           ./pyvenv/bin/meson test --setup thorough --print-errorlogs func-arm-bk7258
+      - name: Verify QSPI V5 incremental evidence
+        run: |
+          cd docs/system/arm/bk7258-qspi-v5-evidence
+          sha256sum --check SHA256SUMS
       - name: Verify QSPI V4 comparison evidence
         run: |
           cd docs/system/arm/bk7258-qspi-v4-evidence
@@ -89,6 +105,7 @@ jobs:
             build-bk7258/meson-logs/bk7258-clock-unit*
             build-bk7258/meson-logs/shared-timer*
             build-bk7258/meson-logs/shared-i2c*
+            build-bk7258/meson-logs/qspi-page-cancel*
             build-bk7258/meson-logs/testlog*
             build-bk7258/tests/functional/arm/test_bk7258.*
       - uses: actions/upload-artifact@v4
@@ -119,3 +136,12 @@ jobs:
           path: |
             docs/system/arm/bk7258-qspi-v4.rst
             docs/system/arm/bk7258-qspi-v4-evidence/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bk7258-qspi-v5-evidence-${{ github.sha }}
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            docs/system/arm/bk7258-qspi-v5.rst
+            docs/system/arm/bk7258-qspi-v5-evidence/

@@ -1,0 +1,10 @@
+ninja: Entering directory `build-bk7258'
+[1/9] Generating qemu-version.h with a custom command (wrapped by meson to capture output)
+fatal: No names found, cannot describe anything.
+
+[2/7] Compiling C object libsystem.a.p/hw_ssi_bk7258_qspi.c.o
+[3/7] Compiling C object libsystem_arm.a.p/hw_arm_bk7258_boards.c.o
+[4/7] Compiling C object libsystem_arm.a.p/hw_arm_bk7258.c.o
+[5/7] Compiling C object tests/qtest/bk7258-test.p/bk7258-test.c.o
+[6/7] Linking target tests/qtest/bk7258-test
+[7/7] Linking target qemu-system-arm

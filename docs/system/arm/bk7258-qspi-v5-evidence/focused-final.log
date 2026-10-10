@@ -1,0 +1,6 @@
+TAP version 13
+ok 1 test_bk7258.BK7258Machine.test_t5_board_qspi_page24
+ok 2 test_bk7258.BK7258Machine.test_t5_board_qspi_length33_48
+ok 3 test_bk7258.BK7258Machine.test_t5_board_qspi_short24
+ok 4 test_bk7258.BK7258Machine.test_t5_board_qspi_pio
+1..4
