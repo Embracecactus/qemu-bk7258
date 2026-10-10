@@ -86,6 +86,9 @@ typedef QSIMPLEQ_HEAD(I2CPendingMasters, I2CPendingMaster) I2CPendingMasters;
 struct I2CBus {
     BusState qbus;
     I2CNodeList current_devs;
+    /* Explicit readdress API: STOP observers, distinct from data recipients. */
+    I2CNodeList stop_devs;
+    bool readdress_active;
     I2CPendingMasters pending_masters;
     uint8_t saved_address;
     bool broadcast;
@@ -110,6 +113,26 @@ int i2c_bus_busy(I2CBus *bus);
  * Returns: 0 on success, -1 on error
  */
 int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv);
+
+/**
+ * i2c_start_transfer_readdress: synchronous 7-bit START or repeated START.
+ * @bus: bus owned by the calling controller, or currently idle
+ * @address: ordinary 7-bit target address (0x08 through 0x77)
+ * @is_recv: true to receive from the target
+ *
+ * Always decode the address, including while the bus is held. An address
+ * NAK leaves no data recipient but retains bus ownership until end_transfer.
+ * No I2C_FINISH is delivered at readdressing: each visited target receives
+ * it once at end_transfer (STOP, or the controller's explicit cancellation).
+ * Target START callbacks retain their existing device-specific semantics.
+ *
+ * Single synchronous controller only. Do not mix with legacy start or async
+ * APIs within a transaction. Reserved addresses are rejected before changing
+ * state. The caller must already own a busy transaction. Active transactions
+ * cannot be migrated; idle migration and legacy streams are unchanged.
+ * Returns: 0 for target ACK, nonzero for NAK or unsupported use.
+ */
+int i2c_start_transfer_readdress(I2CBus *bus, uint8_t address, bool is_recv);
 
 /**
  * i2c_start_recv: start a 'receive' transfer on an I2C bus.

@@ -32,6 +32,10 @@ static int i2c_bus_pre_save(void *opaque)
 {
     I2CBus *bus = opaque;
 
+    /* Legacy VMState cannot represent held-with-no-target or STOP observers. */
+    if (bus->readdress_active) {
+        return -ENOTSUP;
+    }
     bus->saved_address = -1;
     if (!QLIST_EMPTY(&bus->current_devs)) {
         if (!bus->broadcast) {
@@ -62,6 +66,7 @@ I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
 
     bus = I2C_BUS(qbus_new(TYPE_I2C_BUS, parent, name));
     QLIST_INIT(&bus->current_devs);
+    QLIST_INIT(&bus->stop_devs);
     QSIMPLEQ_INIT(&bus->pending_masters);
     vmstate_register_any(NULL, &vmstate_i2c_bus, bus);
     return bus;
@@ -75,7 +80,7 @@ void i2c_slave_set_address(I2CSlave *dev, uint8_t address)
 /* Return nonzero if bus is busy.  */
 int i2c_bus_busy(I2CBus *bus)
 {
-    return !QLIST_EMPTY(&bus->current_devs) || bus->bh;
+    return bus->readdress_active || !QLIST_EMPTY(&bus->current_devs) || bus->bh;
 }
 
 bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
@@ -125,6 +130,9 @@ static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
     I2CNode *node;
     bool bus_scanned = false;
 
+    if (bus->readdress_active) {
+        return -1; /* No legacy/explicit API mixing before STOP. */
+    }
     if (address == I2C_BROADCAST) {
         /*
          * This is a broadcast, the current_devs will be all the devices of the
@@ -180,6 +188,60 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
     return i2c_do_start_transfer(bus, address, is_recv
                                                ? I2C_START_RECV
                                                : I2C_START_SEND);
+}
+
+/* Deselect data recipients without a STOP or target completion callback. */
+static void i2c_deselect(I2CBus *bus)
+{
+    I2CNode *node, *next;
+
+    QLIST_FOREACH_SAFE(node, &bus->current_devs, next, next) {
+        trace_i2c_event("deselect", node->elt->address);
+        QLIST_REMOVE(node, next);
+        g_free(node);
+    }
+}
+
+int i2c_start_transfer_readdress(I2CBus *bus, uint8_t address, bool is_recv)
+{
+    I2CNode *node, *visited;
+    I2CSlaveClass *sc;
+    int ret;
+
+    if (address < 0x08 || address >= 0x78 || bus->bh ||
+        (!bus->readdress_active && i2c_bus_busy(bus))) {
+        return -1;
+    }
+    trace_i2c_readdress(address, is_recv, bus->readdress_active);
+    bus->readdress_active = true;
+    bus->broadcast = false;
+    i2c_deselect(bus);
+    i2c_scan_bus(bus, address, false, &bus->current_devs);
+    node = QLIST_FIRST(&bus->current_devs);
+    if (!node) {
+        trace_i2c_event("address_nak", address);
+        return -1;
+    }
+
+    /* Retain each target until the actual STOP, without duplicate FINISH. */
+    QLIST_FOREACH(visited, &bus->stop_devs, next) {
+        if (visited->elt == node->elt) {
+            break;
+        }
+    }
+    if (!visited) {
+        visited = g_new(I2CNode, 1);
+        visited->elt = node->elt;
+        QLIST_INSERT_HEAD(&bus->stop_devs, visited, next);
+    }
+    sc = I2C_SLAVE_GET_CLASS(node->elt);
+    ret = sc->event ? sc->event(node->elt,
+                              is_recv ? I2C_START_RECV : I2C_START_SEND) : 0;
+    trace_i2c_event(ret ? "address_nak" : "address_ack", address);
+    if (ret) {
+        i2c_deselect(bus);
+    }
+    return ret;
 }
 
 void i2c_bus_master(I2CBus *bus, QEMUBH *bh)
@@ -239,6 +301,13 @@ void i2c_end_transfer(I2CBus *bus)
     I2CSlaveClass *sc;
     I2CNode *node, *next;
 
+    if (bus->readdress_active) {
+        trace_i2c_event("end", 0);
+        i2c_deselect(bus);
+        QLIST_SWAP(&bus->current_devs, &bus->stop_devs, next);
+        bus->readdress_active = false;
+    }
+
     QLIST_FOREACH_SAFE(node, &bus->current_devs, next, next) {
         I2CSlave *s = node->elt;
         sc = I2C_SLAVE_GET_CLASS(s);
@@ -259,6 +328,10 @@ int i2c_send(I2CBus *bus, uint8_t data)
     I2CNode *node;
     int ret = 0;
 
+    if (bus->readdress_active && QLIST_EMPTY(&bus->current_devs)) {
+        return -1;
+    }
+
     QLIST_FOREACH(node, &bus->current_devs, next) {
         s = node->elt;
         sc = I2C_SLAVE_GET_CLASS(s);
@@ -275,9 +348,16 @@ int i2c_send(I2CBus *bus, uint8_t data)
 
 int i2c_send_async(I2CBus *bus, uint8_t data)
 {
-    I2CNode *node = QLIST_FIRST(&bus->current_devs);
-    I2CSlave *slave = node->elt;
-    I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(slave);
+    I2CNode *node;
+    I2CSlave *slave;
+    I2CSlaveClass *sc;
+
+    if (bus->readdress_active) {
+        return -1;
+    }
+    node = QLIST_FIRST(&bus->current_devs);
+    slave = node->elt;
+    sc = I2C_SLAVE_GET_CLASS(slave);
 
     if (!sc->send_async) {
         return -1;

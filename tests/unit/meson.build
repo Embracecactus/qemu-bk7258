@@ -168,6 +168,12 @@ if have_system
     }
   endif
   tests += {'test-qdev': [qom, hwcore]}
+  tests += {'test-i2c-readdress': [qom, hwcore,
+    meson.project_source_root() / 'hw/i2c/core.c',
+    meson.project_source_root() / 'hw/i2c/smbus_slave.c',
+    meson.project_source_root() / 'hw/i2c/smbus_master.c',
+    meson.project_source_root() / 'hw/i2c/i2c_mux_pca954x.c']}
+
 endif
 
 if have_ga and host_os == 'linux'
