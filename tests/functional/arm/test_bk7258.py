@@ -1605,6 +1605,54 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_ckmn_missing_route(self):
         self.run_ckmn("aidk_ai_toy", missing_route=True)
 
+    def run_i2c_readdress(self, board):
+        elf = self.build_fixture(board, "i2c_readdress.c")
+        for address in (0x50, 0x51):
+            self.vm.add_args(
+                "-device", f"at24c-eeprom,bus=i2c0,address={address},rom-size=256"
+            )
+        self.vm.add_args("-icount", "shift=0,align=off,sleep=off",
+                         "-trace", "enable=i2c_*")
+        trace = self.launch_fixture(elf, accelerator="tcg,thread=single")
+        output = wait_for_console_pattern(self, " DONE")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0, output.decode())
+        self.assertIn(b"RESULT 00000000 00000013 00000013 "
+                      b"00000000 00000000 DONE", output)
+        # Verify native target events, not just MMIO status or guest output.
+        lines = trace.read_text().splitlines()
+        self.assertTrue(all(line.startswith("i2c_") for line in lines), lines)
+        begin = lines.index("i2c_recv recv(addr:0x50) data:0x35")
+        end = lines.index("i2c_event address_nak(addr:0x52)")
+        self.assertEqual(lines[begin:end + 1], [
+            "i2c_recv recv(addr:0x50) data:0x35",
+            "i2c_event nack(addr:0x50)",
+            "i2c_readdress addr:0x51 recv:0 repeated:1",
+            "i2c_event deselect(addr:0x50)",
+            "i2c_event address_ack(addr:0x51)",
+            "i2c_send send(addr:0x51) data:0x20",
+            "i2c_readdress addr:0x51 recv:1 repeated:1",
+            "i2c_event deselect(addr:0x51)",
+            "i2c_event address_ack(addr:0x51)",
+            "i2c_recv recv(addr:0x51) data:0xc7",
+            "i2c_event nack(addr:0x51)",
+            "i2c_readdress addr:0x52 recv:0 repeated:1",
+            "i2c_event deselect(addr:0x51)",
+            "i2c_event address_nak(addr:0x52)",
+        ])
+        self.assertEqual(lines.count("i2c_event end(addr:0x00)"), 4)
+        self.assertEqual(lines.count("i2c_event finish(addr:0x50)"), 3)
+        self.assertEqual(lines.count("i2c_event finish(addr:0x51)"), 2)
+
+    def test_t5_board_i2c_readdress(self):
+        self.run_i2c_readdress("t5_board")
+
+    def test_t5ai_core_i2c_readdress(self):
+        self.run_i2c_readdress("t5ai_core")
+
+    def test_aidk_ai_toy_i2c_readdress(self):
+        self.run_i2c_readdress("aidk_ai_toy")
+
     def run_i2c_sdk(self, board, missing_route=False, bad_address=False):
         elf = self.build_fixture(
             board, "i2c_sdk.c", MISSING_ROUTE=int(missing_route),

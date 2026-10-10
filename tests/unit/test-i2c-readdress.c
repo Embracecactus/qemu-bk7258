@@ -137,7 +137,8 @@ static void legacy(void)
     TestTarget *a = target(bus, 0x50), *b = target(bus, 0x51);
     g_assert_cmpint(i2c_start_send(bus, 0x50), ==, 0);
     g_assert_cmpint(i2c_start_recv(bus, 0x51), ==, 0);
-    g_assert_cmpuint(a->starts, ==, 2); /* Existing API intentionally unchanged. */
+    /* Existing API intentionally unchanged. */
+    g_assert_cmpuint(a->starts, ==, 2);
     g_assert_cmpuint(b->starts, ==, 0);
     g_assert_cmpint(i2c_start_transfer_readdress(bus, 0x51, false), !=, 0);
     i2c_end_transfer(bus);

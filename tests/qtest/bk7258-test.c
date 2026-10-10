@@ -2193,9 +2193,10 @@ static void test_i2c_w0c_nak_routes(const void *board)
         i2c_address(qts, g, 0xa0, true);
         qtest_writel(qts, base + 0x18, 0xa2);
         qtest_writel(qts, base + 0x14, 0x400);
-        /* Different-address repeated START is explicitly outside the API. */
-        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x501, ==, 0x501);
-        qtest_writel(qts, base + 8, 0); /* Invalid command did not alter bus. */
+        i2c_wait_irq(qts, g);
+        /* Cross-address reselect must see the missing target's actual NAK. */
+        g_assert_cmphex(qtest_readl(qts, base + 0x14) & 0x501, ==, 0x401);
+        qtest_writel(qts, base + 8, 0); /* Cancel the still-owned bus. */
         expect(qts, SYS + 0xa0, 0);
         expect(qts, base + 0x14, 0x10);
         for (unsigned core = 0; core < 3; core++) {
@@ -2246,6 +2247,130 @@ static void test_i2c_clock_reset_cancel(const void *board)
         qtest_system_reset(qts);
         expect(qts, base + 8, 0);
         expect(qts, base + 0x14, 0x10);
+    }
+    qtest_quit(qts);
+}
+
+static QTestState *start_i2c_pair(const void *board)
+{
+    return qtest_initf("-machine %s -serial null "
+                      "-device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 "
+                      "-device at24c-eeprom,bus=i2c0,address=0x51,rom-size=256 "
+                      "-device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256 "
+                      "-device at24c-eeprom,bus=i2c1,address=0x51,rom-size=256",
+                      (const char *)board);
+}
+
+static void i2c_send_byte(QTestState *qts, unsigned g, uint8_t byte)
+{
+    qtest_writel(qts, i2c_base[g] + 0x18, byte);
+    i2c_command(qts, g, 0x100);
+    g_assert_cmphex(qtest_readl(qts, i2c_base[g] + 0x14) & 0x101, ==, 0x101);
+}
+
+static void test_i2c_readdress(const void *board)
+{
+    QTestState *qts = start_i2c_pair(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = i2c_base[g], irq = 1u << i2c_irq[g];
+
+        i2c_setup(qts, g);
+        i2c_address(qts, g, 0xa0, true);
+        i2c_send_byte(qts, g, 0x20);
+        i2c_send_byte(qts, g, 0x35);
+        i2c_address(qts, g, 0xa2, true);
+        i2c_send_byte(qts, g, 0x20);
+        i2c_send_byte(qts, g, 0xc7);
+        /* Real controller event persists while SYS routing is masked. */
+        expect(qts, SYS + 0xa0, 0);
+        qtest_writel(qts, SYS + 0x80, irq);
+        expect(qts, SYS + 0xa0, irq);
+        qtest_writel(qts, SYS + 0x80, 0);
+        g_assert_cmphex(qtest_readl(qts, b + 0x14) & 0x101, ==, 0x101);
+        i2c_address(qts, g, 0xa4, false);
+        g_assert_cmphex(qtest_readl(qts, b + 0x14) & 0x8000, ==, 0x8000);
+        /* No target: a software ACK cannot deliver this byte to A or B. */
+        qtest_writel(qts, b + 0x18, 0xee);
+        i2c_command(qts, g, 0x100);
+        g_assert_cmphex(qtest_readl(qts, b + 0x14) & 0x101, ==, 1);
+        i2c_stop(qts, g);
+        /* Disable clears the undelivered FIFO byte before new commands. */
+        qtest_writel(qts, b + 8, 0);
+        i2c_setup(qts, g);
+        for (unsigned addr = 0xa0; addr <= 0xa2; addr += 2) {
+            i2c_address(qts, g, addr, true);
+            i2c_send_byte(qts, g, 0x20);
+            i2c_address(qts, g, addr | 1, true);
+            i2c_command(qts, g, 0x1c0);
+            expect(qts, b + 0x18, addr == 0xa0 ? 0x35 : 0xc7);
+            i2c_command(qts, g, 0x1c0);
+            expect(qts, b + 0x18, 0); /* No leaked missing-address data. */
+            /* The next address issues read NAK then Sr, without STOP. */
+        }
+        i2c_stop(qts, g);
+    }
+    qtest_quit(qts);
+}
+
+static void test_i2c_readdress_cancel(const void *board)
+{
+    QTestState *qts = start_i2c_pair(board);
+
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = i2c_base[g];
+
+        for (unsigned cancel = 0; cancel < 4; cancel++) {
+            i2c_setup(qts, g);
+            i2c_address(qts, g, 0xa0, true);
+            qtest_writel(qts, b + 0x18, 0xa2);
+            qtest_writel(qts, b + 0x14, 0x400);
+            qtest_clock_step(qts, 5000);
+            qtest_writel(qts, SYS + 0x30, 0);
+            qtest_clock_step(qts, 1000000);
+            g_assert_cmphex(qtest_readl(qts, b + 0x14) & 0x501, ==, 0x400);
+            if (cancel) {
+                if (cancel == 1) {
+                    qtest_writel(qts, b + 8, 0);
+                } else if (cancel == 2) {
+                    qtest_system_reset(qts);
+                } else {
+                    qtest_writel(qts, b + 0x10, 0x4c000000 | (7u << 6));
+                }
+                i2c_setup(qts, g);
+                qtest_clock_step(qts, 1000000);
+                expect(qts, b + 0x14, 0x10);
+                i2c_address(qts, g, 0xa2, true);
+            } else {
+                qtest_writel(qts, SYS + 0x30, 1u << i2c_gate[g]);
+                qtest_clock_step(qts, 5384);
+                g_assert_cmphex(qtest_readl(qts, b + 0x14) & 1, ==, 0);
+                qtest_clock_step(qts, 1);
+                g_assert_cmphex(qtest_readl(qts, b + 0x14) & 0x501,
+                                ==, 0x501);
+            }
+            i2c_send_byte(qts, g, 0x40 + cancel * 4);
+            i2c_send_byte(qts, g, 0x70 + cancel);
+            /* Pause the next byte, with the previous byte already complete. */
+            qtest_writel(qts, b + 0x18, 0x90 + cancel);
+            qtest_writel(qts, b + 0x14, 0x100);
+            qtest_clock_step(qts, 5000);
+            qtest_writel(qts, SYS + 0x30, 0);
+            qtest_clock_step(qts, 1000000);
+            g_assert_cmphex(qtest_readl(qts, b + 0x14) & 1, ==, 0);
+            qtest_writel(qts, SYS + 0x30, 1u << i2c_gate[g]);
+            i2c_wait_irq(qts, g);
+            i2c_address(qts, g, 0xa2, true);
+            i2c_send_byte(qts, g, 0x40 + cancel * 4);
+            i2c_address(qts, g, 0xa3, true);
+            i2c_command(qts, g, 0x1c0);
+            expect(qts, b + 0x18, 0x70 + cancel);
+            i2c_command(qts, g, 0x1c0);
+            expect(qts, b + 0x18, 0x90 + cancel);
+            i2c_command(qts, g, 0x1c0);
+            expect(qts, b + 0x18, 0); /* Neither byte was duplicated. */
+            i2c_stop(qts, g);
+        }
     }
     qtest_quit(qts);
 }
@@ -5058,6 +5183,8 @@ int main(int argc, char **argv)
         {"i2c-fifo-native-bus-transactions", test_i2c_fifo_transactions},
         {"i2c-w0c-nak-irq-routes", test_i2c_w0c_nak_routes},
         {"i2c-clock-reset-cancel", test_i2c_clock_reset_cancel},
+        {"i2c-readdress", test_i2c_readdress},
+        {"i2c-readdress-cancel", test_i2c_readdress_cancel},
         {"i2c-register-write-deadline", test_i2c_unchanged_deadline},
         {"timer-groups-channels-routes-w1c", test_timg_channels},
         {"timer-clock-snapshot-cancel", test_timg_clock_snapshot},

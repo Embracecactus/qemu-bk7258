@@ -130,7 +130,8 @@ static void bk7258_i2c_complete(void *opaque)
         s->address = byte >> 1;
         s->receiving = byte & 1;
         s->read_nacked = false;
-        s->selected = !i2c_start_transfer(s->bus, s->address, s->receiving);
+        s->selected = !i2c_start_transfer_readdress(s->bus, s->address,
+                                                  s->receiving);
         s->bus_owned = i2c_bus_busy(s->bus);
         s->status = (s->status & ~ACK) | SM_INT | START |
                     (s->selected ? ACK : 0);
@@ -245,10 +246,9 @@ static bool bk7258_i2c_status_write(BK7258I2CState *s, uint32_t value)
             return false;
         }
         address = s->tx[s->tx_head] >> 1;
-        /* Core I2C API does not rescan a selected bus on repeated START. */
-        if (!address || address >= 0x78 ||
-            (i2c_bus_busy(s->bus) && !s->bus_owned) ||
-            (s->bus_owned && address != s->address)) {
+        /* Only ordinary 7-bit addresses and our existing ownership. */
+        if (address < 0x08 || address >= 0x78 ||
+            (i2c_bus_busy(s->bus) && !s->bus_owned)) {
             return false;
         }
     }
