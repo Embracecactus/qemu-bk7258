@@ -1888,6 +1888,80 @@ class BK7258Machine(QemuSystemTest):
     def test_aidk_ai_toy_flash_sdk_bad_fifo(self):
         self.run_flash_sdk("aidk_ai_toy", bad_fifo=True)
 
+    def run_qspi_pio(self, board, bad_dummy=False):
+        elf = self.build_fixture(board, "qspi_pio.c", BAD_DUMMY=int(bad_dummy))
+        stores = []
+        for bus in range(2):
+            backing = Path(self.scratch_file(f"qspi{bus}.bin"))
+            backing.write_bytes(b"\xff" * (4 * 1024 * 1024))
+            stores.append(backing)
+            self.vm.add_args(
+                "-drive", f"if=none,id=qspi{bus}flash,format=raw,file={backing}",
+                "-device", f"w25q32,bus=qspi{bus},cs=0,drive=qspi{bus}flash")
+        self.vm.add_args("-icount", "shift=0,align=off,sleep=off",
+                         "-trace", "enable=m25p80_select",
+                         "-trace", "enable=m25p80_transfer")
+        mmio = self.launch_fixture(elf)
+        output = wait_for_console_pattern(self, "QSPI PIO OK")
+        self.vm.wait(timeout=5)
+        self.assertEqual(self.vm.exitcode(), 0, output.decode())
+        if bad_dummy:
+            self.assertIn(b"QSPI DUMMY PRECISE FAULT OK", output)
+            self.assertIn("unsupported write 0x5c value 0x0001000d", mmio.read_text())
+            self.assertNotIn("m25p80_transfer", mmio.read_text())
+            return
+        active, frames = {}, {}
+        for line in mmio.read_text().splitlines():
+            event = re.search(r"m25p80_(select|transfer) \[(0x[0-9a-f]+)\] (.*)", line)
+            self.assertIsNotNone(event, line)
+            kind, device, detail = event.groups()
+            if kind == "select":
+                if detail == "select":
+                    self.assertIsNone(active.get(device), line)
+                    active[device] = []
+                else:
+                    self.assertEqual(detail, "deselect", line)
+                    if active.get(device):
+                        frames.setdefault(device, []).append(active[device])
+                    active[device] = None
+            else:
+                self.assertIsNotNone(active.get(device), line)
+                active[device].append(int(re.search(r" tx 0x([0-9a-f]+)$", detail)[1], 16))
+        self.assertEqual(len(frames), 2)
+        self.assertTrue(all(v is None for v in active.values()))
+        meta = Path(self.log_file("fixture-inputs.json"))
+        record = json.loads(meta.read_text())
+        record["ssi_frames"] = []
+        record["nor_initial_sha256"] = hashlib.sha256(b"\xff" * (4 * 1024 * 1024)).hexdigest()
+        record["nor_final_sha256"] = []
+        for bus, transfers in enumerate(frames.values()):
+            expected = [[0x9f, 255, 255, 255], [5, 255]]
+            contents = bytearray(b"\xff" * (4 * 1024 * 1024))
+            for k, n in enumerate((1, 3, 4, 5, 31, 32)):
+                address = (k + 1) * 256
+                data = [(j + 17 * k + 83 * bus) & 255 for j in range(n)]
+                expected += [[6], [5, 255], [2, 0, k + 1, 0] + data,
+                             [3, 0, k + 1, 0] + [255] * n,
+                             [3, 0, k + 1, n, 255]]
+                contents[address:address + n] = bytes(data)
+            self.assertEqual(transfers, expected)
+            self.assertEqual(stores[bus].read_bytes(), contents)
+            record["ssi_frames"].append(transfers)
+            record["nor_final_sha256"].append(hashlib.sha256(contents).hexdigest())
+        meta.write_text(json.dumps(record, indent=2) + "\n")
+
+    def test_t5_board_qspi_pio(self):
+        self.run_qspi_pio("t5_board")
+
+    def test_t5ai_core_qspi_pio(self):
+        self.run_qspi_pio("t5ai_core")
+
+    def test_aidk_ai_toy_qspi_pio(self):
+        self.run_qspi_pio("aidk_ai_toy")
+
+    def test_t5_board_qspi_bad_dummy(self):
+        self.run_qspi_pio("t5_board", bad_dummy=True)
+
     def run_spi_sdk(self, board):
         elf = self.build_fixture(board, "spi_sdk.c")
         stores = []

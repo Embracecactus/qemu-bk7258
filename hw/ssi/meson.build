@@ -1,4 +1,4 @@
-system_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258_spi.c'))
+system_ss.add(when: 'CONFIG_BK7258', if_true: files('bk7258_spi.c', 'bk7258_qspi.c'))
 system_ss.add(when: 'CONFIG_ALLWINNER_A10_SPI', if_true: files('allwinner-a10-spi.c'))
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files('aspeed_smc.c'))
 system_ss.add(when: 'CONFIG_MSF2', if_true: files('mss-spi.c'))

@@ -6,6 +6,7 @@
 #include "hw/char/bk7258_uart.h"
 #include "hw/i2c/bk7258_i2c.h"
 #include "hw/ssi/bk7258_spi.h"
+#include "hw/ssi/bk7258_qspi.h"
 #include "hw/dma/bk7258_dma.h"
 #include "hw/timer/bk7258_rtc.h"
 #include "hw/timer/bk7258_timer.h"
@@ -34,6 +35,9 @@ struct BK7258State {
     MemoryRegion dma_ns[2];
     MemoryRegion dma_memory;
     MemoryRegion dma_sram[4];
+    BK7258QSPIState qspi[2];
+    MemoryRegion qspi_ns[2];
+    Clock *qspiclk[2];
     BK7258SPIState spi[2];
     MemoryRegion spi_ns[2];
     Clock *spiclk[2];

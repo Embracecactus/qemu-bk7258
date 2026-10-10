@@ -4778,6 +4778,7 @@ F: hw/block/bk7258_nor.c
 F: hw/char/bk7258_uart.c
 F: hw/i2c/bk7258_i2c.c
 F: hw/ssi/bk7258_spi.c
+F: hw/ssi/bk7258_qspi.c
 F: hw/dma/bk7258_dma.c
 F: hw/misc/bk7258_aon.c
 F: hw/misc/bk7258_ckmn.c
@@ -4794,6 +4795,7 @@ F: include/hw/block/bk7258_nor.h
 F: include/hw/char/bk7258_uart.h
 F: include/hw/i2c/bk7258_i2c.h
 F: include/hw/ssi/bk7258_spi.h
+F: include/hw/ssi/bk7258_qspi.h
 F: include/hw/dma/bk7258_dma.h
 F: include/hw/misc/bk7258_clock.h
 F: include/hw/misc/bk7258_aon.h
@@ -4813,6 +4815,9 @@ F: docs/system/arm/bk7258.rst
 F: docs/system/arm/bk7258-driver-audit.rst
 F: docs/system/arm/bk7258-entry-state-probe.rst
 F: docs/system/arm/bk7258-sys-v1.rst
+F: docs/system/arm/bk7258-qspi-v4.rst
+F: docs/system/arm/bk7258-qspi-v4-evidence/
+F: scripts/bk7258-scrub-test-logs.py
 F: docs/system/arm/bk7258-i2c-v3.rst
 F: docs/system/arm/bk7258-i2c-v3-evidence/
 F: docs/system/arm/bk7258-entry-v2.rst

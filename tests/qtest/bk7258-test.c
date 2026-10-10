@@ -1133,6 +1133,230 @@ static void test_watchdog(const void *board)
     qtest_quit(qts);
 }
 
+static QTestState *start_qspi(const void *board)
+{
+    return qtest_initf("-machine %s -serial null "
+                      "-device w25q32,bus=qspi0,cs=0 "
+                      "-device w25q32,bus=qspi1,cs=0", (const char *)board);
+}
+
+static void qspi_setup(QTestState *qts)
+{
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    qtest_clock_step(qts, 1000);
+    qtest_writel(qts, SYS + 0x24, 0x640);
+    qtest_writel(qts, SYS + 0x28, 0x640);
+    qtest_writel(qts, SYS + 0x30, 3U << 20);
+    qtest_writel(qts, 0x46040060, 9);
+    qtest_writel(qts, 0x46060060, 9);
+}
+
+static void qspi_begin(QTestState *qts, uint32_t b, bool read,
+                       uint32_t cmd, bool address, unsigned length)
+{
+    uint32_t c = b + (read ? 0x50 : 0x40);
+    qtest_writel(qts, b + 0x6c, 4);
+    qtest_writel(qts, b + 0x6c, 0);
+    qtest_writel(qts, c, 0);
+    qtest_writel(qts, c + 4, cmd);
+    qtest_writel(qts, c + 8, address ? 0x300 : 0xc);
+    qtest_writel(qts, c + 12, (length << 2) | 1);
+}
+
+static void qspi_finish(QTestState *qts, uint32_t b)
+{
+    qtest_clock_step(qts, 10000);
+    expect(qts, b + 0x70, 4);
+}
+
+static void test_qspi_pio_isolation(const void *board)
+{
+    QTestState *qts = start_qspi(board);
+    const unsigned lengths[] = { 1, 3, 4, 5, 31, 32 };
+
+    qspi_setup(qts);
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = 0x46040000 + g * 0x20000;
+        for (unsigned k = 0; k < ARRAY_SIZE(lengths); k++) {
+            unsigned n = lengths[k];
+            uint32_t pattern = 0x12345678 + g * 0x11111111 + k;
+            qspi_begin(qts, b, false, 6, false, 0);
+            qspi_finish(qts, b);
+            for (unsigned j = 0; j < 8; j++) {
+                qtest_writel(qts, b + 0x100 + j * 4, pattern);
+            }
+            qtest_writel(qts, b + 0x120, 0xa5a5a5a5);
+            qspi_begin(qts, b, false, 2 | ((k + 1) << 16), true, n);
+            qspi_finish(qts, b);
+            for (unsigned j = 0; j < 8; j++) {
+                qtest_writel(qts, b + 0x100 + j * 4, 0);
+            }
+            qspi_begin(qts, b, true, 3 | ((k + 1) << 16), true, n);
+            qspi_finish(qts, b);
+            for (unsigned j = 0; j < n; j++) {
+                uint32_t v = qtest_readl(qts, b + 0x100 + (j / 4) * 4);
+                g_assert_cmphex((v >> (8 * (j % 4))) & 255, ==,
+                                (pattern >> (8 * (j % 4))) & 255);
+            }
+            expect(qts, b + 0x120, 0xa5a5a5a5);
+            qspi_begin(qts, b, true,
+                       3 | ((k + 1) << 16) | (n << 24), true, 1);
+            qspi_finish(qts, b);
+            g_assert_cmphex(qtest_readl(qts, b + 0x100) & 255, ==, 255);
+        }
+    }
+    /* Read both devices again after both have been programmed. */
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = 0x46040000 + g * 0x20000;
+        qspi_begin(qts, b, true, 0x60003, true, 4);
+        qspi_finish(qts, b);
+        expect(qts, b + 0x100, 0x12345678 + g * 0x11111111 + 5);
+        expect(qts, b + 0x10000100, 0x12345678 + g * 0x11111111 + 5);
+    }
+    qtest_quit(qts);
+}
+
+static void test_qspi_clock_cancel(const void *board)
+{
+    QTestState *qts = start_qspi(board);
+
+    qspi_setup(qts);
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = 0x46040000 + g * 0x20000;
+        g_autofree char *path = g_strdup_printf("/machine/soc/qspi[%u]/sclk", g);
+        expect_clock(qts, path, 48000000);
+        qtest_writel(qts, SYS + 0x30, 0);
+        qspi_begin(qts, b, false, 6, false, 0);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        expect(qts, b + 0x4c, 1);
+        qtest_writel(qts, SYS + 0x30, 3U << 20);
+        qtest_clock_step(qts, 100); /* Four source cycles consumed. */
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        qtest_writel(qts, SYS + 0x30, 3U << 20);
+        qtest_clock_step(qts, 83);
+        expect(qts, b + 0x70, 0);
+        qtest_clock_step(qts, 1);
+        expect(qts, b + 0x70, 4);
+        qspi_begin(qts, b, true, 5, false, 1);
+        qspi_finish(qts, b);
+        g_assert_cmphex(qtest_readl(qts, b + 0x100) & 2, ==, 2);
+        qtest_writel(qts, b + 0x100, 0x44332211);
+        qspi_begin(qts, b, false, 0x80002, true, 4);
+        qtest_clock_step(qts, 167 * 5); /* Opcode, address, first data byte. */
+        qtest_writel(qts, b + 0x60, 0);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        expect(qts, b + 0x4c, 16);
+        qtest_writel(qts, b + 0x60, 9);
+        qspi_begin(qts, b, true, 0x80003, true, 4);
+        qspi_finish(qts, b);
+        expect(qts, b + 0x100, 0xffffff11); /* Cancellation cannot undo byte 1. */
+        qtest_writel(qts, SYS + (g ? 0x28 : 0x24), 0);
+        expect_clock(qts, path, 0); /* Unsupported clock tuple stops output. */
+        qspi_begin(qts, b, false, 6, false, 0);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        qtest_writel(qts, b + 0x60, 0);
+        qtest_writel(qts, SYS + (g ? 0x28 : 0x24), 0x640);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        qtest_writel(qts, b + 0x60, 9);
+    }
+    /* Device/system reset discards pending callbacks, not a silicon domain claim. */
+    qspi_begin(qts, 0x46040000, true, 0x9f, false, 3);
+    qspi_begin(qts, 0x46060000, true, 0x9f, false, 3);
+    qtest_qmp_assert_success(qts, "{'execute':'system_reset'}");
+    qspi_setup(qts);
+    qtest_clock_step(qts, 100000);
+    expect(qts, 0x46040070, 0);
+    expect(qts, 0x46060070, 0);
+    qtest_quit(qts);
+}
+
+static void test_qspi_pause_data(const void *board)
+{
+    QTestState *qts = start_qspi(board);
+    uint32_t a = 0x46040000, b = 0x46060000;
+
+    qspi_setup(qts);
+    qspi_begin(qts, a, false, 6, false, 0);
+    qspi_finish(qts, a);
+    for (unsigned j = 0; j < 8; j++) {
+        qtest_writel(qts, a + 0x100 + j * 4, 0x03020100 + j * 0x04040404);
+    }
+    qspi_begin(qts, a, false, 0x90002, true, 32);
+    qtest_clock_step(qts, 167 * 9); /* Five data bytes have reached the NOR. */
+    qtest_writel(qts, SYS + 0x30, 1U << 21);
+    qspi_begin(qts, b, true, 0x9f, false, 3);
+    qspi_finish(qts, b);
+    expect(qts, a + 0x70, 0);
+    expect(qts, b + 0x100, 0x1640ef);
+    qtest_writel(qts, a + 0x100, 0xffffffff); /* Busy buffer write rejected. */
+    expect(qts, a + 0x100, 0x03020100);
+    qtest_writel(qts, SYS + 0x30, 3U << 20);
+    qspi_finish(qts, a);
+    qspi_begin(qts, a, true, 0x90003, true, 32);
+    qspi_finish(qts, a);
+    for (unsigned j = 0; j < 8; j++) {
+        expect(qts, a + 0x100 + j * 4, 0x03020100 + j * 0x04040404);
+    }
+    qspi_begin(qts, a, true, 0x20090003, true, 1);
+    qspi_finish(qts, a);
+    g_assert_cmphex(qtest_readl(qts, a + 0x100) & 255, ==, 255);
+    /* A source request does not take effect before the analog commit. */
+    qtest_writel(qts, SYS + 0x114, 0);
+    qtest_clock_step(qts, 999);
+    expect_clock(qts, "/machine/soc/qspi[0]/sclk", 48000000);
+    qtest_clock_step(qts, 1);
+    expect_clock(qts, "/machine/soc/qspi[0]/sclk", 0);
+    qspi_begin(qts, a, true, 0x9f, false, 3);
+    qtest_clock_step(qts, 100000);
+    expect(qts, a + 0x70, 0);
+    qtest_writel(qts, SYS + 0x114, 1U << 5);
+    qtest_clock_step(qts, 1000);
+    qspi_finish(qts, a);
+    g_assert_cmphex(qtest_readl(qts, a + 0x100) & 0xffffff, ==, 0x1640ef);
+    qtest_quit(qts);
+}
+
+static void test_qspi_rejections(const void *board)
+{
+    QTestState *qts = start_qspi(board);
+    uint32_t b = 0x46040000;
+    const uint32_t invalid[] = { 1 | (33 << 2), 1 | (1 << 14) | 4,
+        1 | (1 << 16) | 4, 1 | (4 << 24) | 4, 3 | 4 };
+
+    qspi_setup(qts);
+    qtest_writel(qts, b + 0x44, 6);
+    qtest_writel(qts, b + 0x48, 0xc);
+    for (unsigned i = 0; i < ARRAY_SIZE(invalid); i++) {
+        qtest_writel(qts, b + 0x4c, invalid[i]);
+        expect(qts, b + 0x4c, 0);
+        qtest_clock_step(qts, 10000);
+        expect(qts, b + 0x70, 0);
+    }
+    qtest_writel(qts, b + 0x48, 0xe); /* Quad command byte. */
+    qtest_writel(qts, b + 0x4c, 1);
+    expect(qts, b + 0x4c, 0);
+    qtest_writel(qts, b + 0x60, 0x109); /* Unverified local divider. */
+    expect(qts, b + 0x60, 9);
+    qtest_writel(qts, b + 0x60, 11); /* CPOL unsupported. */
+    expect(qts, b + 0x60, 9);
+    qtest_writel(qts, b + 0x68, 4); /* IRQ is not silently accepted. */
+    qspi_begin(qts, b, true, 5, false, 1);
+    qspi_finish(qts, b);
+    g_assert_cmphex(qtest_readl(qts, b + 0x100) & 2, ==, 0);
+    qtest_writel(qts, b + 0x6c, 1);
+    expect(qts, b + 0x70, 4); /* Other clear bits unsupported, atomic. */
+    qtest_writel(qts, b + 0x58, 0xc);
+    qtest_writel(qts, b + 0x5c, 1); /* Zero-length read is invalid. */
+    expect(qts, b + 0x5c, 4);
+    qtest_quit(qts);
+}
+
 static const uint32_t spi_base[] = { 0x44870000, 0x45880000 };
 static const unsigned spi_gate[] = { 1, 9 };
 static const unsigned spi_irq[] = { 7, 17 };
@@ -3673,6 +3897,13 @@ static void test_sys_flash_clock_configuration(const void *board)
                 if (bit >= 24 && bit <= 27) {
                     continue;
                 }
+                if (bit >= 6 && bit <= 10) {
+                    /* V4 assigns these QSPI0 fields; preserve Flash on RMW. */
+                    qtest_writel(qts, SYS + 0x24, value | (1U << bit));
+                    expect(qts, SYS + 0x24, value | (1U << bit));
+                    qtest_writel(qts, SYS + 0x24, value);
+                    continue;
+                }
                 for (unsigned alias = 0; alias < 2; alias++) {
                     qtest_writel(qts, SYS + 0x24 + alias * 0x10000000,
                                  (value ^ 0x0f000000U) | (1U << bit));
@@ -5112,6 +5343,10 @@ int main(int argc, char **argv)
         const char *name;
         GTestDataFunc test;
     } tests[] = {
+        {"qspi-pio-isolation", test_qspi_pio_isolation},
+        {"qspi-clock-cancel", test_qspi_clock_cancel},
+        {"qspi-rejections", test_qspi_rejections},
+        {"qspi-pause-data", test_qspi_pause_data},
         {"saradc-default-off", test_saradc_default_off},
         {"saradc-channels-repeat-aliases", test_saradc_channels_repeat_aliases},
         {"saradc-deadlines-clock-pause", test_saradc_deadlines_clock_pause},

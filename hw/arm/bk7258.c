@@ -119,6 +119,19 @@ static void bk7258_update_flash_clock(BK7258State *s)
     clock_update_hz(s->flashclk, hz);
 }
 
+/* Finite SDK 480 MHz / SYS divider 9 / controller divider 0 = 48 MHz. */
+static void bk7258_update_qspi_clocks(BK7258State *s)
+{
+    uint32_t cfg[] = { s->flash_clock_config, s->clock_select };
+
+    for (unsigned i = 0; i < 2; i++) {
+        bool available = (cfg[i] & 0x7c0) == 0x640 &&
+                         (s->analog[5] & (1U << 5)) &&
+                         (s->peripheral_clocks & (1U << (20 + i)));
+        clock_update_hz(s->qspiclk[i], available ? 48000000 : 0);
+    }
+}
+
 static void bk7258_update_uart_clocks(BK7258State *s)
 {
     static const unsigned gate[] = { 2, 10, 11 };
@@ -297,6 +310,7 @@ static void bk7258_analog_complete(void *opaque)
                               old_coefficient);
     bk7258_update_core_clocks(s);
     bk7258_update_flash_clock(s);
+    bk7258_update_qspi_clocks(s);
     bk7258_update_saradc_clock(s);
     clock_update_hz(s->roscclk, s->analog[5] & (1U << 14) ? 0 : 32000);
     bk7258_update_wdt_clock(s);
@@ -494,16 +508,18 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         /*
          * SDK CKSEL_FLASH[25:24], CKDIV_FLASH[27:26]. All raw encodings
          * have configuration readback, but only the documented finite clock
-         * profiles supply a functional clock. Other device fields
+         * profiles supply a functional clock. QSPI0 source/divider fields
+         * are also supported; other fields
          * in this shared register remain unsupported, including on RMW.
          */
-        if (value & ~0x0f000000U) {
+        if (value & ~0x0f0007c0U) {
             qemu_log_mask(LOG_UNIMP,
                           "bk7258-sys: unsupported Flash clock configuration\n");
             return MEMTX_ERROR;
         }
         s->flash_clock_config = value;
         bk7258_update_flash_clock(s);
+        bk7258_update_qspi_clocks(s);
         break;
     case 0x40:
         s->power_sleep = value;
@@ -549,6 +565,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
                           "bk7258-sys: SPI APLL source is not implemented\n");
         }
         bk7258_update_spi_clocks(s);
+        bk7258_update_qspi_clocks(s);
         bk7258_update_wdt_clock(s);
         break;
     case 0x30:
@@ -562,6 +579,7 @@ static MemTxResult bk7258_sys_write(void *opaque, hwaddr offset,
         bk7258_update_pwm_clocks(s);
         bk7258_update_i2c_clocks(s);
         bk7258_update_spi_clocks(s);
+        bk7258_update_qspi_clocks(s);
         break;
     case 0x80 ... 0x94:
         index = (offset - 0x80) / 4;
@@ -823,6 +841,21 @@ static void bk7258_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < 2; i++) {
+        DeviceState *qspi = DEVICE(&s->qspi[i]);
+        g_autofree char *name = g_strdup_printf("qspi%u", i);
+        hwaddr base = 0x46040000 + i * 0x20000;
+
+        qdev_prop_set_string(qspi, "bus-name", name);
+        qdev_connect_clock_in(qspi, "sclk", s->qspiclk[i]);
+        if (!sysbus_realize(SYS_BUS_DEVICE(qspi), errp)) {
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(qspi), 0, base);
+        bk7258_alias(&s->qspi_ns[i], obj, "bk7258.qspi-ns",
+                     &s->qspi[i].iomem, memory, base + NS_OFFSET, 0x200);
+    }
+
+    for (i = 0; i < 2; i++) {
         DeviceState *spi = DEVICE(&s->spi[i]);
         SysBusDevice *bus = SYS_BUS_DEVICE(spi);
         uint32_t base = 0x44870000 + 0x1010000 * i;
@@ -930,6 +963,7 @@ static void bk7258_reset(DeviceState *dev)
     s->core_clock_unimplemented = false;
     bk7258_update_core_clocks(s);
     bk7258_update_flash_clock(s);
+    bk7258_update_qspi_clocks(s);
     bk7258_update_saradc_clock(s);
     clock_update_hz(s->roscclk, 32000);
     s->analog_busy = 0;
@@ -967,6 +1001,10 @@ static void bk7258_init(Object *obj)
         name = g_strdup_printf("spiclk%u", i);
         object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_BK7258_SPI);
         s->spiclk[i] = clock_new(obj, name);
+        g_clear_pointer(&name, g_free);
+        name = g_strdup_printf("qspiclk%u", i);
+        object_initialize_child(obj, "qspi[*]", &s->qspi[i], TYPE_BK7258_QSPI);
+        s->qspiclk[i] = clock_new(obj, name);
         g_clear_pointer(&name, g_free);
         name = g_strdup_printf("pwmclk%u", i);
         object_initialize_child(obj, "pwm[*]", &s->pwm[i], TYPE_BK7258_PWM);

@@ -116,15 +116,21 @@ OpenVela source or profile changes are required for that gate.
        and identification/status registers
    * - I2C0/1
      - Native QEMU-bus 7-bit master, bounded FIFOs, ACK/NAK, same-address
-       repeated START, W0C service, clock pause, reset cancel and IRQ6/14
+       and cross-target repeated START, W0C service, clock pause, reset
+       cancel and IRQ6/14
      - Slave/10-bit/multi-master modes, pin waveforms/stretch/timeout,
-       different-address repeated START and measured edge/reset behavior
+       active-transaction migration and measured edge/reset behavior
    * - SPI0/1
      - Native SSI 8-bit master with MSB/LSB adapter, logical CS0, finite TX/RX,
        bounded FIFOs, clock pause, W1C/error/done IRQ7/17 and reset cancel;
        optional ideal audio-PLL source with two supported profiles
      - 16-bit/3-wire/slave/RX-only modes, raw-divider0, wire-edge timing,
        general PLL behavior, DMA and physical pinmux/CS routing
+   * - QSPI0/1
+     - Single-line, zero-dummy CMDC/CMDD PIO through native SSI; 0..32 data
+       bytes, polling completion, finite 48 MHz clock profile, pause/cancel
+     - IRQ, complete FIFO capacity, general clocks, quad, XIP, DMA and
+       physical reset/pin behavior; see :doc:`bk7258-qspi-v4`
    * - DMA0/1
      - Two eight-channel shared-RAM engines, equal 8/16/32-bit widths,
        real memory transactions, partial-error progress and NS IRQ0/57
@@ -137,7 +143,7 @@ OpenVela source or profile changes are required for that gate.
        capture/trigger/deadtime/center/down modes and measured edge behavior
    * - Other chip interfaces
      - Not modeled
-     - QSPI, SDIO, USB, CAN/Ethernet, SDMADC, TRNG/crypto,
+     - SDIO, USB, CAN/Ethernet, SDMADC, TRNG/crypto,
        audio/video, Wi-Fi/BT and other absent register blocks
 
 The separately documented diagnostic entry-state probe is off by default.
