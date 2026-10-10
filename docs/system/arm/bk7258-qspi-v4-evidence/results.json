@@ -1,0 +1,27 @@
+{
+  "baseline_sha": "a472543b039ee8fc826c7e39e7ca4906f14105e0",
+  "fixed_elf_sha256": "4bf83b5d6396806fbcc76ac8ea9f50530a066c0438976ff0fd0edd2312a73c22",
+  "baseline_qemu_sha256": "9fb0d7a512f8abcd4f6525bdb0cf60d0901eeb3406e28398d0a6fb0ae1b5847e",
+  "new_qemu_sha256": "3e667ce21754897c95392a1acfe025747a31f83801bc5e127835990b6c0d8b25",
+  "baseline_exit": 1,
+  "new_exit": 0,
+  "baseline_fault": {
+    "pc": "0x020101a6",
+    "bfar": "0x46040060",
+    "cfsr": "0x00008200"
+  },
+  "new_result": "two native SSI NOR devices programmed and read; functional test validates every complete frame and final NOR arrays",
+  "counts": {
+    "clock": 3,
+    "ptimer": 576,
+    "cmsdk_timer": 1,
+    "shared_i2c": 5,
+    "npcm_smbus": 40,
+    "bk_qtest": 277,
+    "bare_metal_functional": 269
+  },
+  "public_log_transformation": "Only inherited environment records removed. Commands, failure details, UART and native SSI trace retained. Published hashes cover these exact delivered bytes.",
+  "product_firmware": "unchanged; historical CP/BL1 evidence reused; no new boot claim",
+  "probes": "none",
+  "ci": "Requires exact delivered SHA remote run; see final handoff manifest."
+}

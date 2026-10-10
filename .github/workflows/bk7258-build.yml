@@ -65,6 +65,10 @@ jobs:
           cd build-bk7258
           command -v arm-none-eabi-gcc
           ./pyvenv/bin/meson test --setup thorough --print-errorlogs func-arm-bk7258
+      - name: Verify QSPI V4 comparison evidence
+        run: |
+          cd docs/system/arm/bk7258-qspi-v4-evidence
+          sha256sum --check SHA256SUMS
       - name: Verify I2C V3 comparison evidence
         run: |
           cd docs/system/arm/bk7258-i2c-v3-evidence
@@ -74,6 +78,9 @@ jobs:
           python3 -m py_compile scripts/bk7258-product-probe.py
           cd docs/system/arm/bk7258-entry-v2-evidence
           sha256sum --check SHA256SUMS
+      - name: Remove unrelated host environment from published test logs
+        if: always()
+        run: python3 scripts/bk7258-scrub-test-logs.py build-bk7258/meson-logs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -103,3 +110,12 @@ jobs:
           path: |
             docs/system/arm/bk7258-i2c-v3.rst
             docs/system/arm/bk7258-i2c-v3-evidence/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bk7258-qspi-v4-evidence-${{ github.sha }}
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            docs/system/arm/bk7258-qspi-v4.rst
+            docs/system/arm/bk7258-qspi-v4-evidence/

@@ -1,0 +1,32 @@
+{
+  "sdk_commit": "cb080de1655d579c7593ecf504c440997c4c137b",
+  "working_files_equal_pinned_git_blobs": true,
+  "sdk_modified_or_built": false,
+  "source_sha256": {
+    "ap/middleware/driver/qspi/qspi_driver.c": "729ae9d4319ea9a87fdcf246634b7ce65adb32763bc656c5335ef4000c16ab0e",
+    "ap/middleware/driver/qspi/qspi_flash.c": "42bd834c5994c6b6116bb214adecb28bcbf3ba8c22ab99f7b3e064145cf5a13f",
+    "ap/middleware/driver/qspi/Kconfig": "b1425f9099058974fdaffd9ffe1d5950ebaef58db12ac8316d69196238ba3f69",
+    "ap/middleware/soc/common/hal/qspi_hal.c": "a6dd72bf65b87e4f7ec26d9c6c80b063326bacfe440df4c8e8ae739a75a207d7",
+    "ap/middleware/soc/bk7258_ap/hal/qspi_ll.h": "58a4dd22c7b9d750744e850639fbd977e00bde4c863ea3f30b28f3c348979707",
+    "ap/middleware/soc/bk7258_ap/soc/qspi_struct.h": "419ca093829be553ea8346fd65703a1e95a118a1930187fc26cf9d3c5ad968d7",
+    "ap/middleware/soc/bk7258_ap/hal/sys_hal.c": "62ed2100cccf2c7850bed82fc377a01acdabaa207d16d9c7dde197898e2c0201",
+    "ap/middleware/soc/bk7258_ap/hal/sys_ll.h": "f8b1700aca0078ee607fa3036590f598d3faab4bcb8eed362ab3c1bcd56534d8",
+    "ap/middleware/soc/bk7258_ap/hal/sys_types.h": "e4bf8480c39e33f69821a9cbc0ffee6b4bce8d6a2a3ccd37256d80bf55d6ce40",
+    "ap/middleware/soc/bk7258_ap/bk7258_ap.defconfig": "5815db15da32ff4427e0f93e1ad621b6af8b2430be0c7b27ec9a06ebf35ab6e1",
+    "ap/include/soc/bk7258/reg_base.h": "412084ee80f2cc5bdf2b9c422466131ba96a236c22083cf70ea74fb2bc281a38",
+    "ap/include/soc/bk7258/qspi_cap.h": "d43e76c49adc65ce2fe1d60eb3ed2274482be6d0de7052975193321f75d5c086",
+    "ap/include/driver/hal/hal_qspi_types.h": "e1180ca4108ef5d8798c3070e340f618cd2c9d23fcc822a4260110efc562a56d",
+    "ap/middleware/driver/lcd/lcd_qspi_driver.c": "4a8cbc8da809c1284ddc909e24761f7a9357674c934c7141ec6dcf8a8ace1ce5",
+    "ap/middleware/driver/lcd/lcd_spi_driver.c": "c93f4fd5295c3bb03925e7df8c4aa2e4ea1acdfc0b058209a8bf41e82dc8607b"
+  },
+  "web": {
+    "version": "AP BK7258 v3.1.1",
+    "guide": "https://docs.riselink.ai/arminodoc/bk_avdk_smp/ap_doc/bk7258/en/v3.1.1/developer-guide/peripheral/bk_qspi.html",
+    "example": "https://docs.riselink.ai/arminodoc/bk_avdk_smp/ap_doc/bk7258/en/v3.1.1/examples/peripheral/bk_qspi.html",
+    "readable": "search-index text extraction; not a raw HTML capture",
+    "direct_open": "timeout",
+    "html_download": "curl exit 28 after 30 seconds, zero bytes",
+    "html_sha256": null,
+    "version_difference": "Web example describes init_by_freq; fixed SDK flash helper uses explicit 480/4/2. Only independently matched 480/9/0=48 MHz profile implemented."
+  }
+}

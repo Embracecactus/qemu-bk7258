@@ -1,0 +1,898 @@
+Log of Meson test suite run on 2026-10-10T11:08:01.319316
+
+Inherited environment: omitted (unrelated host environment)
+
+==================================== 1/6 =====================================
+test:         unit - qemu:test-bk7258-clock
+start time:   03:08:01
+duration:     0.01s
+result:       exit status 0
+command:      MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 MALLOC_PERTURB_=21 G_TEST_BUILDDIR=/tmp/qemu-bk7258-sys-v1/build-bk7258/tests/unit UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 G_TEST_SRCDIR=/tmp/qemu-bk7258-sys-v1/tests/unit ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 MESON_TEST_ITERATION=1 RUST_BACKTRACE=1 /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/unit/test-bk7258-clock --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02S15bdf153e8e102f33a54702852b3221b
+1..3
+# Start of bk7258-clock tests
+ok 1 /bk7258-clock/known-edges
+ok 2 /bk7258-clock/zero-time-rearm
+ok 3 /bk7258-clock/exact-reference
+# End of bk7258-clock tests
+==============================================================================
+
+==================================== 2/6 =====================================
+test:         unit - qemu:test-i2c-readdress
+start time:   03:08:01
+duration:     0.01s
+result:       exit status 0
+command:      MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 G_TEST_BUILDDIR=/tmp/qemu-bk7258-sys-v1/build-bk7258/tests/unit UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 G_TEST_SRCDIR=/tmp/qemu-bk7258-sys-v1/tests/unit ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 MESON_TEST_ITERATION=1 RUST_BACKTRACE=1 MALLOC_PERTURB_=87 /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/unit/test-i2c-readdress --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02Sc24b99d1f6d5aef0852bb32cbef42537
+1..5
+# Start of i2c tests
+# Start of readdress tests
+ok 1 /i2c/readdress/no-false-stop
+ok 2 /i2c/readdress/nak-recovery
+ok 3 /i2c/readdress/legacy
+ok 4 /i2c/readdress/ownership
+ok 5 /i2c/readdress/smbus-mux
+# End of readdress tests
+# End of i2c tests
+==============================================================================
+
+==================================== 3/6 =====================================
+test:         unit - qemu:ptimer-test
+start time:   03:08:01
+duration:     0.01s
+result:       exit status 0
+command:      MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 G_TEST_BUILDDIR=/tmp/qemu-bk7258-sys-v1/build-bk7258/tests/unit UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 G_TEST_SRCDIR=/tmp/qemu-bk7258-sys-v1/tests/unit MALLOC_PERTURB_=104 ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 MESON_TEST_ITERATION=1 RUST_BACKTRACE=1 /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/unit/ptimer-test --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02Seb62ab492e4cd77e0b119900df60a03b
+1..576
+# Start of ptimer tests
+ok 1 /ptimer/set_count policy=legacy
+ok 2 /ptimer/set_limit policy=legacy
+ok 3 /ptimer/oneshot policy=legacy
+ok 4 /ptimer/periodic policy=legacy
+ok 5 /ptimer/on_the_fly_mode_change policy=legacy
+ok 6 /ptimer/on_the_fly_period_change policy=legacy
+ok 7 /ptimer/on_the_fly_freq_change policy=legacy
+ok 8 /ptimer/run_with_period_0 policy=legacy
+ok 9 /ptimer/run_with_delta_0 policy=legacy
+ok 10 /ptimer/periodic_with_load_0 policy=legacy
+ok 11 /ptimer/oneshot_with_load_0 policy=legacy
+ok 12 /ptimer/freq_more_than_1000M policy=legacy
+ok 13 /ptimer/set_count policy=wrap_after_one_period,
+ok 14 /ptimer/set_limit policy=wrap_after_one_period,
+ok 15 /ptimer/oneshot policy=wrap_after_one_period,
+ok 16 /ptimer/periodic policy=wrap_after_one_period,
+ok 17 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,
+ok 18 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,
+ok 19 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,
+ok 20 /ptimer/run_with_period_0 policy=wrap_after_one_period,
+ok 21 /ptimer/run_with_delta_0 policy=wrap_after_one_period,
+ok 22 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,
+ok 23 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,
+ok 24 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,
+ok 25 /ptimer/set_count policy=continuous_trigger,
+ok 26 /ptimer/set_limit policy=continuous_trigger,
+ok 27 /ptimer/oneshot policy=continuous_trigger,
+ok 28 /ptimer/periodic policy=continuous_trigger,
+ok 29 /ptimer/on_the_fly_mode_change policy=continuous_trigger,
+ok 30 /ptimer/on_the_fly_period_change policy=continuous_trigger,
+ok 31 /ptimer/on_the_fly_freq_change policy=continuous_trigger,
+ok 32 /ptimer/run_with_period_0 policy=continuous_trigger,
+ok 33 /ptimer/run_with_delta_0 policy=continuous_trigger,
+ok 34 /ptimer/periodic_with_load_0 policy=continuous_trigger,
+ok 35 /ptimer/oneshot_with_load_0 policy=continuous_trigger,
+ok 36 /ptimer/freq_more_than_1000M policy=continuous_trigger,
+ok 37 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,
+ok 38 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,
+ok 39 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,
+ok 40 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,
+ok 41 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,
+ok 42 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,
+ok 43 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,
+ok 44 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,
+ok 45 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,
+ok 46 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,
+ok 47 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,
+ok 48 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,
+ok 49 /ptimer/set_count policy=no_immediate_trigger,
+ok 50 /ptimer/set_limit policy=no_immediate_trigger,
+ok 51 /ptimer/oneshot policy=no_immediate_trigger,
+ok 52 /ptimer/periodic policy=no_immediate_trigger,
+ok 53 /ptimer/on_the_fly_mode_change policy=no_immediate_trigger,
+ok 54 /ptimer/on_the_fly_period_change policy=no_immediate_trigger,
+ok 55 /ptimer/on_the_fly_freq_change policy=no_immediate_trigger,
+ok 56 /ptimer/run_with_period_0 policy=no_immediate_trigger,
+ok 57 /ptimer/run_with_delta_0 policy=no_immediate_trigger,
+ok 58 /ptimer/periodic_with_load_0 policy=no_immediate_trigger,
+ok 59 /ptimer/oneshot_with_load_0 policy=no_immediate_trigger,
+ok 60 /ptimer/freq_more_than_1000M policy=no_immediate_trigger,
+ok 61 /ptimer/set_count policy=wrap_after_one_period,no_immediate_trigger,
+ok 62 /ptimer/set_limit policy=wrap_after_one_period,no_immediate_trigger,
+ok 63 /ptimer/oneshot policy=wrap_after_one_period,no_immediate_trigger,
+ok 64 /ptimer/periodic policy=wrap_after_one_period,no_immediate_trigger,
+ok 65 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_immediate_trigger,
+ok 66 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_immediate_trigger,
+ok 67 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_immediate_trigger,
+ok 68 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_immediate_trigger,
+ok 69 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_immediate_trigger,
+ok 70 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_immediate_trigger,
+ok 71 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_immediate_trigger,
+ok 72 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_immediate_trigger,
+ok 73 /ptimer/set_count policy=continuous_trigger,no_immediate_trigger,
+ok 74 /ptimer/set_limit policy=continuous_trigger,no_immediate_trigger,
+ok 75 /ptimer/oneshot policy=continuous_trigger,no_immediate_trigger,
+ok 76 /ptimer/periodic policy=continuous_trigger,no_immediate_trigger,
+ok 77 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_immediate_trigger,
+ok 78 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_immediate_trigger,
+ok 79 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_immediate_trigger,
+ok 80 /ptimer/run_with_period_0 policy=continuous_trigger,no_immediate_trigger,
+ok 81 /ptimer/run_with_delta_0 policy=continuous_trigger,no_immediate_trigger,
+ok 82 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_immediate_trigger,
+ok 83 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_immediate_trigger,
+ok 84 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_immediate_trigger,
+ok 85 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 86 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 87 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 88 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 89 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 90 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 91 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 92 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 93 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 94 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 95 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 96 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,
+ok 97 /ptimer/set_count policy=no_immediate_reload,
+ok 98 /ptimer/set_limit policy=no_immediate_reload,
+ok 99 /ptimer/oneshot policy=no_immediate_reload,
+ok 100 /ptimer/periodic policy=no_immediate_reload,
+ok 101 /ptimer/on_the_fly_mode_change policy=no_immediate_reload,
+ok 102 /ptimer/on_the_fly_period_change policy=no_immediate_reload,
+ok 103 /ptimer/on_the_fly_freq_change policy=no_immediate_reload,
+ok 104 /ptimer/run_with_period_0 policy=no_immediate_reload,
+ok 105 /ptimer/run_with_delta_0 policy=no_immediate_reload,
+ok 106 /ptimer/periodic_with_load_0 policy=no_immediate_reload,
+ok 107 /ptimer/oneshot_with_load_0 policy=no_immediate_reload,
+ok 108 /ptimer/freq_more_than_1000M policy=no_immediate_reload,
+ok 109 /ptimer/set_count policy=wrap_after_one_period,no_immediate_reload,
+ok 110 /ptimer/set_limit policy=wrap_after_one_period,no_immediate_reload,
+ok 111 /ptimer/oneshot policy=wrap_after_one_period,no_immediate_reload,
+ok 112 /ptimer/periodic policy=wrap_after_one_period,no_immediate_reload,
+ok 113 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_immediate_reload,
+ok 114 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_immediate_reload,
+ok 115 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_immediate_reload,
+ok 116 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_immediate_reload,
+ok 117 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_immediate_reload,
+ok 118 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_immediate_reload,
+ok 119 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_immediate_reload,
+ok 120 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_immediate_reload,
+ok 121 /ptimer/set_count policy=continuous_trigger,no_immediate_reload,
+ok 122 /ptimer/set_limit policy=continuous_trigger,no_immediate_reload,
+ok 123 /ptimer/oneshot policy=continuous_trigger,no_immediate_reload,
+ok 124 /ptimer/periodic policy=continuous_trigger,no_immediate_reload,
+ok 125 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_immediate_reload,
+ok 126 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_immediate_reload,
+ok 127 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_immediate_reload,
+ok 128 /ptimer/run_with_period_0 policy=continuous_trigger,no_immediate_reload,
+ok 129 /ptimer/run_with_delta_0 policy=continuous_trigger,no_immediate_reload,
+ok 130 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_immediate_reload,
+ok 131 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_immediate_reload,
+ok 132 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_immediate_reload,
+ok 133 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 134 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 135 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 136 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 137 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 138 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 139 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 140 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 141 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 142 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 143 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 144 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,
+ok 145 /ptimer/set_count policy=no_immediate_trigger,no_immediate_reload,
+ok 146 /ptimer/set_limit policy=no_immediate_trigger,no_immediate_reload,
+ok 147 /ptimer/oneshot policy=no_immediate_trigger,no_immediate_reload,
+ok 148 /ptimer/periodic policy=no_immediate_trigger,no_immediate_reload,
+ok 149 /ptimer/on_the_fly_mode_change policy=no_immediate_trigger,no_immediate_reload,
+ok 150 /ptimer/on_the_fly_period_change policy=no_immediate_trigger,no_immediate_reload,
+ok 151 /ptimer/on_the_fly_freq_change policy=no_immediate_trigger,no_immediate_reload,
+ok 152 /ptimer/run_with_period_0 policy=no_immediate_trigger,no_immediate_reload,
+ok 153 /ptimer/run_with_delta_0 policy=no_immediate_trigger,no_immediate_reload,
+ok 154 /ptimer/periodic_with_load_0 policy=no_immediate_trigger,no_immediate_reload,
+ok 155 /ptimer/oneshot_with_load_0 policy=no_immediate_trigger,no_immediate_reload,
+ok 156 /ptimer/freq_more_than_1000M policy=no_immediate_trigger,no_immediate_reload,
+ok 157 /ptimer/set_count policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 158 /ptimer/set_limit policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 159 /ptimer/oneshot policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 160 /ptimer/periodic policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 161 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 162 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 163 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 164 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 165 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 166 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 167 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 168 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,
+ok 169 /ptimer/set_count policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 170 /ptimer/set_limit policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 171 /ptimer/oneshot policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 172 /ptimer/periodic policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 173 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 174 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 175 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 176 /ptimer/run_with_period_0 policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 177 /ptimer/run_with_delta_0 policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 178 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 179 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 180 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 181 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 182 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 183 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 184 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 185 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 186 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 187 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 188 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 189 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 190 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 191 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 192 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,
+ok 193 /ptimer/set_count policy=no_counter_rounddown,
+ok 194 /ptimer/set_limit policy=no_counter_rounddown,
+ok 195 /ptimer/oneshot policy=no_counter_rounddown,
+ok 196 /ptimer/periodic policy=no_counter_rounddown,
+ok 197 /ptimer/on_the_fly_mode_change policy=no_counter_rounddown,
+ok 198 /ptimer/on_the_fly_period_change policy=no_counter_rounddown,
+ok 199 /ptimer/on_the_fly_freq_change policy=no_counter_rounddown,
+ok 200 /ptimer/run_with_period_0 policy=no_counter_rounddown,
+ok 201 /ptimer/run_with_delta_0 policy=no_counter_rounddown,
+ok 202 /ptimer/periodic_with_load_0 policy=no_counter_rounddown,
+ok 203 /ptimer/oneshot_with_load_0 policy=no_counter_rounddown,
+ok 204 /ptimer/freq_more_than_1000M policy=no_counter_rounddown,
+ok 205 /ptimer/set_count policy=wrap_after_one_period,no_counter_rounddown,
+ok 206 /ptimer/set_limit policy=wrap_after_one_period,no_counter_rounddown,
+ok 207 /ptimer/oneshot policy=wrap_after_one_period,no_counter_rounddown,
+ok 208 /ptimer/periodic policy=wrap_after_one_period,no_counter_rounddown,
+ok 209 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_counter_rounddown,
+ok 210 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_counter_rounddown,
+ok 211 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_counter_rounddown,
+ok 212 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_counter_rounddown,
+ok 213 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_counter_rounddown,
+ok 214 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_counter_rounddown,
+ok 215 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_counter_rounddown,
+ok 216 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_counter_rounddown,
+ok 217 /ptimer/set_count policy=continuous_trigger,no_counter_rounddown,
+ok 218 /ptimer/set_limit policy=continuous_trigger,no_counter_rounddown,
+ok 219 /ptimer/oneshot policy=continuous_trigger,no_counter_rounddown,
+ok 220 /ptimer/periodic policy=continuous_trigger,no_counter_rounddown,
+ok 221 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_counter_rounddown,
+ok 222 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_counter_rounddown,
+ok 223 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_counter_rounddown,
+ok 224 /ptimer/run_with_period_0 policy=continuous_trigger,no_counter_rounddown,
+ok 225 /ptimer/run_with_delta_0 policy=continuous_trigger,no_counter_rounddown,
+ok 226 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_counter_rounddown,
+ok 227 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_counter_rounddown,
+ok 228 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_counter_rounddown,
+ok 229 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 230 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 231 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 232 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 233 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 234 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 235 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 236 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 237 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 238 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 239 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 240 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,
+ok 241 /ptimer/set_count policy=no_immediate_trigger,no_counter_rounddown,
+ok 242 /ptimer/set_limit policy=no_immediate_trigger,no_counter_rounddown,
+ok 243 /ptimer/oneshot policy=no_immediate_trigger,no_counter_rounddown,
+ok 244 /ptimer/periodic policy=no_immediate_trigger,no_counter_rounddown,
+ok 245 /ptimer/on_the_fly_mode_change policy=no_immediate_trigger,no_counter_rounddown,
+ok 246 /ptimer/on_the_fly_period_change policy=no_immediate_trigger,no_counter_rounddown,
+ok 247 /ptimer/on_the_fly_freq_change policy=no_immediate_trigger,no_counter_rounddown,
+ok 248 /ptimer/run_with_period_0 policy=no_immediate_trigger,no_counter_rounddown,
+ok 249 /ptimer/run_with_delta_0 policy=no_immediate_trigger,no_counter_rounddown,
+ok 250 /ptimer/periodic_with_load_0 policy=no_immediate_trigger,no_counter_rounddown,
+ok 251 /ptimer/oneshot_with_load_0 policy=no_immediate_trigger,no_counter_rounddown,
+ok 252 /ptimer/freq_more_than_1000M policy=no_immediate_trigger,no_counter_rounddown,
+ok 253 /ptimer/set_count policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 254 /ptimer/set_limit policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 255 /ptimer/oneshot policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 256 /ptimer/periodic policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 257 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 258 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 259 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 260 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 261 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 262 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 263 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 264 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_immediate_trigger,no_counter_rounddown,
+ok 265 /ptimer/set_count policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 266 /ptimer/set_limit policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 267 /ptimer/oneshot policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 268 /ptimer/periodic policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 269 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 270 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 271 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 272 /ptimer/run_with_period_0 policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 273 /ptimer/run_with_delta_0 policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 274 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 275 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 276 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 277 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 278 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 279 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 280 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 281 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 282 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 283 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 284 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 285 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 286 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 287 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 288 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_counter_rounddown,
+ok 289 /ptimer/set_count policy=no_immediate_reload,no_counter_rounddown,
+ok 290 /ptimer/set_limit policy=no_immediate_reload,no_counter_rounddown,
+ok 291 /ptimer/oneshot policy=no_immediate_reload,no_counter_rounddown,
+ok 292 /ptimer/periodic policy=no_immediate_reload,no_counter_rounddown,
+ok 293 /ptimer/on_the_fly_mode_change policy=no_immediate_reload,no_counter_rounddown,
+ok 294 /ptimer/on_the_fly_period_change policy=no_immediate_reload,no_counter_rounddown,
+ok 295 /ptimer/on_the_fly_freq_change policy=no_immediate_reload,no_counter_rounddown,
+ok 296 /ptimer/run_with_period_0 policy=no_immediate_reload,no_counter_rounddown,
+ok 297 /ptimer/run_with_delta_0 policy=no_immediate_reload,no_counter_rounddown,
+ok 298 /ptimer/periodic_with_load_0 policy=no_immediate_reload,no_counter_rounddown,
+ok 299 /ptimer/oneshot_with_load_0 policy=no_immediate_reload,no_counter_rounddown,
+ok 300 /ptimer/freq_more_than_1000M policy=no_immediate_reload,no_counter_rounddown,
+ok 301 /ptimer/set_count policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 302 /ptimer/set_limit policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 303 /ptimer/oneshot policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 304 /ptimer/periodic policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 305 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 306 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 307 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 308 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 309 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 310 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 311 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 312 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,
+ok 313 /ptimer/set_count policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 314 /ptimer/set_limit policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 315 /ptimer/oneshot policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 316 /ptimer/periodic policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 317 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 318 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 319 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 320 /ptimer/run_with_period_0 policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 321 /ptimer/run_with_delta_0 policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 322 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 323 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 324 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 325 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 326 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 327 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 328 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 329 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 330 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 331 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 332 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 333 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 334 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 335 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 336 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,
+ok 337 /ptimer/set_count policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 338 /ptimer/set_limit policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 339 /ptimer/oneshot policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 340 /ptimer/periodic policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 341 /ptimer/on_the_fly_mode_change policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 342 /ptimer/on_the_fly_period_change policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 343 /ptimer/on_the_fly_freq_change policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 344 /ptimer/run_with_period_0 policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 345 /ptimer/run_with_delta_0 policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 346 /ptimer/periodic_with_load_0 policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 347 /ptimer/oneshot_with_load_0 policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 348 /ptimer/freq_more_than_1000M policy=no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 349 /ptimer/set_count policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 350 /ptimer/set_limit policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 351 /ptimer/oneshot policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 352 /ptimer/periodic policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 353 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 354 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 355 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 356 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 357 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 358 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 359 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 360 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 361 /ptimer/set_count policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 362 /ptimer/set_limit policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 363 /ptimer/oneshot policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 364 /ptimer/periodic policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 365 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 366 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 367 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 368 /ptimer/run_with_period_0 policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 369 /ptimer/run_with_delta_0 policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 370 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 371 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 372 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 373 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 374 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 375 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 376 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 377 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 378 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 379 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 380 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 381 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 382 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 383 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 384 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_immediate_trigger,no_immediate_reload,no_counter_rounddown,
+ok 385 /ptimer/set_count policy=trigger_only_on_decrement,
+ok 386 /ptimer/set_limit policy=trigger_only_on_decrement,
+ok 387 /ptimer/oneshot policy=trigger_only_on_decrement,
+ok 388 /ptimer/periodic policy=trigger_only_on_decrement,
+ok 389 /ptimer/on_the_fly_mode_change policy=trigger_only_on_decrement,
+ok 390 /ptimer/on_the_fly_period_change policy=trigger_only_on_decrement,
+ok 391 /ptimer/on_the_fly_freq_change policy=trigger_only_on_decrement,
+ok 392 /ptimer/run_with_period_0 policy=trigger_only_on_decrement,
+ok 393 /ptimer/run_with_delta_0 policy=trigger_only_on_decrement,
+ok 394 /ptimer/periodic_with_load_0 policy=trigger_only_on_decrement,
+ok 395 /ptimer/oneshot_with_load_0 policy=trigger_only_on_decrement,
+ok 396 /ptimer/freq_more_than_1000M policy=trigger_only_on_decrement,
+ok 397 /ptimer/set_count policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 398 /ptimer/set_limit policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 399 /ptimer/oneshot policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 400 /ptimer/periodic policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 401 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 402 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 403 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 404 /ptimer/run_with_period_0 policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 405 /ptimer/run_with_delta_0 policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 406 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 407 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 408 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,trigger_only_on_decrement,
+ok 409 /ptimer/set_count policy=continuous_trigger,trigger_only_on_decrement,
+ok 410 /ptimer/set_limit policy=continuous_trigger,trigger_only_on_decrement,
+ok 411 /ptimer/oneshot policy=continuous_trigger,trigger_only_on_decrement,
+ok 412 /ptimer/periodic policy=continuous_trigger,trigger_only_on_decrement,
+ok 413 /ptimer/on_the_fly_mode_change policy=continuous_trigger,trigger_only_on_decrement,
+ok 414 /ptimer/on_the_fly_period_change policy=continuous_trigger,trigger_only_on_decrement,
+ok 415 /ptimer/on_the_fly_freq_change policy=continuous_trigger,trigger_only_on_decrement,
+ok 416 /ptimer/run_with_period_0 policy=continuous_trigger,trigger_only_on_decrement,
+ok 417 /ptimer/run_with_delta_0 policy=continuous_trigger,trigger_only_on_decrement,
+ok 418 /ptimer/periodic_with_load_0 policy=continuous_trigger,trigger_only_on_decrement,
+ok 419 /ptimer/oneshot_with_load_0 policy=continuous_trigger,trigger_only_on_decrement,
+ok 420 /ptimer/freq_more_than_1000M policy=continuous_trigger,trigger_only_on_decrement,
+ok 421 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 422 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 423 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 424 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 425 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 426 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 427 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 428 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 429 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 430 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 431 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 432 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,trigger_only_on_decrement,
+ok 433 /ptimer/set_count policy=no_immediate_reload,trigger_only_on_decrement,
+ok 434 /ptimer/set_limit policy=no_immediate_reload,trigger_only_on_decrement,
+ok 435 /ptimer/oneshot policy=no_immediate_reload,trigger_only_on_decrement,
+ok 436 /ptimer/periodic policy=no_immediate_reload,trigger_only_on_decrement,
+ok 437 /ptimer/on_the_fly_mode_change policy=no_immediate_reload,trigger_only_on_decrement,
+ok 438 /ptimer/on_the_fly_period_change policy=no_immediate_reload,trigger_only_on_decrement,
+ok 439 /ptimer/on_the_fly_freq_change policy=no_immediate_reload,trigger_only_on_decrement,
+ok 440 /ptimer/run_with_period_0 policy=no_immediate_reload,trigger_only_on_decrement,
+ok 441 /ptimer/run_with_delta_0 policy=no_immediate_reload,trigger_only_on_decrement,
+ok 442 /ptimer/periodic_with_load_0 policy=no_immediate_reload,trigger_only_on_decrement,
+ok 443 /ptimer/oneshot_with_load_0 policy=no_immediate_reload,trigger_only_on_decrement,
+ok 444 /ptimer/freq_more_than_1000M policy=no_immediate_reload,trigger_only_on_decrement,
+ok 445 /ptimer/set_count policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 446 /ptimer/set_limit policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 447 /ptimer/oneshot policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 448 /ptimer/periodic policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 449 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 450 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 451 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 452 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 453 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 454 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 455 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 456 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_immediate_reload,trigger_only_on_decrement,
+ok 457 /ptimer/set_count policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 458 /ptimer/set_limit policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 459 /ptimer/oneshot policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 460 /ptimer/periodic policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 461 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 462 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 463 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 464 /ptimer/run_with_period_0 policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 465 /ptimer/run_with_delta_0 policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 466 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 467 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 468 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 469 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 470 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 471 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 472 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 473 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 474 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 475 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 476 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 477 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 478 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 479 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 480 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,trigger_only_on_decrement,
+ok 481 /ptimer/set_count policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 482 /ptimer/set_limit policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 483 /ptimer/oneshot policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 484 /ptimer/periodic policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 485 /ptimer/on_the_fly_mode_change policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 486 /ptimer/on_the_fly_period_change policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 487 /ptimer/on_the_fly_freq_change policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 488 /ptimer/run_with_period_0 policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 489 /ptimer/run_with_delta_0 policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 490 /ptimer/periodic_with_load_0 policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 491 /ptimer/oneshot_with_load_0 policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 492 /ptimer/freq_more_than_1000M policy=no_counter_rounddown,trigger_only_on_decrement,
+ok 493 /ptimer/set_count policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 494 /ptimer/set_limit policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 495 /ptimer/oneshot policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 496 /ptimer/periodic policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 497 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 498 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 499 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 500 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 501 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 502 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 503 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 504 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_counter_rounddown,trigger_only_on_decrement,
+ok 505 /ptimer/set_count policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 506 /ptimer/set_limit policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 507 /ptimer/oneshot policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 508 /ptimer/periodic policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 509 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 510 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 511 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 512 /ptimer/run_with_period_0 policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 513 /ptimer/run_with_delta_0 policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 514 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 515 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 516 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 517 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 518 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 519 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 520 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 521 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 522 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 523 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 524 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 525 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 526 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 527 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 528 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_counter_rounddown,trigger_only_on_decrement,
+ok 529 /ptimer/set_count policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 530 /ptimer/set_limit policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 531 /ptimer/oneshot policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 532 /ptimer/periodic policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 533 /ptimer/on_the_fly_mode_change policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 534 /ptimer/on_the_fly_period_change policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 535 /ptimer/on_the_fly_freq_change policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 536 /ptimer/run_with_period_0 policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 537 /ptimer/run_with_delta_0 policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 538 /ptimer/periodic_with_load_0 policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 539 /ptimer/oneshot_with_load_0 policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 540 /ptimer/freq_more_than_1000M policy=no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 541 /ptimer/set_count policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 542 /ptimer/set_limit policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 543 /ptimer/oneshot policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 544 /ptimer/periodic policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 545 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 546 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 547 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 548 /ptimer/run_with_period_0 policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 549 /ptimer/run_with_delta_0 policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 550 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 551 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 552 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 553 /ptimer/set_count policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 554 /ptimer/set_limit policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 555 /ptimer/oneshot policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 556 /ptimer/periodic policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 557 /ptimer/on_the_fly_mode_change policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 558 /ptimer/on_the_fly_period_change policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 559 /ptimer/on_the_fly_freq_change policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 560 /ptimer/run_with_period_0 policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 561 /ptimer/run_with_delta_0 policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 562 /ptimer/periodic_with_load_0 policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 563 /ptimer/oneshot_with_load_0 policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 564 /ptimer/freq_more_than_1000M policy=continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 565 /ptimer/set_count policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 566 /ptimer/set_limit policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 567 /ptimer/oneshot policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 568 /ptimer/periodic policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 569 /ptimer/on_the_fly_mode_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 570 /ptimer/on_the_fly_period_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 571 /ptimer/on_the_fly_freq_change policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 572 /ptimer/run_with_period_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 573 /ptimer/run_with_delta_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 574 /ptimer/periodic_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 575 /ptimer/oneshot_with_load_0 policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+ok 576 /ptimer/freq_more_than_1000M policy=wrap_after_one_period,continuous_trigger,no_immediate_reload,no_counter_rounddown,trigger_only_on_decrement,
+# End of ptimer tests
+==============================================================================
+
+==================================== 4/6 =====================================
+test:         qtest+qtest-arm - qemu:qtest-arm/cmsdk-apb-timer-test
+start time:   03:08:01
+duration:     0.17s
+result:       exit status 0
+command:      MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 PYTHON=/tmp/qemu-bk7258-sys-v1/build-bk7258/pyvenv/bin/python3.12 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 MALLOC_PERTURB_=209 QTEST_QEMU_BINARY=./qemu-system-arm ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 G_TEST_DBUS_DAEMON=/tmp/qemu-bk7258-sys-v1/tests/dbus-daemon.sh MESON_TEST_ITERATION=1 RUST_BACKTRACE=1 /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/qtest/cmsdk-apb-timer-test --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02S653415fe99008e213215457851d9641a
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202914.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202914.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine mps2-an385  -accel qtest
+1..1
+# Start of arm tests
+# Start of cmsdk-apb-timer tests
+ok 1 /arm/cmsdk-apb-timer/timer
+# End of cmsdk-apb-timer tests
+# End of arm tests
+==============================================================================
+
+==================================== 5/6 =====================================
+test:         qtest+qtest-arm - qemu:qtest-arm/npcm7xx_smbus-test
+start time:   03:08:01
+duration:     5.67s
+result:       exit status 0
+command:      MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 PYTHON=/tmp/qemu-bk7258-sys-v1/build-bk7258/pyvenv/bin/python3.12 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 QTEST_QEMU_BINARY=./qemu-system-arm ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 G_TEST_DBUS_DAEMON=/tmp/qemu-bk7258-sys-v1/tests/dbus-daemon.sh MESON_TEST_ITERATION=1 RUST_BACKTRACE=1 MALLOC_PERTURB_=195 /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/qtest/npcm7xx_smbus-test --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02S7fb842e21cec4192e8b18299b2ef5989
+1..40
+# Start of arm tests
+# Start of npcm7xx_smbus[0] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 1 /arm/npcm7xx_smbus[0]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 2 /arm/npcm7xx_smbus[0]/invalid_addr
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 3 /arm/npcm7xx_smbus[0]/single_mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 4 /arm/npcm7xx_smbus[0]/fifo_mode
+# End of npcm7xx_smbus[0] tests
+# Start of npcm7xx_smbus[1] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 5 /arm/npcm7xx_smbus[1]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 6 /arm/npcm7xx_smbus[1]/invalid_addr
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 7 /arm/npcm7xx_smbus[1]/single_mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 8 /arm/npcm7xx_smbus[1]/fifo_mode
+# End of npcm7xx_smbus[1] tests
+# Start of npcm7xx_smbus[2] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 9 /arm/npcm7xx_smbus[2]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 10 /arm/npcm7xx_smbus[2]/invalid_addr
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 11 /arm/npcm7xx_smbus[2]/single_mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 12 /arm/npcm7xx_smbus[2]/fifo_mode
+# End of npcm7xx_smbus[2] tests
+# Start of npcm7xx_smbus[3] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 13 /arm/npcm7xx_smbus[3]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 14 /arm/npcm7xx_smbus[3]/invalid_addr
+# End of npcm7xx_smbus[3] tests
+# Start of npcm7xx_smbus[4] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 15 /arm/npcm7xx_smbus[4]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 16 /arm/npcm7xx_smbus[4]/invalid_addr
+# End of npcm7xx_smbus[4] tests
+# Start of npcm7xx_smbus[5] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 17 /arm/npcm7xx_smbus[5]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 18 /arm/npcm7xx_smbus[5]/invalid_addr
+# End of npcm7xx_smbus[5] tests
+# Start of npcm7xx_smbus[6] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 19 /arm/npcm7xx_smbus[6]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 20 /arm/npcm7xx_smbus[6]/invalid_addr
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 21 /arm/npcm7xx_smbus[6]/single_mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 22 /arm/npcm7xx_smbus[6]/fifo_mode
+# End of npcm7xx_smbus[6] tests
+# Start of npcm7xx_smbus[7] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 23 /arm/npcm7xx_smbus[7]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 24 /arm/npcm7xx_smbus[7]/invalid_addr
+# End of npcm7xx_smbus[7] tests
+# Start of npcm7xx_smbus[8] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 25 /arm/npcm7xx_smbus[8]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 26 /arm/npcm7xx_smbus[8]/invalid_addr
+# End of npcm7xx_smbus[8] tests
+# Start of npcm7xx_smbus[9] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 27 /arm/npcm7xx_smbus[9]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 28 /arm/npcm7xx_smbus[9]/invalid_addr
+# End of npcm7xx_smbus[9] tests
+# Start of npcm7xx_smbus[10] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 29 /arm/npcm7xx_smbus[10]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 30 /arm/npcm7xx_smbus[10]/invalid_addr
+# End of npcm7xx_smbus[10] tests
+# Start of npcm7xx_smbus[11] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 31 /arm/npcm7xx_smbus[11]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 32 /arm/npcm7xx_smbus[11]/invalid_addr
+# End of npcm7xx_smbus[11] tests
+# Start of npcm7xx_smbus[12] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 33 /arm/npcm7xx_smbus[12]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 34 /arm/npcm7xx_smbus[12]/invalid_addr
+# End of npcm7xx_smbus[12] tests
+# Start of npcm7xx_smbus[13] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 35 /arm/npcm7xx_smbus[13]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 36 /arm/npcm7xx_smbus[13]/invalid_addr
+# End of npcm7xx_smbus[13] tests
+# Start of npcm7xx_smbus[14] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 37 /arm/npcm7xx_smbus[14]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 38 /arm/npcm7xx_smbus[14]/invalid_addr
+# End of npcm7xx_smbus[14] tests
+# Start of npcm7xx_smbus[15] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 39 /arm/npcm7xx_smbus[15]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202915.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202915.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 40 /arm/npcm7xx_smbus[15]/invalid_addr
+# End of npcm7xx_smbus[15] tests
+# End of arm tests
+==============================================================================
+
+==================================== 6/6 =====================================
+test:         qtest+qtest-arm - qemu:qtest-arm/bk7258-test
+start time:   03:08:01
+duration:     8.99s
+result:       killed by signal 6 SIGABRT
+command:      MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 PYTHON=/tmp/qemu-bk7258-sys-v1/build-bk7258/pyvenv/bin/python3.12 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 QTEST_QEMU_BINARY=./qemu-system-arm ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 MALLOC_PERTURB_=47 G_TEST_DBUS_DAEMON=/tmp/qemu-bk7258-sys-v1/tests/dbus-daemon.sh MESON_TEST_ITERATION=1 RUST_BACKTRACE=1 /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/qtest/bk7258-test --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02S45ad2611303c7d235bc48a081b796016
+1..277
+# Start of arm tests
+# Start of bk7258 tests
+# Start of t5_board tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=qspi0,cs=0 -device w25q32,bus=qspi1,cs=0  -accel qtest
+ok 1 /arm/bk7258/t5_board/qspi-pio-isolation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=qspi0,cs=0 -device w25q32,bus=qspi1,cs=0  -accel qtest
+ok 2 /arm/bk7258/t5_board/qspi-clock-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=qspi0,cs=0 -device w25q32,bus=qspi1,cs=0  -accel qtest
+ok 3 /arm/bk7258/t5_board/qspi-rejections
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=qspi0,cs=0 -device w25q32,bus=qspi1,cs=0  -accel qtest
+ok 4 /arm/bk7258/t5_board/qspi-pause-data
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 5 /arm/bk7258/t5_board/saradc-default-off
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 6 /arm/bk7258/t5_board/saradc-channels-repeat-aliases
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 7 /arm/bk7258/t5_board/saradc-deadlines-clock-pause
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 8 /arm/bk7258/t5_board/saradc-cancel-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645 -d unimp,guest_errors,invalid_mem -D /tmp/bk7258-saradc-2CSOW3/rejections.log  -accel qtest
+ok 9 /arm/bk7258/t5_board/saradc-rejections-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -d unimp,guest_errors -D /tmp/bk7258-saradc-inputs-9J9WW3/absent.log  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input2=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input3=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input4=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input5=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input6=4294967294  -accel qtest
+ok 10 /arm/bk7258/t5_board/saradc-input-validation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 11 /arm/bk7258/t5_board/core-clocks-known-tuples-analog-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-core-clocks=on -d unimp,guest_errors -D /tmp/bk7258-core-clock-58LWW3/unimplemented.log  -accel qtest
+ok 12 /arm/bk7258/t5_board/core-clocks-unknown-source-off-logs
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 13 /arm/bk7258/t5_board/core-clocks-default-off
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-PI64W3/sock -serial chardev:s0 -machine t5_board -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 14 /arm/bk7258/t5_board/core-clocks-peripheral-deadlines
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 15 /arm/bk7258/t5_board/core-clocks-systick-live-pause-repeat
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 16 /arm/bk7258/t5_board/core-clocks-systick-disabled-zero-lpo
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-ZJKXW3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 17 /arm/bk7258/t5_board/uart-tx-fifo-framing-order
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 18 /arm/bk7258/t5_board/uart-tx-service-mask-w1c-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-1MN6W3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 19 /arm/bk7258/t5_board/uart-tx-clock-pause-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-3A9LW3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 20 /arm/bk7258/t5_board/uart-tx-directional-flush-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 21 /arm/bk7258/t5_board/watchdog-deadline-time-horizon
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-YPIVW3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 22 /arm/bk7258/t5_board/uart-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 23 /arm/bk7258/t5_board/spi-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 24 /arm/bk7258/t5_board/spi-ideal-apll-profiles-gates-transactions
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 25 /arm/bk7258/t5_board/spi-ideal-apll-committed-pulse-lifecycle
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 26 /arm/bk7258/t5_board/spi-ideal-apll-atomic-commit-policy
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0 -d unimp,guest_errors -D /tmp/bk7258-ideal-apll-XR9NW3/unimplemented.log  -accel qtest
+ok 27 /arm/bk7258/t5_board/spi-ideal-apll-unknown-profile-logs
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 28 /arm/bk7258/t5_board/spi-ideal-apll-remaining-cycle-preservation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 29 /arm/bk7258/t5_board/spi-ideal-apll-reset-cancellation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0 -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 30 /arm/bk7258/t5_board/spi-ideal-apll-default-off-uart-core-xtal
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 31 /arm/bk7258/t5_board/i2c-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 32 /arm/bk7258/t5_board/pwm-mixed-preload-enable-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 33 /arm/bk7258/t5_board/pwm-counters-compares-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 34 /arm/bk7258/t5_board/pwm-prescalers-gates
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 35 /arm/bk7258/t5_board/pwm-preload-update-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 36 /arm/bk7258/t5_board/pwm-wrap-coalesce-unsupported
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 37 /arm/bk7258/t5_board/dma-widths-aliases-all-channels
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 38 /arm/bk7258/t5_board/dma-half-mask-w1c-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 39 /arm/bk7258/t5_board/dma-bus-error-partial-progress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 40 /arm/bk7258/t5_board/dma-round-robin-disable-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 41 /arm/bk7258/t5_board/dma-max-length-event-rearm
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 42 /arm/bk7258/t5_board/dma-unsupported-modes-no-progress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 43 /arm/bk7258/t5_board/memory-uart-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 44 /arm/bk7258/t5_board/sys-flash-clock-consumer
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1202912.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1202912.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+Bail out! ERROR:../tests/qtest/bk7258-test.c:28:expect: assertion failed (qtest_readl(qts, address) == value): (0x0f000040 == 0x00000000)
+----------------------------------- stderr -----------------------------------
+qemu-system-arm: BK7258 SARADC input1 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input2 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input3 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input4 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input5 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input6 must be a 12-bit raw code
+**
+ERROR:../tests/qtest/bk7258-test.c:28:expect: assertion failed (qtest_readl(qts, address) == value): (0x0f000040 == 0x00000000)
+==============================================================================
+
+
+Summary of Failures:
+
+6/6 qtest+qtest-arm - qemu:qtest-arm/bk7258-test          ERROR           8.99s   killed by signal 6 SIGABRT
+
+Ok:                5   
+Fail:              1   

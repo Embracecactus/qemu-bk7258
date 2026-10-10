@@ -1,0 +1,30 @@
+Working source: independent Embracecactus/qemu-bk7258 master, based on a472543.
+SDK reference only: cb080de1655d579c7593ecf504c440997c4c137b; no SDK build.
+
+Build (existing configured directory; werror enabled):
+ninja -C build-bk7258 -j2 qemu-system-arm tests/qtest/bk7258-test
+
+Same-ELF old/new reproduction:
+BASELINE_QEMU=<a472543 executable> NEW_QEMU=<V4 executable> sh docs/system/arm/bk7258-qspi-v4-evidence/reproduce.sh <output-directory>
+The delivered ELF was built by GNU Arm Embedded 10.3.1. Different toolchains
+may produce a different ELF; use the delivered fixed ELF for byte-identical
+comparison, or record the newly built input hash and rerun both binaries.
+
+Native regression (from build-bk7258):
+./pyvenv/bin/meson test --no-rebuild --print-errorlogs --logbase qspi-v4-regression-final test-bk7258-clock ptimer-test qtest-arm/cmsdk-apb-timer-test test-i2c-readdress qtest-arm/npcm7xx_smbus-test qtest-arm/bk7258-test
+
+Bare-metal regression (from build-bk7258):
+QEMU_TEST_KEEP_SCRATCH=1 ./pyvenv/bin/meson test --setup thorough --no-rebuild --print-errorlogs --logbase qspi-v4-functional func-arm-bk7258
+
+Source access:
+curl --fail --location --max-time 30 https://docs.riselink.ai/arminodoc/bk_avdk_smp/ap_doc/bk7258/en/v3.1.1/developer-guide/peripheral/bk_qspi.html -o <output>/bk_qspi.html
+Result: timeout, exit 28, zero bytes; no HTML file/hash delivered.
+Search-index text for the guide and example was readable. This is separate
+from direct HTML acquisition. Fixed local SDK source hashes are in sources.json.
+
+Failures preserved:
+initial-cs-assertion-failure.log: first native transfer lacked a preceding
+select event; fixed by explicitly initializing CS inactive during reset.
+initial-regression-failure.txt: old SYS unsupported-field assertion rejected
+newly implemented QSPI0 bits; replaced with positive Flash-preserving RMW
+coverage for those bits, retaining negative checks for all other unsupported bits.

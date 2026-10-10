@@ -1,0 +1,4 @@
+TAP version 13
+ok 1 test_bk7258.BK7258Machine.test_t5_board_qspi_pio
+ok 2 test_bk7258.BK7258Machine.test_t5_board_qspi_bad_dummy
+1..2
