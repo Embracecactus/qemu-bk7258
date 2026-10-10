@@ -1,0 +1,13 @@
+{
+  "board": "aidk_ai_toy",
+  "defines": {},
+  "compiler_version": "arm-none-eabi-gcc (15:10.3-2021.07-4) 10.3.1 20210621 (release)",
+  "sha256": {
+    "i2c_readdress.c": "1fcf7db33780f205f79cc9d0513d18291e15991338d9f10466154d6afd14f015",
+    "diagnostic.ld": "bcf2d32258797181654a98b8f958f627209691ae549a46010910e148378bec7a",
+    "i2c_readdress.elf": "5229c6df797837857fc2da5fca9bc85a55b703db77397d2b2d2f58b819ebe053",
+    "uart_console.h": "9f7e922c2cb60eb218bbb0e2b7cc79f1b1c8cce0683939096751fb63f56c4899"
+  },
+  "qemu_sha256": "9fb0d7a512f8abcd4f6525bdb0cf60d0901eeb3406e28398d0a6fb0ae1b5847e",
+  "scope": "bare-metal chip/CPU/IRQ only; no OS boot"
+}

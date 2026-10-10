@@ -1,0 +1,161 @@
+.. SPDX-License-Identifier: GPL-2.0-or-later
+
+BK7258 V3: 7-bit cross-target repeated START
+==========================================
+
+Scope and sources
+-----------------
+
+This downstream functional subset adds single-controller 7-bit readdressing
+on the existing two native I2C buses. It does not add ten-bit or reserved
+addresses, general call, arbitration, DMA, clock stretching, pad waveforms,
+new clock sources or chip reset domains. The original product CP/R7A stopping
+point is not this subset's acceptance criterion. No SDK or product image is
+modified or built for these tests.
+
+The register reference is the read-only BK AVSDK SMP AP checkout at
+``cb080de1655d579c7593ecf504c440997c4c137b``. File hashes and retrieval details
+are recorded in ``bk7258-i2c-v3-evidence/sources.json``. In that revision:
+
+* ``ap/middleware/driver/CMakeLists.txt:135-143`` selects the hardware driver
+  under CONFIG_I2C. The separate simulated-I2C implementation is not evidence
+  for this controller.
+* ``ap/middleware/driver/i2c/i2c_driver.c:335-462`` writes the address byte
+  before START, changes direction by sending a new read address, and clears
+  ACK for the final receive byte. Lines 946-1120 service SM_INT, handle
+  actual address NAK and combine status/START/STOP/ACK in one service write.
+* ``ap/middleware/soc/bk7258_ap/hal/i2c_ll.h:252-301,498-516`` describes the
+  START bit, the combined STOP/service operation and W0C SM_INT. The empty
+  enable_stop helper is not a separate STOP transaction.
+* ``ap/middleware/soc/common/hal/i2c_hal.c:35-63`` configures the existing
+  XTAL/divider path. No alternative source is inferred here.
+
+The `Beken BK7258 AP v3.1.1 I2C guide
+<https://docs.riselink.ai/arminodoc/bk_avdk_smp/ap_doc/bk7258/zh_CN/v3.1.1/developer-guide/peripheral/bk_i2c.html>`_
+describes software-generated START/STOP, addressing after START, and a repeated
+START without intervening STOP. This is 博通集成/Beken documentation, not a
+Broadcom BCM peripheral guide. Its broad capability descriptions do not prove
+unimplemented modes or exact physical register timing.
+
+`NXP UM10204 Rev. 7.0, 1 October 2021
+<https://www.nxp.com/docs/en/user-guide/UM10204.pdf>`_, sections 3.1.4, 3.1.6 and
+3.1.10 (pages 9, 10, 12-14), establishes that repeated START keeps the bus
+busy, another target can be addressed without STOP, address NAK is distinct
+from STOP, and a controller receiving data sends final NAK before repeated
+START. This is the protocol contract, not independent proof of a BK clock or
+reset domain. The fixed SDK exercises same-address write/read; cross-address
+support is the bounded model abstraction combining its START/address-byte
+interface with the vendor and protocol descriptions.
+
+Transaction contract
+--------------------
+
+Software queues ``address << 1 | R/W`` in DATA (+0x18), then commits START in
+STATUS (+0x14), clearing SM_INT when servicing an existing event. At the end
+of the existing nine-SCL-period address operation the controller calls the
+new explicit bus API. Only the address-selected target supplies ACK; no
+matching target or a rejecting target supplies NAK. Only a selected target
+can receive data. Busy state, response status and routed IRQ are separate.
+
+On a completed receive byte, clearing ACK in the service write calls the
+native bus NAK before starting the next address operation. This existing
+byte-service abstraction does not represent individual ACK pin edges.
+Address/data callbacks run only after their clock budget expires. Gating
+retains the remaining budget; resume cannot repeat a completed byte.
+Reset or disable cancels pending callbacks and clears queued bytes using the
+existing controller reset policy; no additional chip reset propagation is
+inferred. SYS IRQ route masking suppresses CPU delivery, not peripheral work
+or SM_INT state. A missing target does not synthesize success on a software
+ACK write. STOP/disable or a fresh START is needed for progress; queued data
+is not implicitly converted into a new address.
+
+Public bus API and target audit
+-------------------------------
+
+``i2c_start_transfer_readdress()`` explicitly opts into synchronous ordinary
+7-bit addressing. Legacy start/SMBus/async callers retain their old selection
+semantics. Mixing legacy and explicit start APIs in a held transaction is
+rejected. The caller must own the transaction; the BK controller checks this
+before scheduling and applying address work. Arbitration is not implemented.
+
+``current_devs`` contains only data recipients. Each new address discards
+that selection, rescans the native topology (including mux match callbacks),
+and applies a real target START callback. A target NAK removes its data
+selection. A separate active flag holds the bus even with no target, keeping
+queued asynchronous masters from acquiring it prematurely. Empty-selected
+writes in this mode return failure, rather than the legacy empty-list ACK.
+
+``stop_devs`` is a unique set of targets that received an address callback.
+They receive I2C_FINISH once at the actual end, including targets deselected
+earlier. This is an explicit functional abstraction: deselection removes
+data routing without inventing a target STOP callback. It is not a new pin
+waveform API and does not reset target-internal registers. Target-specific
+START behavior remains in the target. The trace distinguishes address,
+deselect, NAK, end and FINISH. End/FINISH can also be the controller's existing
+cancel cleanup; they alone are not proof of an electrical STOP. In the
+acceptance guest every end is driven by an explicit STOP command.
+
+* Native AT24C targets retain real pointer/data behavior and their existing
+  START/FINISH backing-store flush policy. Tests read values through I2C,
+  never by consulting backing storage. The two EEPROMs are test fixtures,
+  not claims about board BOM devices.
+* The existing SMBus adapter buffers writes until its existing command
+  boundaries. Readdressing away must not prematurely invoke write_data or
+  quick_cmd through a fake FINISH. The eventual end notifies it exactly once.
+  This preserves the adapter's abstraction; arbitrary cross-address SMBus
+  message grammar, including write/write restarts rejected by its existing
+  state machine, is not newly supported or normalized.
+* PCA954x native match callbacks are rescanned. Its existing SMBus control
+  write applies at STOP, so a pending channel change cannot become visible
+  merely because the controller readdresses. Tests exercise a native target
+  on each of two enabled child buses and a delayed mux-control write.
+* Legacy non-BK NPCM7xx transactions still use the old API. Native shared
+  tests check legacy address retention, API-mixing rejection, true missing
+  target and explicit target NAK, and asynchronous ownership after NAK.
+
+An active explicit transaction cannot use the legacy bus VMState (one saved
+address cannot encode held-with-no-target or deferred FINISH observers).
+The pre-save hook returns ENOTSUP instead of silently losing that state.
+Idle/legacy VMState layout is unchanged. The BK machine was already
+unmigratable. The native unit test stubs serialization metadata; it does not
+claim an end-to-end migration test. Hot-unplug during a held transaction and
+multi-controller ownership are outside this API's contract.
+
+Evidence and reproduction
+-------------------------
+
+The minimal unchanged guest is ``guest-src/bk7258/i2c_readdress.c`` under the
+ARM functional tests. It uses actual BK MMIO, NVIC IRQ6/IPSR22 and SysTick as
+an independent timeout. It writes different bytes through two native EEPROMs,
+performs same-address write/read, reads A then readdresses B, obtains NAK from
+missing 0x52, STOPs, and verifies A again. It has no probe or product firmware.
+
+The fixed ELF from the old failure is reused for the before/after comparison:
+
+* Base ``37f8902c94b1f5c06a1df88dc01cdd3f413542b0``: 10 real I2C IRQs, then
+  command 11 faults at STATUS 0x45850014 on the A-read to B-write START.
+  CFSR=0x00008200, BFAR=0x45850014; semihost exit status 2.
+* New model: 19 real IRQs, exit status 0, CFSR/BFAR zero. A reads 0x35, B
+  reads 0xc7, 0x52 supplies NAK, and A still reads 0x35 after recovery.
+  The trace asserts final receive NAK before each cross-address START and
+  no end/FINISH between those starts.
+
+Native unit tests count actual target START/NAK/FINISH/data callbacks,
+including a target that rejects its address. A fake intermediate STOP fails
+both those counters and the mux side-effect test. BK qtests additionally
+exercise both controllers, SYS route masking, NAK cleanup, address and data
+clock suspension, no duplicated bytes, and reset/disable cancellation.
+Existing strict negative tests are retained; the former cross-address
+rejection check is replaced with the real missing-address NAK assertion.
+
+Build with warnings-as-errors as in ``.github/workflows/bk7258-build.yml``.
+The workflow runs native I2C/SMBus/mux tests, non-BK NPCM7xx qtests, the full
+BK three-machine qtest/guest suites and the prior clock/ptimer gates. Test
+artifacts are keyed by the exact github.sha. A successful old CI run is not
+acceptance of this change. See the evidence manifest for local run commands,
+input hashes, traces and the final CI receipt.
+
+Product evidence from SYS V1 and entry V2 is reused, not re-executed. No
+product path dependency on this readdress operation was established. Default
+CP still has the recorded R7A gap; R7A and SYS+0x0c await new evidence. Full
+ROM/bootloader/product startup remains incomplete independently of I2C.

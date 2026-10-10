@@ -72,6 +72,7 @@ Board-specific documentation
    :maxdepth: 1
 
    arm/bk7258
+   arm/bk7258-i2c-v3
    arm/max78000
    arm/integratorcp
    arm/mps2

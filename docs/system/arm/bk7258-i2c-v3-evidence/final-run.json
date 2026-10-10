@@ -1,0 +1,32 @@
+{
+  "command": [
+    "build-bk7258/qemu-system-arm",
+    "-M",
+    "t5_board",
+    "-display",
+    "none",
+    "-serial",
+    "stdio",
+    "-monitor",
+    "none",
+    "-kernel",
+    "evidence/i2c-v3/i2c_readdress.elf",
+    "-semihosting-config",
+    "enable=on,target=native",
+    "-icount",
+    "shift=0,align=off,sleep=off",
+    "-d",
+    "guest_errors,unimp",
+    "-D",
+    "evidence/i2c-v3/after/mmio.log",
+    "-trace",
+    "enable=i2c_*",
+    "-device",
+    "at24c-eeprom,bus=i2c0,address=0x50,rom-size=256",
+    "-device",
+    "at24c-eeprom,bus=i2c0,address=0x51,rom-size=256"
+  ],
+  "returncode": 0,
+  "guest_sha256": "5229c6df797837857fc2da5fca9bc85a55b703db77397d2b2d2f58b819ebe053",
+  "qemu_sha256": "9fb0d7a512f8abcd4f6525bdb0cf60d0901eeb3406e28398d0a6fb0ae1b5847e"
+}

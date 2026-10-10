@@ -30,7 +30,8 @@ jobs:
             --enable-tcg --enable-werror --enable-tests
           ninja -j2 qemu-system-arm tests/qtest/bk7258-test \
             tests/unit/test-bk7258-clock tests/unit/ptimer-test \
-            tests/qtest/cmsdk-apb-timer-test
+            tests/qtest/cmsdk-apb-timer-test tests/unit/test-i2c-readdress \
+            tests/qtest/npcm7xx_smbus-test
       - name: Check three machine registrations
         run: |
           build-bk7258/qemu-system-arm -M help | tee machines.txt
@@ -47,6 +48,12 @@ jobs:
           cd build-bk7258
           ./pyvenv/bin/meson test --no-rebuild --print-errorlogs \
             --logbase shared-timer ptimer-test qtest-arm/cmsdk-apb-timer-test
+      - name: Check shared I2C core, SMBus, mux and non-BK controllers
+        run: |
+          cd build-bk7258
+          ./pyvenv/bin/meson test --no-rebuild --print-errorlogs \
+            --logbase shared-i2c test-i2c-readdress \
+            qtest-arm/npcm7xx_smbus-test
       - name: Run independent BK7258 hardware qtests
         run: |
           cd build-bk7258
@@ -58,6 +65,10 @@ jobs:
           cd build-bk7258
           command -v arm-none-eabi-gcc
           ./pyvenv/bin/meson test --setup thorough --print-errorlogs func-arm-bk7258
+      - name: Verify I2C V3 comparison evidence
+        run: |
+          cd docs/system/arm/bk7258-i2c-v3-evidence
+          sha256sum --check SHA256SUMS
       - name: Verify entry investigation evidence
         run: |
           python3 -m py_compile scripts/bk7258-product-probe.py
@@ -70,6 +81,7 @@ jobs:
           path: |
             build-bk7258/meson-logs/bk7258-clock-unit*
             build-bk7258/meson-logs/shared-timer*
+            build-bk7258/meson-logs/shared-i2c*
             build-bk7258/meson-logs/testlog*
             build-bk7258/tests/functional/arm/test_bk7258.*
       - uses: actions/upload-artifact@v4
@@ -82,3 +94,12 @@ jobs:
             docs/system/arm/bk7258-entry-v2.rst
             docs/system/arm/bk7258-entry-v2-evidence/
             scripts/bk7258-product-probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bk7258-i2c-v3-evidence-${{ github.sha }}
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            docs/system/arm/bk7258-i2c-v3.rst
+            docs/system/arm/bk7258-i2c-v3-evidence/

@@ -1,0 +1,48 @@
+i2c_readdress addr:0x50 recv:0 repeated:0
+i2c_event address_ack(addr:0x50)
+i2c_send send(addr:0x50) data:0x20
+i2c_send send(addr:0x50) data:0x35
+i2c_event end(addr:0x00)
+i2c_event deselect(addr:0x50)
+i2c_event finish(addr:0x50)
+i2c_readdress addr:0x51 recv:0 repeated:0
+i2c_event address_ack(addr:0x51)
+i2c_send send(addr:0x51) data:0x20
+i2c_send send(addr:0x51) data:0xc7
+i2c_event end(addr:0x00)
+i2c_event deselect(addr:0x51)
+i2c_event finish(addr:0x51)
+i2c_readdress addr:0x50 recv:0 repeated:0
+i2c_event address_ack(addr:0x50)
+i2c_send send(addr:0x50) data:0x20
+i2c_readdress addr:0x50 recv:1 repeated:1
+i2c_event deselect(addr:0x50)
+i2c_event address_ack(addr:0x50)
+i2c_recv recv(addr:0x50) data:0x35
+i2c_event nack(addr:0x50)
+i2c_readdress addr:0x51 recv:0 repeated:1
+i2c_event deselect(addr:0x50)
+i2c_event address_ack(addr:0x51)
+i2c_send send(addr:0x51) data:0x20
+i2c_readdress addr:0x51 recv:1 repeated:1
+i2c_event deselect(addr:0x51)
+i2c_event address_ack(addr:0x51)
+i2c_recv recv(addr:0x51) data:0xc7
+i2c_event nack(addr:0x51)
+i2c_readdress addr:0x52 recv:0 repeated:1
+i2c_event deselect(addr:0x51)
+i2c_event address_nak(addr:0x52)
+i2c_event end(addr:0x00)
+i2c_event finish(addr:0x51)
+i2c_event finish(addr:0x50)
+i2c_readdress addr:0x50 recv:0 repeated:0
+i2c_event address_ack(addr:0x50)
+i2c_send send(addr:0x50) data:0x20
+i2c_readdress addr:0x50 recv:1 repeated:1
+i2c_event deselect(addr:0x50)
+i2c_event address_ack(addr:0x50)
+i2c_recv recv(addr:0x50) data:0x35
+i2c_event nack(addr:0x50)
+i2c_event end(addr:0x00)
+i2c_event deselect(addr:0x50)
+i2c_event finish(addr:0x50)

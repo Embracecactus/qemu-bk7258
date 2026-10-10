@@ -1,0 +1,21 @@
+{
+  "sdk_commit": "cb080de1655d579c7593ecf504c440997c4c137b",
+  "sdk_files": {
+    "ap/middleware/driver/CMakeLists.txt": "202438c9f531ab0be788402c4f4e777ab8e854950ab625043846be4d0f3e1481",
+    "ap/middleware/driver/i2c/i2c_driver.c": "bda0d0438b5ac4842a19f57a02e271ea94dd8fa32b9fffe5e1e152a84c759f40",
+    "ap/middleware/soc/bk7258_ap/hal/i2c_ll.h": "230e26c1bf5449082d6fe2181f8aede60f39f50e1ab63530c5003ab1da1ed541",
+    "ap/middleware/soc/common/hal/i2c_hal.c": "4e3ec7f64f488cf5b243972d7eda3bc6dd22f87b8e94461835a983d386ecff95",
+    "ap/middleware/soc/bk7258_ap/soc/i2c_struct.h": "40951847baec77794895da4f76c93c5f740d311809090a4cca8aa9b1555e3dfd"
+  },
+  "nxp": {
+    "url": "https://www.nxp.com/docs/en/user-guide/UM10204.pdf",
+    "version": "Rev. 7.0, 2021-10-01",
+    "sha256": "dc91f00f65584e06ef36e26c93bf9d91a95fb3c8a1830a9223e53caf678b36af"
+  },
+  "beken": {
+    "url": "https://docs.riselink.ai/arminodoc/bk_avdk_smp/ap_doc/bk7258/zh_CN/v3.1.1/developer-guide/peripheral/bk_i2c.html",
+    "version": "BK7258 AP v3.1.1",
+    "retrieved": "2026-10-10 via web page reader; HTTP download attempted separately"
+  },
+  "scope": "Read-only reference; no SDK/OpenVela build or writes."
+}

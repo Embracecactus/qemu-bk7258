@@ -1366,10 +1366,12 @@ from such writes, then runs the ordinary bus/IRQ/repeated-START sequence.
 
 The following boundaries remain explicit:
 
-* The generic QEMU I2C API does not rescan an already selected bus for a new
-  address during repeated START. A different-address repeated START is
-  rejected without redirecting the transfer or pretending the old slave
-  acknowledged the new address. Same-address direction changes are tested.
+* BK uses the explicit QEMU ``i2c_start_transfer_readdress()`` API: each
+  START decodes its 7-bit address again, without an intermediate STOP.
+  Same-address direction changes and cross-target transactions are tested.
+  Address NAK leaves the bus held but no target selected for data; it is
+  neither a successful response from the old target nor bus release.
+  See :doc:`bk7258-i2c-v3` for the contract and independent evidence.
   An already externally owned bus rejects a new request; contention that
   appears during the functional delay logs an unsupported case and leaves
   the operation without automatic completion until software recovers. No arbitration-loss IRQ or
@@ -1381,7 +1383,7 @@ The following boundaries remain explicit:
   EXTRA output-control bits retain their setting; nonzero byte-interval
   settings are unsupported. No physical pad-waveform claim is made.
 * Empty RX reads, full TX writes, contradictory START/STOP, unsupported
-  register accesses and the unsupported repeated-address case return a
+  register accesses and reserved address requests return a
   transaction error without consuming/corrupting FIFO data. These deliberate
   strict-model policies are not claims that silicon raises BusFault for
   those software mistakes or for its valid device-ID registers.

@@ -1,0 +1,792 @@
+Log of Meson test suite run on 2026-10-10T09:59:44.769385
+
+Inherited environment: SHELL=/bin/bash COLORTERM='' NVM_INC=/home/lijian/.nvm/versions/node/v20.20.2/include/node no_proxy='localhost,127.0.0.1,::1,172.31.*,172.30.*,172.29.*,172.28.*,172.27.*,172.26.*,172.25.*,172.24.*,172.23.*,172.22.*,172.21.*,172.20.*,172.19.*,172.18.*,172.17.*,172.16.*,10.*,192.168.*,127.*,localhost,<local>' WSL2_GUI_APPS_ENABLED=1 WSL_DISTRO_NAME=Ubuntu-22.04 CODEX_VERSION=0.162.1 JAVA_HOME=/home/lijian/.sdkman/candidates/java/current SDKMAN_CANDIDATES_DIR=/home/lijian/.sdkman/candidates GH_PAGER=cat SDKMAN_BROKER_API=https://broker.sdkman.io NAME=DESKTOP-0B20O0K PWD=/tmp/qemu-bk7258-sys-v1/build-bk7258 LOGNAME=lijian MOTD_SHOWN=update-motd HOME=/home/lijian CODEX_SESSION_ID=01a11f3c-8a31-7e70-af0b-f4e275f34d23 LANG=C.UTF-8 WSL_INTEROP=/run/WSL/641_interop LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:' WAYLAND_DISPLAY=wayland-0 WSS_PROXY=http://127.0.0.1:7897 https_proxy=http://127.0.0.1:7897 NVM_DIR=/home/lijian/.nvm LESSCLOSE='/usr/bin/lesspipe %s %s' CODEX_PERMISSION_PROFILE=:workspace TERM=dumb CODEX_THREAD_ID=01a11f3c-8a31-7e70-af0b-f4e275f34d23 LESSOPEN='| /usr/bin/lesspipe %s' USER=lijian GIT_PAGER=cat NO_PROXY='localhost,127.0.0.1,::1,172.31.*,172.30.*,172.29.*,172.28.*,172.27.*,172.26.*,172.25.*,172.24.*,172.23.*,172.22.*,172.21.*,172.20.*,172.19.*,172.18.*,172.17.*,172.16.*,10.*,192.168.*,127.*,localhost,<local>' SDKMAN_DIR=/home/lijian/.sdkman DISPLAY=:0 CODEX_APPLY_PATCH_PRESERVE_LINE_ENDINGS=1 SHLVL=1 NVM_CD_FLAGS='' PAGER=cat HTTPS_PROXY=http://127.0.0.1:7897 HTTP_PROXY=http://127.0.0.1:7897 SDKMAN_CANDIDATES_API=https://api.sdkman.io/2 http_proxy=http://127.0.0.1:7897 NO_COLOR=1 WS_PROXY=http://127.0.0.1:7897 CODEX_CI=1 LC_CTYPE=C.UTF-8 XDG_RUNTIME_DIR=/run/user/1000/ WSLENV='' BUN_INSTALL=/home/lijian/.bun wss_proxy=http://127.0.0.1:7897 LC_ALL=C.UTF-8 XDG_DATA_DIRS=/usr/local/share:/usr/share:/var/lib/snapd/desktop CODEX_SANDBOX_NETWORK_DISABLED=1 ws_proxy=http://127.0.0.1:7897 PATH='/home/lijian/.qoder/entry:/home/lijian/.local/bin:/home/lijian/bin:/home/lijian/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/lijian/.codex/tmp/arg0/codex-arg0y8D7O1:/home/lijian/.codex/tmp/arg0/codex-arg0UdbL7C:/home/lijian/.codex/packages/standalone/releases/0.162.0-x86_64-unknown-linux-musl/codex-path:/home/lijian/.codex/tmp/arg0/codex-arg0S8iLZ4:/home/lijian/.codex/packages/standalone/releases/0.161.0-x86_64-unknown-linux-musl/codex-path:/home/lijian/.codex/tmp/arg0/codex-arg0zTUJso:/home/lijian/.codex/packages/standalone/releases/0.160.1-x86_64-unknown-linux-musl/codex-path:/home/lijian/.codex/tmp/arg0/codex-arg0ezINLt:/home/lijian/.codex/packages/standalone/releases/0.160.0-x86_64-unknown-linux-musl/codex-path:/home/lijian/.codex/tmp/arg0/codex-arg0s1iS5U:/home/lijian/.codex/packages/standalone/releases/0.159.2-x86_64-unknown-linux-musl/codex-path:/home/lijian/.codex/tmp/arg0/codex-arg0OXfBmW:/home/lijian/.codex/packages/standalone/releases/0.159.2-x86_64-unknown-linux-musl/codex-path:/home/lijian/.local/bin:/home/lijian/project/work/rv1103/luckfox-pico/bin:/home/lijian/.kimi-code/bin:/home/lijian/.grok/bin:/home/lijian/.local/bin:/home/lijian/.local/share/pi-node/node-v22.23.1-linux-x64/bin:/home/lijian/.sdkman/candidates/java/current/bin:/home/lijian/.nvm/versions/node/v20.20.2/bin:/home/lijian/.bun/bin:/home/lijian/project/work/rv1103/luckfox-pico/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/mnt/c/Program Files/Microsoft/jdk-25.0.3.9-hotspot/bin:/mnt/c/Program Files (x86)/VMware/VMware Workstation/bin/:/mnt/c/WINDOWS/system32:/mnt/c/WINDOWS:/mnt/c/WINDOWS/System32/Wbem:/mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0/:/mnt/c/WINDOWS/System32/OpenSSH/:/mnt/c/Program Files/Docker/Docker/resources/bin:/mnt/c/Program Files/usbipd-win/:/mnt/c/Program Files/TortoiseGit/bin:/mnt/c/Users/lijian/workspace/mcu/esp32-box-lite/esp-idf/.espressif/tools/idf-python:/mnt/c/Pro:/mnt/c/Program Files/CMake/bin:/mnt/c/Program Files/Git/cmd:/mnt/c/Program Files/Huawei QuickApp IDE/resources/app/extensions/deveco-debug/lib/toolkit/nodeTool:/mnt/c/Program Files/Huawei QuickApp IDE/resources/app/extensions/deveco-debug/lib/toolkit:/mnt/c/Program Files/nodejs/:/mnt/c/Program Files/dotnet/:/mnt/c/Program Files (x86)/Tencent/微信web开发者工具/dll:/mnt/c/Program Files/NVIDIA Corporation/NVIDIA App/NvDLISR:/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common:/mnt/c/Program Files/Nordic Semiconductor/nrf-command-line-tools/bin/:/mnt/c/Qt/6.9.0/mingw_64/bin:/mnt/c/Users/lijian/AppData/Local/Programs/Python/Python313/Scripts/:/mnt/c/Users/lijian/AppData/Local/Programs/Python/Python313/:/mnt/c/Users/lijian/AppData/Local/Programs/Python/Launcher/:/mnt/c/Users/lijian/AppData/Local/Microsoft/WindowsApps:/mnt/c/Users/lijian/AppData/Local/Programs/Microsoft VS Code/bin:/mnt/c/Program Files/JetBrains/CLion 2024.2.3/bin:/mnt/c/Program Files/JetBrains/JetBrains Gateway 2024.3/bin:/mnt/c/Users/lijian/workspace/mcu/esp32-box-lite/esp-idf/esp-idf-v5.4/v5.4/esp-idf/tools:/mnt/c/Users/lijian/AppData/Roaming/npm:/mnt/c/Users/lijian/AppData/Local/Microsoft/WinGet/Packages/Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe:/mnt/c/Users/lijian/AppData/Local/Microsoft/WinGet/Packages/oss-winget.gperf_Microsoft.Winget.Source_8wekyb3d8bbwe:/mnt/c/Users/lijian/AppData/Local/Microsoft/WinGet/Packages/oss-winget.dtc_Microsoft.Winget.Source_8wekyb3d8bbwe/usr/bin:/mnt/c/Users/lijian/AppData/Local/Microsoft/WinGet/Packages/JernejSimoncic.Wget_Microsoft.Winget.Source_8wekyb3d8bbwe:/mnt/c/Program Files/7-Zip:/mnt/c/Users/lijian/workspace/nrf-project:/mnt/c/Users/lijian/Downloads/AllwinnertechPhoeniSuitRelease20201225.zip/AllwinnertechPhoeniSuitRelease20201225/:/mnt/c/Users/lijian/AppData/Local/PowerToys/DSCModules/:/mnt/c/Users/lijian/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-9.0.2-full_build/bin:/snap/bin' DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus SDKMAN_PLATFORM=linuxx64 NVM_BIN=/home/lijian/.nvm/versions/node/v20.20.2/bin HOSTTYPE=x86_64 PULSE_SERVER=unix:/mnt/wslg/PulseServer OLDPWD=/home/lijian/project _=./pyvenv/bin/meson 
+
+==================================== 1/3 =====================================
+test:         unit - qemu:test-i2c-readdress
+start time:   01:59:44
+duration:     0.00s
+result:       exit status 0
+command:      G_TEST_SRCDIR=/tmp/qemu-bk7258-sys-v1/tests/unit MALLOC_PERTURB_=245 MESON_TEST_ITERATION=1 MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 RUST_BACKTRACE=1 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 G_TEST_BUILDDIR=/tmp/qemu-bk7258-sys-v1/build-bk7258/tests/unit /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/unit/test-i2c-readdress --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02S630b930b9ad796d6b1bfa8b900bb4b0b
+1..5
+# Start of i2c tests
+# Start of readdress tests
+ok 1 /i2c/readdress/no-false-stop
+ok 2 /i2c/readdress/nak-recovery
+ok 3 /i2c/readdress/legacy
+ok 4 /i2c/readdress/ownership
+ok 5 /i2c/readdress/smbus-mux
+# End of readdress tests
+# End of i2c tests
+==============================================================================
+
+==================================== 2/3 =====================================
+test:         qtest+qtest-arm - qemu:qtest-arm/npcm7xx_smbus-test
+start time:   01:59:44
+duration:     5.55s
+result:       exit status 0
+command:      MALLOC_PERTURB_=234 MESON_TEST_ITERATION=1 QTEST_QEMU_BINARY=./qemu-system-arm MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 RUST_BACKTRACE=1 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 PYTHON=/tmp/qemu-bk7258-sys-v1/build-bk7258/pyvenv/bin/python3.12 ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 G_TEST_DBUS_DAEMON=/tmp/qemu-bk7258-sys-v1/tests/dbus-daemon.sh /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/qtest/npcm7xx_smbus-test --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02Sa0f9cc477d03d1d7a33ececa450303d1
+1..40
+# Start of arm tests
+# Start of npcm7xx_smbus[0] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 1 /arm/npcm7xx_smbus[0]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 2 /arm/npcm7xx_smbus[0]/invalid_addr
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 3 /arm/npcm7xx_smbus[0]/single_mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 4 /arm/npcm7xx_smbus[0]/fifo_mode
+# End of npcm7xx_smbus[0] tests
+# Start of npcm7xx_smbus[1] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 5 /arm/npcm7xx_smbus[1]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 6 /arm/npcm7xx_smbus[1]/invalid_addr
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 7 /arm/npcm7xx_smbus[1]/single_mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 8 /arm/npcm7xx_smbus[1]/fifo_mode
+# End of npcm7xx_smbus[1] tests
+# Start of npcm7xx_smbus[2] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 9 /arm/npcm7xx_smbus[2]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 10 /arm/npcm7xx_smbus[2]/invalid_addr
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 11 /arm/npcm7xx_smbus[2]/single_mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 12 /arm/npcm7xx_smbus[2]/fifo_mode
+# End of npcm7xx_smbus[2] tests
+# Start of npcm7xx_smbus[3] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 13 /arm/npcm7xx_smbus[3]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 14 /arm/npcm7xx_smbus[3]/invalid_addr
+# End of npcm7xx_smbus[3] tests
+# Start of npcm7xx_smbus[4] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 15 /arm/npcm7xx_smbus[4]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 16 /arm/npcm7xx_smbus[4]/invalid_addr
+# End of npcm7xx_smbus[4] tests
+# Start of npcm7xx_smbus[5] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 17 /arm/npcm7xx_smbus[5]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 18 /arm/npcm7xx_smbus[5]/invalid_addr
+# End of npcm7xx_smbus[5] tests
+# Start of npcm7xx_smbus[6] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 19 /arm/npcm7xx_smbus[6]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 20 /arm/npcm7xx_smbus[6]/invalid_addr
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 21 /arm/npcm7xx_smbus[6]/single_mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 22 /arm/npcm7xx_smbus[6]/fifo_mode
+# End of npcm7xx_smbus[6] tests
+# Start of npcm7xx_smbus[7] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 23 /arm/npcm7xx_smbus[7]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 24 /arm/npcm7xx_smbus[7]/invalid_addr
+# End of npcm7xx_smbus[7] tests
+# Start of npcm7xx_smbus[8] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 25 /arm/npcm7xx_smbus[8]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 26 /arm/npcm7xx_smbus[8]/invalid_addr
+# End of npcm7xx_smbus[8] tests
+# Start of npcm7xx_smbus[9] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 27 /arm/npcm7xx_smbus[9]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 28 /arm/npcm7xx_smbus[9]/invalid_addr
+# End of npcm7xx_smbus[9] tests
+# Start of npcm7xx_smbus[10] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 29 /arm/npcm7xx_smbus[10]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 30 /arm/npcm7xx_smbus[10]/invalid_addr
+# End of npcm7xx_smbus[10] tests
+# Start of npcm7xx_smbus[11] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 31 /arm/npcm7xx_smbus[11]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 32 /arm/npcm7xx_smbus[11]/invalid_addr
+# End of npcm7xx_smbus[11] tests
+# Start of npcm7xx_smbus[12] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 33 /arm/npcm7xx_smbus[12]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 34 /arm/npcm7xx_smbus[12]/invalid_addr
+# End of npcm7xx_smbus[12] tests
+# Start of npcm7xx_smbus[13] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 35 /arm/npcm7xx_smbus[13]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 36 /arm/npcm7xx_smbus[13]/invalid_addr
+# End of npcm7xx_smbus[13] tests
+# Start of npcm7xx_smbus[14] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 37 /arm/npcm7xx_smbus[14]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 38 /arm/npcm7xx_smbus[14]/invalid_addr
+# End of npcm7xx_smbus[14] tests
+# Start of npcm7xx_smbus[15] tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 39 /arm/npcm7xx_smbus[15]/disable_bus
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010348.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010348.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine npcm750-evb  -accel qtest
+ok 40 /arm/npcm7xx_smbus[15]/invalid_addr
+# End of npcm7xx_smbus[15] tests
+# End of arm tests
+==============================================================================
+
+==================================== 3/3 =====================================
+test:         qtest+qtest-arm - qemu:qtest-arm/bk7258-test
+start time:   01:59:44
+duration:     50.46s
+result:       exit status 0
+command:      MESON_TEST_ITERATION=1 QTEST_QEMU_BINARY=./qemu-system-arm MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 RUST_BACKTRACE=1 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1 PYTHON=/tmp/qemu-bk7258-sys-v1/build-bk7258/pyvenv/bin/python3.12 ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_summary=1 G_TEST_DBUS_DAEMON=/tmp/qemu-bk7258-sys-v1/tests/dbus-daemon.sh MALLOC_PERTURB_=68 /tmp/qemu-bk7258-sys-v1/build-bk7258/tests/qtest/bk7258-test --tap -k
+----------------------------------- stdout -----------------------------------
+# random seed: R02S936746f069d8efe6d682c571269ea4b5
+1..265
+# Start of arm tests
+# Start of bk7258 tests
+# Start of t5_board tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 1 /arm/bk7258/t5_board/saradc-default-off
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 2 /arm/bk7258/t5_board/saradc-channels-repeat-aliases
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 3 /arm/bk7258/t5_board/saradc-deadlines-clock-pause
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 4 /arm/bk7258/t5_board/saradc-cancel-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645 -d unimp,guest_errors,invalid_mem -D /tmp/bk7258-saradc-PQ94W3/rejections.log  -accel qtest
+ok 5 /arm/bk7258/t5_board/saradc-rejections-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -d unimp,guest_errors -D /tmp/bk7258-saradc-inputs-UAMRW3/absent.log  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input2=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input3=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input4=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input5=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input6=4294967294  -accel qtest
+ok 6 /arm/bk7258/t5_board/saradc-input-validation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 7 /arm/bk7258/t5_board/core-clocks-known-tuples-analog-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-core-clocks=on -d unimp,guest_errors -D /tmp/bk7258-core-clock-2ZUQW3/unimplemented.log  -accel qtest
+ok 8 /arm/bk7258/t5_board/core-clocks-unknown-source-off-logs
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 9 /arm/bk7258/t5_board/core-clocks-default-off
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-WYA4W3/sock -serial chardev:s0 -machine t5_board -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 10 /arm/bk7258/t5_board/core-clocks-peripheral-deadlines
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 11 /arm/bk7258/t5_board/core-clocks-systick-live-pause-repeat
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 12 /arm/bk7258/t5_board/core-clocks-systick-disabled-zero-lpo
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-ONZRW3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 13 /arm/bk7258/t5_board/uart-tx-fifo-framing-order
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 14 /arm/bk7258/t5_board/uart-tx-service-mask-w1c-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-EIF0W3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 15 /arm/bk7258/t5_board/uart-tx-clock-pause-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-RGM2W3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 16 /arm/bk7258/t5_board/uart-tx-directional-flush-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 17 /arm/bk7258/t5_board/watchdog-deadline-time-horizon
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-ZU6KW3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 18 /arm/bk7258/t5_board/uart-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 19 /arm/bk7258/t5_board/spi-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 20 /arm/bk7258/t5_board/spi-ideal-apll-profiles-gates-transactions
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 21 /arm/bk7258/t5_board/spi-ideal-apll-committed-pulse-lifecycle
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 22 /arm/bk7258/t5_board/spi-ideal-apll-atomic-commit-policy
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0 -d unimp,guest_errors -D /tmp/bk7258-ideal-apll-UGZ5W3/unimplemented.log  -accel qtest
+ok 23 /arm/bk7258/t5_board/spi-ideal-apll-unknown-profile-logs
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 24 /arm/bk7258/t5_board/spi-ideal-apll-remaining-cycle-preservation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 25 /arm/bk7258/t5_board/spi-ideal-apll-reset-cancellation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0 -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 26 /arm/bk7258/t5_board/spi-ideal-apll-default-off-uart-core-xtal
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 27 /arm/bk7258/t5_board/i2c-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 28 /arm/bk7258/t5_board/pwm-mixed-preload-enable-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 29 /arm/bk7258/t5_board/pwm-counters-compares-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 30 /arm/bk7258/t5_board/pwm-prescalers-gates
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 31 /arm/bk7258/t5_board/pwm-preload-update-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 32 /arm/bk7258/t5_board/pwm-wrap-coalesce-unsupported
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 33 /arm/bk7258/t5_board/dma-widths-aliases-all-channels
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 34 /arm/bk7258/t5_board/dma-half-mask-w1c-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 35 /arm/bk7258/t5_board/dma-bus-error-partial-progress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 36 /arm/bk7258/t5_board/dma-round-robin-disable-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 37 /arm/bk7258/t5_board/dma-max-length-event-rearm
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 38 /arm/bk7258/t5_board/dma-unsupported-modes-no-progress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 39 /arm/bk7258/t5_board/memory-uart-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 40 /arm/bk7258/t5_board/sys-flash-clock-consumer
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 41 /arm/bk7258/t5_board/sys-flash-clock-configuration
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 42 /arm/bk7258/t5_board/sys-flash-configuration-readback-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 43 /arm/bk7258/t5_board/sys-flash-unsupported-fields-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 44 /arm/bk7258/t5_board/uart-clocks-gates-divider
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-J6C7W3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 45 /arm/bk7258/t5_board/uart-rx-clock-pause-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-WMUMW3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 46 /arm/bk7258/t5_board/uart-rx-capacity-wrap-backpressure
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-FFQOW3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 47 /arm/bk7258/t5_board/uart-rx-width-snapshot-mask-flush
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-5GHVW3/sock -serial chardev:s0 -machine t5_board  -accel qtest
+ok 48 /arm/bk7258/t5_board/uart-rx-width-backpressure
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 49 /arm/bk7258/t5_board/watchdog-keys-expiry
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 50 /arm/bk7258/t5_board/watchdog-sources-pause-recovery
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 51 /arm/bk7258/t5_board/spi-lsb-byte-order-cancel-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 52 /arm/bk7258/t5_board/spi-native-frames-irq-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 53 /arm/bk7258/t5_board/spi-fifo-overflow-starvation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 54 /arm/bk7258/t5_board/spi-completed-config-atomic-rejection
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 55 /arm/bk7258/t5_board/spi-fifo-threshold-boundaries
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 56 /arm/bk7258/t5_board/spi-clock-loss-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -device w25q32,bus=spi0,cs=1  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi0,cs=0  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -device w25q32,bus=spi1,cs=1  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -device w25q32,bus=spi1,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 57 /arm/bk7258/t5_board/spi-invalid-cs-wiring
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 58 /arm/bk7258/t5_board/i2c-fifo-native-bus-transactions
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 59 /arm/bk7258/t5_board/i2c-w0c-nak-irq-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 60 /arm/bk7258/t5_board/i2c-clock-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c0,address=0x51,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x51,rom-size=256  -accel qtest
+ok 61 /arm/bk7258/t5_board/i2c-readdress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c0,address=0x51,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x51,rom-size=256  -accel qtest
+ok 62 /arm/bk7258/t5_board/i2c-readdress-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 63 /arm/bk7258/t5_board/i2c-register-write-deadline
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 64 /arm/bk7258/t5_board/timer-groups-channels-routes-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 65 /arm/bk7258/t5_board/timer-clock-snapshot-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 66 /arm/bk7258/t5_board/timer-prescaler-boundaries
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 67 /arm/bk7258/t5_board/timer-32bit-wrap-lowered-end
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 68 /arm/bk7258/t5_board/rtc-counter-clock-sync-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 69 /arm/bk7258/t5_board/rtc-compare-routes-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 70 /arm/bk7258/t5_board/rtc-64bit-upper-wrap
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 71 /arm/bk7258/t5_board/gpio-mask-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 72 /arm/bk7258/t5_board/gpio-retained-warm-reset-edges-levels
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 73 /arm/bk7258/t5_board/board-led-key-wiring
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 74 /arm/bk7258/t5_board/gpio-external-release
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 75 /arm/bk7258/t5_board/analog-busy-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 76 /arm/bk7258/t5_board/clock-ratio-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 77 /arm/bk7258/t5_board/clock-source-loss-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 78 /arm/bk7258/t5_board/clock-deadline-time-horizon
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 79 /arm/bk7258/t5_board/clock-deadline-exact-fit
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 80 /arm/bk7258/t5_board/lpo-mux-source-loss-gates-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 81 /arm/bk7258/t5_board/mailbox-order-full
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 82 /arm/bk7258/t5_board/mailbox-protection-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-YXDLW3/nor.bin,readonly=off -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-YXDLW3/status.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-YXDLW3/nor.bin,readonly=off -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-YXDLW3/status.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-YXDLW3/nor.bin,readonly=on -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-YXDLW3/status.bin  -accel qtest
+ok 83 /arm/bk7258/t5_board/nor-persistence-protection-cancel-readonly
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 84 /arm/bk7258/t5_board/nor-without-host-backing
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 85 /arm/bk7258/t5_board/board-owned-nor-immutable-link
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null -kernel /tmp/bk7258-loader-S4NNW3/logical.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -kernel /tmp/bk7258-loader-S4NNW3/logical.bin -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-loader-S4NNW3/nor.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -global bk7258-soc.xip-size=4096  -accel qtest
+ok 86 /arm/bk7258/t5_board/explicit-logical-xip-mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5_board -serial null  -accel qtest
+ok 87 /arm/bk7258/t5_board/aidk-properties-absent
+# End of t5_board tests
+# Start of t5ai_core tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 88 /arm/bk7258/t5ai_core/saradc-default-off
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 89 /arm/bk7258/t5ai_core/saradc-channels-repeat-aliases
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 90 /arm/bk7258/t5ai_core/saradc-deadlines-clock-pause
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 91 /arm/bk7258/t5ai_core/saradc-cancel-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645 -d unimp,guest_errors,invalid_mem -D /tmp/bk7258-saradc-OIEQW3/rejections.log  -accel qtest
+ok 92 /arm/bk7258/t5ai_core/saradc-rejections-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -d unimp,guest_errors -D /tmp/bk7258-saradc-inputs-DBZXW3/absent.log  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input2=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input3=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input4=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input5=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input6=4294967294  -accel qtest
+ok 93 /arm/bk7258/t5ai_core/saradc-input-validation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 94 /arm/bk7258/t5ai_core/core-clocks-known-tuples-analog-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-core-clocks=on -d unimp,guest_errors -D /tmp/bk7258-core-clock-LLWWW3/unimplemented.log  -accel qtest
+ok 95 /arm/bk7258/t5ai_core/core-clocks-unknown-source-off-logs
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 96 /arm/bk7258/t5ai_core/core-clocks-default-off
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-SLH6W3/sock -serial chardev:s0 -machine t5ai_core -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 97 /arm/bk7258/t5ai_core/core-clocks-peripheral-deadlines
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 98 /arm/bk7258/t5ai_core/core-clocks-systick-live-pause-repeat
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 99 /arm/bk7258/t5ai_core/core-clocks-systick-disabled-zero-lpo
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-RR6TW3/sock -serial chardev:s0 -machine t5ai_core  -accel qtest
+ok 100 /arm/bk7258/t5ai_core/uart-tx-fifo-framing-order
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 101 /arm/bk7258/t5ai_core/uart-tx-service-mask-w1c-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-5IL2W3/sock -serial chardev:s0 -machine t5ai_core  -accel qtest
+ok 102 /arm/bk7258/t5ai_core/uart-tx-clock-pause-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-6NU5W3/sock -serial chardev:s0 -machine t5ai_core  -accel qtest
+ok 103 /arm/bk7258/t5ai_core/uart-tx-directional-flush-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 104 /arm/bk7258/t5ai_core/watchdog-deadline-time-horizon
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-E6ZSW3/sock -serial chardev:s0 -machine t5ai_core  -accel qtest
+ok 105 /arm/bk7258/t5ai_core/uart-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 106 /arm/bk7258/t5ai_core/spi-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 107 /arm/bk7258/t5ai_core/spi-ideal-apll-profiles-gates-transactions
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 108 /arm/bk7258/t5ai_core/spi-ideal-apll-committed-pulse-lifecycle
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 109 /arm/bk7258/t5ai_core/spi-ideal-apll-atomic-commit-policy
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0 -d unimp,guest_errors -D /tmp/bk7258-ideal-apll-B56LW3/unimplemented.log  -accel qtest
+ok 110 /arm/bk7258/t5ai_core/spi-ideal-apll-unknown-profile-logs
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 111 /arm/bk7258/t5ai_core/spi-ideal-apll-remaining-cycle-preservation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 112 /arm/bk7258/t5ai_core/spi-ideal-apll-reset-cancellation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0 -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 113 /arm/bk7258/t5ai_core/spi-ideal-apll-default-off-uart-core-xtal
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 114 /arm/bk7258/t5ai_core/i2c-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 115 /arm/bk7258/t5ai_core/pwm-mixed-preload-enable-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 116 /arm/bk7258/t5ai_core/pwm-counters-compares-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 117 /arm/bk7258/t5ai_core/pwm-prescalers-gates
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 118 /arm/bk7258/t5ai_core/pwm-preload-update-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 119 /arm/bk7258/t5ai_core/pwm-wrap-coalesce-unsupported
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 120 /arm/bk7258/t5ai_core/dma-widths-aliases-all-channels
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 121 /arm/bk7258/t5ai_core/dma-half-mask-w1c-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 122 /arm/bk7258/t5ai_core/dma-bus-error-partial-progress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 123 /arm/bk7258/t5ai_core/dma-round-robin-disable-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 124 /arm/bk7258/t5ai_core/dma-max-length-event-rearm
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 125 /arm/bk7258/t5ai_core/dma-unsupported-modes-no-progress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 126 /arm/bk7258/t5ai_core/memory-uart-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 127 /arm/bk7258/t5ai_core/sys-flash-clock-consumer
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 128 /arm/bk7258/t5ai_core/sys-flash-clock-configuration
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 129 /arm/bk7258/t5ai_core/sys-flash-configuration-readback-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 130 /arm/bk7258/t5ai_core/sys-flash-unsupported-fields-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 131 /arm/bk7258/t5ai_core/uart-clocks-gates-divider
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-7GIOW3/sock -serial chardev:s0 -machine t5ai_core  -accel qtest
+ok 132 /arm/bk7258/t5ai_core/uart-rx-clock-pause-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-NHVRW3/sock -serial chardev:s0 -machine t5ai_core  -accel qtest
+ok 133 /arm/bk7258/t5ai_core/uart-rx-capacity-wrap-backpressure
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-X8SXW3/sock -serial chardev:s0 -machine t5ai_core  -accel qtest
+ok 134 /arm/bk7258/t5ai_core/uart-rx-width-snapshot-mask-flush
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-PP9ZW3/sock -serial chardev:s0 -machine t5ai_core  -accel qtest
+ok 135 /arm/bk7258/t5ai_core/uart-rx-width-backpressure
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 136 /arm/bk7258/t5ai_core/watchdog-keys-expiry
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 137 /arm/bk7258/t5ai_core/watchdog-sources-pause-recovery
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 138 /arm/bk7258/t5ai_core/spi-lsb-byte-order-cancel-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 139 /arm/bk7258/t5ai_core/spi-native-frames-irq-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 140 /arm/bk7258/t5ai_core/spi-fifo-overflow-starvation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 141 /arm/bk7258/t5ai_core/spi-completed-config-atomic-rejection
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 142 /arm/bk7258/t5ai_core/spi-fifo-threshold-boundaries
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 143 /arm/bk7258/t5ai_core/spi-clock-loss-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -device w25q32,bus=spi0,cs=1  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi0,cs=0  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -device w25q32,bus=spi1,cs=1  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -device w25q32,bus=spi1,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 144 /arm/bk7258/t5ai_core/spi-invalid-cs-wiring
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 145 /arm/bk7258/t5ai_core/i2c-fifo-native-bus-transactions
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 146 /arm/bk7258/t5ai_core/i2c-w0c-nak-irq-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 147 /arm/bk7258/t5ai_core/i2c-clock-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c0,address=0x51,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x51,rom-size=256  -accel qtest
+ok 148 /arm/bk7258/t5ai_core/i2c-readdress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c0,address=0x51,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x51,rom-size=256  -accel qtest
+ok 149 /arm/bk7258/t5ai_core/i2c-readdress-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 150 /arm/bk7258/t5ai_core/i2c-register-write-deadline
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 151 /arm/bk7258/t5ai_core/timer-groups-channels-routes-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 152 /arm/bk7258/t5ai_core/timer-clock-snapshot-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 153 /arm/bk7258/t5ai_core/timer-prescaler-boundaries
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 154 /arm/bk7258/t5ai_core/timer-32bit-wrap-lowered-end
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 155 /arm/bk7258/t5ai_core/rtc-counter-clock-sync-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 156 /arm/bk7258/t5ai_core/rtc-compare-routes-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 157 /arm/bk7258/t5ai_core/rtc-64bit-upper-wrap
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 158 /arm/bk7258/t5ai_core/gpio-mask-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 159 /arm/bk7258/t5ai_core/gpio-retained-warm-reset-edges-levels
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 160 /arm/bk7258/t5ai_core/board-led-key-wiring
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 161 /arm/bk7258/t5ai_core/gpio-external-release
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 162 /arm/bk7258/t5ai_core/analog-busy-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 163 /arm/bk7258/t5ai_core/clock-ratio-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 164 /arm/bk7258/t5ai_core/clock-source-loss-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 165 /arm/bk7258/t5ai_core/clock-deadline-time-horizon
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 166 /arm/bk7258/t5ai_core/clock-deadline-exact-fit
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 167 /arm/bk7258/t5ai_core/lpo-mux-source-loss-gates-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 168 /arm/bk7258/t5ai_core/mailbox-order-full
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 169 /arm/bk7258/t5ai_core/mailbox-protection-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-G48UW3/nor.bin,readonly=off -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-G48UW3/status.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-G48UW3/nor.bin,readonly=off -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-G48UW3/status.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-G48UW3/nor.bin,readonly=on -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-G48UW3/status.bin  -accel qtest
+ok 170 /arm/bk7258/t5ai_core/nor-persistence-protection-cancel-readonly
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 171 /arm/bk7258/t5ai_core/nor-without-host-backing
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 172 /arm/bk7258/t5ai_core/board-owned-nor-immutable-link
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null -kernel /tmp/bk7258-loader-DWYQW3/logical.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -kernel /tmp/bk7258-loader-DWYQW3/logical.bin -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-loader-DWYQW3/nor.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -global bk7258-soc.xip-size=4096  -accel qtest
+ok 173 /arm/bk7258/t5ai_core/explicit-logical-xip-mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine t5ai_core -serial null  -accel qtest
+ok 174 /arm/bk7258/t5ai_core/aidk-properties-absent
+# End of t5ai_core tests
+# Start of aidk_ai_toy tests
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 175 /arm/bk7258/aidk_ai_toy/saradc-default-off
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 176 /arm/bk7258/aidk_ai_toy/saradc-channels-repeat-aliases
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 177 /arm/bk7258/aidk_ai_toy/saradc-deadlines-clock-pause
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645   -accel qtest
+ok 178 /arm/bk7258/aidk_ai_toy/saradc-cancel-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=0 -global bk7258-saradc.input2=4095 -global bk7258-saradc.input3=1 -global bk7258-saradc.input4=2048 -global bk7258-saradc.input5=1370 -global bk7258-saradc.input6=2645 -d unimp,guest_errors,invalid_mem -D /tmp/bk7258-saradc-SPAYW3/rejections.log  -accel qtest
+ok 179 /arm/bk7258/aidk_ai_toy/saradc-rejections-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -d unimp,guest_errors -D /tmp/bk7258-saradc-inputs-RA11W3/absent.log  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input1=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input2=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input3=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input4=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input5=4096  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-saradc=on -global bk7258-saradc.input6=4294967294  -accel qtest
+ok 180 /arm/bk7258/aidk_ai_toy/saradc-input-validation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 181 /arm/bk7258/aidk_ai_toy/core-clocks-known-tuples-analog-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-core-clocks=on -d unimp,guest_errors -D /tmp/bk7258-core-clock-1DK6W3/unimplemented.log  -accel qtest
+ok 182 /arm/bk7258/aidk_ai_toy/core-clocks-unknown-source-off-logs
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 183 /arm/bk7258/aidk_ai_toy/core-clocks-default-off
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-743RW3/sock -serial chardev:s0 -machine aidk_ai_toy -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 184 /arm/bk7258/aidk_ai_toy/core-clocks-peripheral-deadlines
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 185 /arm/bk7258/aidk_ai_toy/core-clocks-systick-live-pause-repeat
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 186 /arm/bk7258/aidk_ai_toy/core-clocks-systick-disabled-zero-lpo
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-0Z62W3/sock -serial chardev:s0 -machine aidk_ai_toy  -accel qtest
+ok 187 /arm/bk7258/aidk_ai_toy/uart-tx-fifo-framing-order
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 188 /arm/bk7258/aidk_ai_toy/uart-tx-service-mask-w1c-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-EBLPW3/sock -serial chardev:s0 -machine aidk_ai_toy  -accel qtest
+ok 189 /arm/bk7258/aidk_ai_toy/uart-tx-clock-pause-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-EWORW3/sock -serial chardev:s0 -machine aidk_ai_toy  -accel qtest
+ok 190 /arm/bk7258/aidk_ai_toy/uart-tx-directional-flush-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 191 /arm/bk7258/aidk_ai_toy/watchdog-deadline-time-horizon
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-YJZ0W3/sock -serial chardev:s0 -machine aidk_ai_toy  -accel qtest
+ok 192 /arm/bk7258/aidk_ai_toy/uart-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 193 /arm/bk7258/aidk_ai_toy/spi-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 194 /arm/bk7258/aidk_ai_toy/spi-ideal-apll-profiles-gates-transactions
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 195 /arm/bk7258/aidk_ai_toy/spi-ideal-apll-committed-pulse-lifecycle
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 196 /arm/bk7258/aidk_ai_toy/spi-ideal-apll-atomic-commit-policy
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0 -d unimp,guest_errors -D /tmp/bk7258-ideal-apll-7VLYW3/unimplemented.log  -accel qtest
+ok 197 /arm/bk7258/aidk_ai_toy/spi-ideal-apll-unknown-profile-logs
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 198 /arm/bk7258/aidk_ai_toy/spi-ideal-apll-remaining-cycle-preservation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0   -accel qtest
+ok 199 /arm/bk7258/aidk_ai_toy/spi-ideal-apll-reset-cancellation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -global bk7258-soc.experimental-spi-apll=on -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0 -global bk7258-soc.experimental-core-clocks=on  -accel qtest
+ok 200 /arm/bk7258/aidk_ai_toy/spi-ideal-apll-default-off-uart-core-xtal
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 201 /arm/bk7258/aidk_ai_toy/i2c-clock-budget-rounding
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 202 /arm/bk7258/aidk_ai_toy/pwm-mixed-preload-enable-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 203 /arm/bk7258/aidk_ai_toy/pwm-counters-compares-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 204 /arm/bk7258/aidk_ai_toy/pwm-prescalers-gates
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 205 /arm/bk7258/aidk_ai_toy/pwm-preload-update-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 206 /arm/bk7258/aidk_ai_toy/pwm-wrap-coalesce-unsupported
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 207 /arm/bk7258/aidk_ai_toy/dma-widths-aliases-all-channels
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 208 /arm/bk7258/aidk_ai_toy/dma-half-mask-w1c-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 209 /arm/bk7258/aidk_ai_toy/dma-bus-error-partial-progress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 210 /arm/bk7258/aidk_ai_toy/dma-round-robin-disable-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 211 /arm/bk7258/aidk_ai_toy/dma-max-length-event-rearm
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 212 /arm/bk7258/aidk_ai_toy/dma-unsupported-modes-no-progress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 213 /arm/bk7258/aidk_ai_toy/memory-uart-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 214 /arm/bk7258/aidk_ai_toy/sys-flash-clock-consumer
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 215 /arm/bk7258/aidk_ai_toy/sys-flash-clock-configuration
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 216 /arm/bk7258/aidk_ai_toy/sys-flash-configuration-readback-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 217 /arm/bk7258/aidk_ai_toy/sys-flash-unsupported-fields-atomic
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 218 /arm/bk7258/aidk_ai_toy/uart-clocks-gates-divider
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-FFDVW3/sock -serial chardev:s0 -machine aidk_ai_toy  -accel qtest
+ok 219 /arm/bk7258/aidk_ai_toy/uart-rx-clock-pause-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-FI50W3/sock -serial chardev:s0 -machine aidk_ai_toy  -accel qtest
+ok 220 /arm/bk7258/aidk_ai_toy/uart-rx-capacity-wrap-backpressure
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-ZBJ4W3/sock -serial chardev:s0 -machine aidk_ai_toy  -accel qtest
+ok 221 /arm/bk7258/aidk_ai_toy/uart-rx-width-snapshot-mask-flush
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -chardev socket,id=s0,path=/tmp/qtest-serial-B7N5W3/sock -serial chardev:s0 -machine aidk_ai_toy  -accel qtest
+ok 222 /arm/bk7258/aidk_ai_toy/uart-rx-width-backpressure
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 223 /arm/bk7258/aidk_ai_toy/watchdog-keys-expiry
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 224 /arm/bk7258/aidk_ai_toy/watchdog-sources-pause-recovery
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 225 /arm/bk7258/aidk_ai_toy/spi-lsb-byte-order-cancel-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 226 /arm/bk7258/aidk_ai_toy/spi-native-frames-irq-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 227 /arm/bk7258/aidk_ai_toy/spi-fifo-overflow-starvation
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 228 /arm/bk7258/aidk_ai_toy/spi-completed-config-atomic-rejection
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 229 /arm/bk7258/aidk_ai_toy/spi-fifo-threshold-boundaries
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 230 /arm/bk7258/aidk_ai_toy/spi-clock-loss-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -device w25q32,bus=spi0,cs=1  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -device w25q32,bus=spi0,cs=0 -device w25q32,bus=spi0,cs=0  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -device w25q32,bus=spi1,cs=1  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -device w25q32,bus=spi1,cs=0 -device w25q32,bus=spi1,cs=0  -accel qtest
+ok 231 /arm/bk7258/aidk_ai_toy/spi-invalid-cs-wiring
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 232 /arm/bk7258/aidk_ai_toy/i2c-fifo-native-bus-transactions
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 233 /arm/bk7258/aidk_ai_toy/i2c-w0c-nak-irq-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 234 /arm/bk7258/aidk_ai_toy/i2c-clock-reset-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c0,address=0x51,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x51,rom-size=256  -accel qtest
+ok 235 /arm/bk7258/aidk_ai_toy/i2c-readdress
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c0,address=0x51,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x51,rom-size=256  -accel qtest
+ok 236 /arm/bk7258/aidk_ai_toy/i2c-readdress-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -device at24c-eeprom,bus=i2c0,address=0x50,rom-size=256 -device at24c-eeprom,bus=i2c1,address=0x50,rom-size=256  -accel qtest
+ok 237 /arm/bk7258/aidk_ai_toy/i2c-register-write-deadline
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 238 /arm/bk7258/aidk_ai_toy/timer-groups-channels-routes-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 239 /arm/bk7258/aidk_ai_toy/timer-clock-snapshot-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 240 /arm/bk7258/aidk_ai_toy/timer-prescaler-boundaries
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 241 /arm/bk7258/aidk_ai_toy/timer-32bit-wrap-lowered-end
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 242 /arm/bk7258/aidk_ai_toy/rtc-counter-clock-sync-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 243 /arm/bk7258/aidk_ai_toy/rtc-compare-routes-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 244 /arm/bk7258/aidk_ai_toy/rtc-64bit-upper-wrap
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 245 /arm/bk7258/aidk_ai_toy/gpio-mask-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 246 /arm/bk7258/aidk_ai_toy/gpio-retained-warm-reset-edges-levels
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 247 /arm/bk7258/aidk_ai_toy/board-led-key-wiring
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 248 /arm/bk7258/aidk_ai_toy/gpio-external-release
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 249 /arm/bk7258/aidk_ai_toy/analog-busy-cancel
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 250 /arm/bk7258/aidk_ai_toy/clock-ratio-routes
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 251 /arm/bk7258/aidk_ai_toy/clock-source-loss-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 252 /arm/bk7258/aidk_ai_toy/clock-deadline-time-horizon
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 253 /arm/bk7258/aidk_ai_toy/clock-deadline-exact-fit
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 254 /arm/bk7258/aidk_ai_toy/lpo-mux-source-loss-gates-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 255 /arm/bk7258/aidk_ai_toy/mailbox-order-full
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 256 /arm/bk7258/aidk_ai_toy/mailbox-protection-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-DT8ZW3/nor.bin,readonly=off -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-DT8ZW3/status.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-DT8ZW3/nor.bin,readonly=off -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-DT8ZW3/status.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-qtest-DT8ZW3/nor.bin,readonly=on -drive if=pflash,unit=1,format=raw,file=/tmp/bk7258-qtest-DT8ZW3/status.bin  -accel qtest
+ok 257 /arm/bk7258/aidk_ai_toy/nor-persistence-protection-cancel-readonly
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 258 /arm/bk7258/aidk_ai_toy/nor-without-host-backing
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 259 /arm/bk7258/aidk_ai_toy/board-owned-nor-immutable-link
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null -kernel /tmp/bk7258-loader-YFHWW3/logical.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -kernel /tmp/bk7258-loader-YFHWW3/logical.bin -drive if=pflash,unit=0,format=raw,file=/tmp/bk7258-loader-YFHWW3/nor.bin  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -global bk7258-soc.xip-size=4096  -accel qtest
+ok 260 /arm/bk7258/aidk_ai_toy/explicit-logical-xip-mode
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 261 /arm/bk7258/aidk_ai_toy/key-contacts-pulls-independence
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 262 /arm/bk7258/aidk_ai_toy/leds-independent-read-only
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 263 /arm/bk7258/aidk_ai_toy/key-irq55-mask-w1c
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy -serial null  -accel qtest
+ok 264 /arm/bk7258/aidk_ai_toy/held-contacts-reset
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy,key1-pressed=off,key2-pressed=off,user-key-pressed=off -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy,key1-pressed=on,key2-pressed=off,user-key-pressed=off -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy,key1-pressed=off,key2-pressed=on,user-key-pressed=off -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy,key1-pressed=on,key2-pressed=on,user-key-pressed=off -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy,key1-pressed=off,key2-pressed=off,user-key-pressed=on -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy,key1-pressed=on,key2-pressed=off,user-key-pressed=on -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy,key1-pressed=off,key2-pressed=on,user-key-pressed=on -serial null  -accel qtest
+# starting QEMU: exec ./qemu-system-arm -qtest unix:/tmp/qtest-1010346.sock -qtest-log /dev/null -chardev socket,path=/tmp/qtest-1010346.qmp,id=char0 -object monitor-qmp,id=qmp0,chardev=char0 -display none -audio none -run-with exit-with-parent=on -machine aidk_ai_toy,key1-pressed=on,key2-pressed=on,user-key-pressed=on -serial null  -accel qtest
+ok 265 /arm/bk7258/aidk_ai_toy/cli-contact-presets
+# End of aidk_ai_toy tests
+# End of bk7258 tests
+# End of arm tests
+----------------------------------- stderr -----------------------------------
+qemu-system-arm: BK7258 SARADC input1 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input2 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input3 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input4 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input5 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input6 must be a 12-bit raw code
+qemu-system-arm: -device w25q32,bus=spi0,cs=1: BK7258 SPI supports one CS0 low-active or CS-less endpoint per bus
+qemu-system-arm: -device w25q32,bus=spi0,cs=0: Bus 'spi0' is full
+qemu-system-arm: -device w25q32,bus=spi1,cs=1: BK7258 SPI supports one CS0 low-active or CS-less endpoint per bus
+qemu-system-arm: -device w25q32,bus=spi1,cs=0: Bus 'spi1' is full
+qemu-system-arm: BK7258: choose physical NOR image or diagnostic ELF, not both
+qemu-system-arm: BK7258 physical NOR mode requires its exact XIP size
+qemu-system-arm: BK7258 SARADC input1 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input2 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input3 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input4 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input5 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input6 must be a 12-bit raw code
+qemu-system-arm: -device w25q32,bus=spi0,cs=1: BK7258 SPI supports one CS0 low-active or CS-less endpoint per bus
+qemu-system-arm: -device w25q32,bus=spi0,cs=0: Bus 'spi0' is full
+qemu-system-arm: -device w25q32,bus=spi1,cs=1: BK7258 SPI supports one CS0 low-active or CS-less endpoint per bus
+qemu-system-arm: -device w25q32,bus=spi1,cs=0: Bus 'spi1' is full
+qemu-system-arm: BK7258: choose physical NOR image or diagnostic ELF, not both
+qemu-system-arm: BK7258 physical NOR mode requires its exact XIP size
+qemu-system-arm: BK7258 SARADC input1 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input2 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input3 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input4 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input5 must be a 12-bit raw code
+qemu-system-arm: BK7258 SARADC input6 must be a 12-bit raw code
+qemu-system-arm: -device w25q32,bus=spi0,cs=1: BK7258 SPI supports one CS0 low-active or CS-less endpoint per bus
+qemu-system-arm: -device w25q32,bus=spi0,cs=0: Bus 'spi0' is full
+qemu-system-arm: -device w25q32,bus=spi1,cs=1: BK7258 SPI supports one CS0 low-active or CS-less endpoint per bus
+qemu-system-arm: -device w25q32,bus=spi1,cs=0: Bus 'spi1' is full
+qemu-system-arm: BK7258: choose physical NOR image or diagnostic ELF, not both
+qemu-system-arm: BK7258 physical NOR mode requires its exact XIP size
+==============================================================================
+
+
+Ok:                3   
+Fail:              0   
