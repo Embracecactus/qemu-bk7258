@@ -12,3 +12,6 @@ Full validation logs include command lines and individual test outcomes.
 Final exact-SHA CI receipt and archive hash are delivered separately after CI;
 local validation files must not be interpreted as evidence of CI success.
 No /tmp filename is a published download address.
+
+Meson TXT/JSON logs omit unrelated inherited host environment; TXT trailing
+spaces are normalized. Commands, test output/results, UART and trace are kept.
