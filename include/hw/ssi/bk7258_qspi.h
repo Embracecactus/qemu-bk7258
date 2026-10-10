@@ -16,7 +16,7 @@ struct BK7258QSPIState {
     qemu_irq cs;
     QEMUTimer *timer;
     uint32_t cmd[2][4], config, done;
-    uint8_t data[36], command[4];
+    uint8_t data[256], command[4];
     unsigned bank, command_len, length, pos, hz;
     uint64_t cycles;
     int64_t deadline;

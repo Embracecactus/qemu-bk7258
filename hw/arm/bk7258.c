@@ -119,16 +119,19 @@ static void bk7258_update_flash_clock(BK7258State *s)
     clock_update_hz(s->flashclk, hz);
 }
 
-/* Finite SDK 480 MHz / SYS divider 9 / controller divider 0 = 48 MHz. */
+/* Post-SYS/pre-local clock: finite 480/9 and 480/4 SDK profiles. */
 static void bk7258_update_qspi_clocks(BK7258State *s)
 {
     uint32_t cfg[] = { s->flash_clock_config, s->clock_select };
 
     for (unsigned i = 0; i < 2; i++) {
-        bool available = (cfg[i] & 0x7c0) == 0x640 &&
-                         (s->analog[5] & (1U << 5)) &&
+        unsigned tuple = cfg[i] & 0x7c0;
+        unsigned hz = tuple == 0x640 ? 48000000 :
+                      tuple == 0x500 ? 96000000 : 0;
+        bool available = (s->analog[5] & (1U << 5)) &&
                          (s->peripheral_clocks & (1U << (20 + i)));
-        clock_update_hz(s->qspiclk[i], available ? 48000000 : 0);
+
+        clock_update_hz(s->qspiclk[i], available ? hz : 0);
     }
 }
 

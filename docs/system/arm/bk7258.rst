@@ -127,10 +127,10 @@ OpenVela source or profile changes are required for that gate.
      - 16-bit/3-wire/slave/RX-only modes, raw-divider0, wire-edge timing,
        general PLL behavior, DMA and physical pinmux/CS routing
    * - QSPI0/1
-     - Single-line, zero-dummy CMDC/CMDD PIO through native SSI; 0..32 data
-       bytes, polling completion, finite 48 MHz clock profile, pause/cancel
+     - Single-line, zero-dummy CMDC/CMDD PIO through native SSI; 0..256 data
+       bytes, polling completion, finite 24/48 MHz clock profiles, pause/cancel
      - IRQ, complete FIFO capacity, general clocks, quad, XIP, DMA and
-       physical reset/pin behavior; see :doc:`bk7258-qspi-v4`
+       physical reset/pin behavior; see :doc:`bk7258-qspi-v5`
    * - DMA0/1
      - Two eight-channel shared-RAM engines, equal 8/16/32-bit widths,
        real memory transactions, partial-error progress and NS IRQ0/57

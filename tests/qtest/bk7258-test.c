@@ -1322,11 +1322,216 @@ static void test_qspi_pause_data(const void *board)
     qtest_quit(qts);
 }
 
+static void qspi_page_profile(QTestState *qts, unsigned unit, bool slow)
+{
+    uint32_t sys = SYS + (unit ? 0x28 : 0x24);
+    uint32_t value = qtest_readl(qts, sys);
+
+    qtest_writel(qts, sys, (value & ~0x7c0U) | (slow ? 0x500 : 0x640));
+    qtest_writel(qts, 0x46040060 + unit * 0x20000, slow ? 0x209 : 9);
+}
+
+static uint32_t qspi_page_word(unsigned word, unsigned salt)
+{
+    uint32_t value = 0;
+
+    for (unsigned i = 0; i < 4; i++) {
+        value |= ((word * 4 + i) * 37 + salt) % 256 << (8 * i);
+    }
+    return value;
+}
+
+static void test_qspi_page_boundaries(const void *board)
+{
+    QTestState *qts = start_qspi(board);
+    const unsigned lengths[] = { 32, 33, 244, 245, 255, 256 };
+
+    qspi_setup(qts);
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = 0x46040000 + g * 0x20000;
+        qspi_page_profile(qts, g, g == 1);
+        /* No controller-side WREN: target must ignore an unauthorized program. */
+        qspi_begin(qts, b, false, 4, false, 0);
+        qspi_finish(qts, b);
+        qtest_writel(qts, b + 0x100, 0);
+        qspi_begin(qts, b, false, 0x200002, true, 1);
+        qspi_finish(qts, b);
+        qspi_begin(qts, b, true, 0x200003, true, 1);
+        qspi_finish(qts, b);
+        g_assert_cmphex(qtest_readl(qts, b + 0x100) & 255, ==, 255);
+        for (unsigned k = 0; k < ARRAY_SIZE(lengths); k++) {
+            unsigned n = lengths[k], salt = g * 83 + k * 17;
+            qspi_begin(qts, b, false, 6, false, 0);
+            qspi_finish(qts, b);
+            for (unsigned j = 0; j < 64; j++) {
+                qtest_writel(qts, b + 0x10000000 + 0x100 + j * 4,
+                             qspi_page_word(j, salt));
+            }
+            /* Explicit tail words, beyond the fixed SDK declaration. */
+            expect(qts, b + 0x1f4, qspi_page_word(61, salt));
+            expect(qts, b + 0x1f8, qspi_page_word(62, salt));
+            expect(qts, b + 0x1fc, qspi_page_word(63, salt));
+            qspi_begin(qts, b, false, 2 | ((k + 1) << 16), true, n);
+            qtest_clock_step(qts, 100000);
+            expect(qts, b + 0x70, 4);
+            for (unsigned j = 0; j < 64; j++) {
+                qtest_writel(qts, b + 0x100 + j * 4, 0xa5a5a5a5);
+            }
+            qspi_begin(qts, b, true, 3 | ((k + 1) << 16), true, n);
+            qtest_clock_step(qts, 100000);
+            expect(qts, b + 0x70, 4);
+            for (unsigned j = 0; j < 256; j++) {
+                uint32_t value = qtest_readl(qts, b + 0x100 + (j / 4) * 4);
+                g_assert_cmphex((value >> (8 * (j % 4))) & 255, ==,
+                                j < n ? (j * 37 + salt) % 256 : 0xa5);
+            }
+            /* The target owns page geometry; no padding leaves the controller. */
+            qspi_begin(qts, b, true,
+                       3 | ((k + 1 + n / 256) << 16) | ((n % 256) << 24),
+                       true, 1);
+            qspi_finish(qts, b);
+            g_assert_cmphex(qtest_readl(qts, b + 0x100) & 255, ==, 255);
+        }
+    }
+    /* A later controller/page cannot overwrite the first target. */
+    qspi_begin(qts, 0x46040000, true, 0x60003, true, 256);
+    qspi_begin(qts, 0x46060000, true, 0x60003, true, 256);
+    qtest_clock_step(qts, 100000);
+    expect(qts, 0x460401fc, qspi_page_word(63, 85));
+    expect(qts, 0x460601fc, qspi_page_word(63, 168));
+    qtest_quit(qts);
+}
+
+static void test_qspi_flash_clock_progress(const void *board)
+{
+    QTestState *qts = start_qspi(board);
+
+    qspi_setup(qts);
+    for (unsigned g = 0; g < 2; g++) {
+        uint32_t b = 0x46040000 + g * 0x20000;
+        g_autofree char *path = g_strdup_printf("/machine/soc/qspi[%u]/sclk", g);
+        qspi_page_profile(qts, g, true);
+        expect_clock(qts, path, 96000000); /* Input, not final SCK. */
+        qspi_begin(qts, b, false, 6, false, 0);
+        qtest_clock_step(qts, 333);
+        expect(qts, b + 0x70, 0);
+        qtest_clock_step(qts, 1);
+        expect(qts, b + 0x70, 4);
+        qspi_begin(qts, b, true, 5, false, 1);
+        qtest_clock_step(qts, 667);
+        expect(qts, b + 0x70, 0);
+        qtest_clock_step(qts, 1);
+        expect(qts, b + 0x70, 4);
+        g_assert_cmphex(qtest_readl(qts, b + 0x100) & 2, ==, 2);
+        /* Unknown pairing 480/4/0 must not become 96 MHz SCK. */
+        qtest_writel(qts, b + 0x60, 9);
+        qspi_begin(qts, b, false, 4, false, 0);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        qtest_writel(qts, b + 0x60, 0);
+        qspi_page_profile(qts, g, true);
+        qspi_begin(qts, b, false, 4, false, 0);
+        qtest_clock_step(qts, 100);
+        qtest_writel(qts, SYS + 0x30, 0);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        qtest_writel(qts, SYS + 0x30, 3U << 20);
+        qtest_clock_step(qts, 249);
+        expect(qts, b + 0x70, 0);
+        qtest_clock_step(qts, 1);
+        expect(qts, b + 0x70, 4);
+        qspi_begin(qts, b, true, 5, false, 1);
+        qspi_finish(qts, b);
+        g_assert_cmphex(qtest_readl(qts, b + 0x100) & 2, ==, 0);
+        qtest_writel(qts, SYS + 0x114, 0);
+        qtest_clock_step(qts, 1000);
+        qspi_begin(qts, b, false, 6, false, 0);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        qtest_writel(qts, SYS + 0x114, 1U << 5);
+        qtest_clock_step(qts, 999);
+        expect_clock(qts, path, 0);
+        qtest_clock_step(qts, 1);
+        qtest_clock_step(qts, 333);
+        expect(qts, b + 0x70, 0);
+        qtest_clock_step(qts, 1);
+        expect(qts, b + 0x70, 4);
+        qspi_page_profile(qts, g, false);
+        qtest_writel(qts, b + 0x60, 0x209); /* Other unknown pairing: 480/9/2. */
+        qspi_begin(qts, b, false, 6, false, 0);
+        qtest_clock_step(qts, 100000);
+        expect(qts, b + 0x70, 0);
+        qtest_writel(qts, b + 0x60, 0);
+        qspi_page_profile(qts, g, false);
+        qspi_begin(qts, b, false, 6, false, 0);
+        qtest_clock_step(qts, 166);
+        expect(qts, b + 0x70, 0);
+        qtest_clock_step(qts, 1);
+        expect(qts, b + 0x70, 4);
+    }
+    qtest_quit(qts);
+}
+
+static void test_qspi_page_pause_cancel(const void *board)
+{
+    QTestState *qts = start_qspi(board);
+
+    for (unsigned mode = 0; mode < 3; mode++) {
+        qspi_setup(qts);
+        qspi_page_profile(qts, 0, true);
+        qspi_page_profile(qts, 1, true);
+        for (unsigned g = 0; g < 2; g++) {
+            uint32_t b = 0x46040000 + g * 0x20000;
+            qspi_begin(qts, b, false, 6, false, 0);
+            qspi_finish(qts, b);
+            for (unsigned j = 0; j < 64; j++) {
+                qtest_writel(qts, b + 0x100 + j * 4,
+                             qspi_page_word(j, g * 83 + mode * 17));
+            }
+        }
+        qspi_begin(qts, 0x46040000, false, 2 | ((mode + 16) << 16), true, 256);
+        qspi_begin(qts, 0x46060000, false, 2 | ((mode + 16) << 16), true, 256);
+        qtest_clock_step(qts, 334 * (4 + 160));
+        qtest_writel(qts, SYS + 0x30, 1U << 21);
+        qtest_clock_step(qts, 100000);
+        expect(qts, 0x46040070, 0);
+        expect(qts, 0x46060070, 4); /* Gate and progress isolation. */
+        if (mode == 1) {
+            qtest_writel(qts, 0x46040060, 0);
+        } else if (mode == 2) {
+            qtest_system_reset(qts);
+            qspi_setup(qts);
+            qspi_page_profile(qts, 0, true);
+        }
+        qtest_writel(qts, SYS + 0x30, 3U << 20);
+        qtest_clock_step(qts, 100000);
+        expect(qts, 0x46040070, mode == 0 ? 4 : 0);
+        qtest_writel(qts, 0x46040060, 0x209);
+        for (unsigned g = 0; g < 2; g++) {
+            uint32_t b = 0x46040000 + g * 0x20000;
+            if (mode == 2 && g == 1) {
+                qspi_page_profile(qts, 1, true);
+            }
+            qspi_begin(qts, b, true, 3 | ((mode + 16) << 16), true, 256);
+            qtest_clock_step(qts, 100000);
+            expect(qts, b + 0x70, 4);
+            for (unsigned j = 0; j < 256; j++) {
+                unsigned expected = g || !mode || j < 160 ?
+                    (j * 37 + g * 83 + mode * 17) % 256 : 255;
+                uint32_t value = qtest_readl(qts, b + 0x100 + (j / 4) * 4);
+                g_assert_cmphex((value >> (8 * (j % 4))) & 255, ==, expected);
+            }
+        }
+    }
+    qtest_quit(qts);
+}
+
 static void test_qspi_rejections(const void *board)
 {
     QTestState *qts = start_qspi(board);
     uint32_t b = 0x46040000;
-    const uint32_t invalid[] = { 1 | (33 << 2), 1 | (1 << 14) | 4,
+    /* V5 legalizes 33 bytes; the out-of-contract boundary is now 257. */
+    const uint32_t invalid[] = { 1 | (257 << 2), 1 | (1 << 14) | 4,
         1 | (1 << 16) | 4, 1 | (4 << 24) | 4, 3 | 4 };
 
     qspi_setup(qts);
@@ -1345,6 +1550,10 @@ static void test_qspi_rejections(const void *board)
     expect(qts, b + 0x60, 9);
     qtest_writel(qts, b + 0x60, 11); /* CPOL unsupported. */
     expect(qts, b + 0x60, 9);
+    qtest_writel(qts, b + 0x60, 9 | (1U << 19)); /* XIP/AHB mode. */
+    expect(qts, b + 0x60, 9);
+    qtest_writel(qts, b + 0x2c, 1); /* CMDA memory-mapped START. */
+    expect(qts, b + 0x70, 0);
     qtest_writel(qts, b + 0x68, 4); /* IRQ is not silently accepted. */
     qspi_begin(qts, b, true, 5, false, 1);
     qspi_finish(qts, b);
@@ -1354,6 +1563,11 @@ static void test_qspi_rejections(const void *board)
     qtest_writel(qts, b + 0x58, 0xc);
     qtest_writel(qts, b + 0x5c, 1); /* Zero-length read is invalid. */
     expect(qts, b + 0x5c, 4);
+    qtest_writel(qts, b + 0x6c, 4);
+    qtest_writel(qts, b + 0x5c, (257 << 2) | 1);
+    qtest_clock_step(qts, 100000);
+    expect(qts, b + 0x5c, 4);
+    expect(qts, b + 0x70, 0);
     qtest_quit(qts);
 }
 
@@ -5347,6 +5561,9 @@ int main(int argc, char **argv)
         {"qspi-clock-cancel", test_qspi_clock_cancel},
         {"qspi-rejections", test_qspi_rejections},
         {"qspi-pause-data", test_qspi_pause_data},
+        {"qspi-page-boundaries", test_qspi_page_boundaries},
+        {"qspi-flash-clock-progress", test_qspi_flash_clock_progress},
+        {"qspi-page-pause-cancel", test_qspi_page_pause_cancel},
         {"saradc-default-off", test_saradc_default_off},
         {"saradc-channels-repeat-aliases", test_saradc_channels_repeat_aliases},
         {"saradc-deadlines-clock-pause", test_saradc_deadlines_clock_pause},

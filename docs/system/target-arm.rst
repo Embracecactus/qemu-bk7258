@@ -74,6 +74,7 @@ Board-specific documentation
    arm/bk7258
    arm/bk7258-i2c-v3
    arm/bk7258-qspi-v4
+   arm/bk7258-qspi-v5
    arm/max78000
    arm/integratorcp
    arm/mps2

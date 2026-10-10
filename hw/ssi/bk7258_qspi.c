@@ -1,7 +1,7 @@
 /*
  * BK7258 bounded single-line indirect PIO via native SSI.
  * SPDX-License-Identifier: GPL-2.0-or-later
- * Contract: docs/system/arm/bk7258-qspi-v4.rst.
+ * Contract: docs/system/arm/bk7258-qspi-v5.rst (extends V4).
  * AI-assisted downstream experiment, not an upstream contribution.
  */
 #include "qemu/osdep.h"
@@ -38,6 +38,17 @@ static void qspi_arm(BK7258QSPIState *s)
     }
 }
 
+/* Input is post-SYS/pre-local clock, not final SCK. Finite tuples only. */
+static void qspi_update_rate(BK7258QSPIState *s)
+{
+    unsigned input = clock_get_hz(s->clk);
+    unsigned local = (s->config >> 8) & 255;
+
+    s->hz = input == 48000000 && local == 0 ? 48000000 :
+            input == 96000000 && local == 2 ? 24000000 : 0;
+    qspi_arm(s);
+}
+
 static void qspi_clock(void *opaque, ClockEvent event)
 {
     BK7258QSPIState *s = opaque;
@@ -48,8 +59,7 @@ static void qspi_clock(void *opaque, ClockEvent event)
                           s->deadline, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         }
     } else {
-        s->hz = clock_get_hz(s->clk);
-        qspi_arm(s);
+        qspi_update_rate(s);
     }
 }
 
@@ -104,8 +114,8 @@ static MemTxResult qspi_read(void *opaque, hwaddr off, uint64_t *value,
         *value = 0;
     } else if (off == 0x70) {
         *value = s->done;
-    } else if (off >= 0x100 && off < 0x124) {
-        /* Extra word is a guard window, never part of a >32-byte transfer. */
+    } else if (off >= 0x100 && off < 0x200) {
+        /* SDK 64-word PIO access; software-visible, not silicon capacity. */
         *value = ldl_le_p(s->data + off - 0x100);
     } else {
         qemu_log_mask(LOG_UNIMP, "bk7258-qspi: unsupported read 0x%"
@@ -123,20 +133,21 @@ static MemTxResult qspi_write(void *opaque, hwaddr off, uint64_t value,
     uint32_t cfg;
 
     if (off == 0x60) {
-        /* Verified clk_rate=0, SPI mode 0, MSB first, optional IO2/3 mode. */
-        if (value & ~9U || (s->active && (value & 1))) {
+        /* Verified local divider 0 or 2, mode 0, MSB, optional IO2/3. */
+        if (value & ~0x209U || (s->active && (value & 1))) {
             goto unsupported;
         }
         if (!(value & 1)) {
             qspi_cancel(s);
         }
         s->config = value;
+        qspi_update_rate(s);
     } else if (off == 0x6c) {
         if (value & ~4U) {
             goto unsupported;
         }
         s->done &= ~value;
-    } else if (off >= 0x100 && off < 0x124) {
+    } else if (off >= 0x100 && off < 0x200) {
         if (s->active) {
             goto unsupported;
         }
@@ -162,7 +173,7 @@ static MemTxResult qspi_write(void *opaque, hwaddr off, uint64_t value,
             }
         }
         len = (value >> 2) & 1023;
-        if (n > 4 || len > 32 || (bank && !len) ||
+        if (n > 4 || len > sizeof(s->data) || (bank && !len) ||
             !(s->config & 1) || s->done) {
             goto unsupported;
         }
@@ -204,6 +215,7 @@ static void qspi_reset(DeviceState *dev)
     memset(s->cmd, 0, sizeof(s->cmd));
     memset(s->data, 0, sizeof(s->data));
     s->config = s->done = 0;
+    qspi_update_rate(s);
 }
 
 static void qspi_realize(DeviceState *dev, Error **errp)
